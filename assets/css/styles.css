@@ -4,26 +4,30 @@
    ========================================================================== */
 
 :root {
-  /* TODO:BRAND - sample exact red/black from /assets/img/logo.png and replace
-     these two values (--belt-red and --ink). Tasteful defaults chosen for now. */
-  --ink: #17130f;          /* near-black, warm */
-  --paper: #f7f4ef;        /* clean off-white */
-  --belt-red: #a11d1d;     /* deep traditional belt red — primary action color */
-  --belt-red-dark: #841616;
-  --belt-gold: #c8992e;    /* used sparingly for accents */
-  --mat-gray: #e7e2d9;     /* light section background */
+  /* BRAND: sampled from the live barestkd.fit site (Duda theme).
+     Primary action red = live --btn-bg-color rgba(233,41,45); button text = white.
+     Body text = live rgba(75,76,83). Backgrounds = white / #f2f2f2 light gray. */
+  --ink: #1a1a1a;          /* near-black — headings / primary text */
+  --paper: #ffffff;        /* white — main background (live content bg) */
+  --belt-red: #e9292d;     /* live brand red — primary action color */
+  --belt-red-dark: #c81f23;/* darker red for hover (live hover is black; kept on-theme) */
+  --belt-gold: #c8992e;    /* minor accent: belt-stripe divider + focus ring */
+  --mat-gray: #f2f2f2;     /* light gray section background (live) */
 
-  --ink-soft: #4a423a;
-  --line: #d9d2c6;
+  --ink-soft: #4b4c53;     /* live muted body-text gray */
+  --line: #dcdcdc;
   --white: #ffffff;
 
   --maxw: 1140px;
   --gutter: clamp(1rem, 4vw, 2rem);
   --radius: 10px;
-  --shadow: 0 6px 24px rgba(23, 19, 15, 0.10);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.10);
 
+  /* Display/headings: live site uses "Winner Sans" (proprietary — Latinotype, not on
+     Google Fonts). Archivo Black is kept as the closest freely-available match. */
   --font-display: "Archivo Black", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Body + buttons: Montserrat — exact match to the live site (free Google Font). */
+  --font-body: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   --header-h: 68px;
 }
@@ -153,7 +157,8 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-family: var(--font-display);
+  font-family: var(--font-body);   /* Montserrat 700 — matches live site buttons */
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 0.95rem;
