@@ -19,8 +19,34 @@
     setupDropdowns();
     setupFaqAccordion();
     setupHeroVideo();
+    setupHeaderCtaReveal();
     setupFadeUp();
   });
+
+  /* ---- Homepage header CTA: hide over hero, fade in past it ----------- */
+  function setupHeaderCtaReveal() {
+    var hero = document.querySelector(".hero");
+    var header = document.querySelector(".site-header");
+    // No hero (interior pages) => leave the header button always visible.
+    if (!hero || !header) return;
+
+    if (!("IntersectionObserver" in window)) {
+      // Fail safe: without IO support, keep the button visible.
+      return;
+    }
+
+    // Start hidden: the hero fills the top of the homepage on load.
+    header.classList.add("hero-cta-hidden");
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        // Hero on screen -> hide the CTA; scrolled past hero -> reveal it.
+        header.classList.toggle("hero-cta-hidden", entry.isIntersecting);
+      });
+    }, { threshold: 0 });
+
+    observer.observe(hero);
+  }
 
   /* ---- Hero video: respect reduced motion --------------------------- */
   function setupHeroVideo() {

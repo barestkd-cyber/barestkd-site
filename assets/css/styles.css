@@ -201,9 +201,16 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   min-height: var(--header-h);
   padding-block: 0.5rem;
 }
-.brand { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--ink); }
-.brand img { height: 44px; width: auto; }
-.brand__text { font-family: var(--font-display); text-transform: uppercase; font-size: 0.95rem; letter-spacing: 0.03em; line-height: 1.05; }
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--ink);
+  flex: 0 0 auto;                /* never let the logo get squished by the nav */
+  padding-inline-start: 0.5rem;  /* breathing room from the left edge */
+  margin-inline-end: 1.5rem;     /* breathing room before the nav */
+}
+.brand img { height: 54px; width: auto; }  /* logo stands alone, slightly larger */
 
 .nav-toggle {
   margin-left: auto;
@@ -221,6 +228,19 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 
 .primary-nav { display: none; }
 .header-cta { display: none; }
+
+/* Homepage only: the header CTA hides while the hero is on screen and fades
+   in once the user scrolls past it (toggled by JS adding .hero-cta-hidden to
+   the header). Interior pages have no .hero, so the button stays visible. */
+.header-cta:not(.header-cta--mobile) { transition: opacity 0.3s ease, visibility 0.3s ease; }
+.site-header.hero-cta-hidden .header-cta:not(.header-cta--mobile) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .header-cta:not(.header-cta--mobile) { transition: none; }
+}
 
 /* mobile nav open state */
 .primary-nav.is-open {
