@@ -285,10 +285,35 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .has-dropdown.is-open .dropdown { display: block; }
 .dropdown a { padding: 0.6rem 0.25rem 0.6rem 1rem; font-weight: 500; color: var(--ink-soft); }
 
-.header-cta.header-cta--mobile {
-  display: block;
-  margin-top: 1rem;
-  text-align: center;
+/* The header trial button is hidden on mobile — the sticky bottom action bar
+   provides it there instead. It returns at the desktop breakpoint. */
+.header-cta.header-cta--mobile { display: none; }
+
+/* --------------------------------------------------------------------------
+   Mobile sticky bottom action bar (phones/tablets below 900px only)
+   -------------------------------------------------------------------------- */
+.mobile-cta-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 90;
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.55rem var(--gutter);
+  padding-bottom: calc(0.55rem + env(safe-area-inset-bottom, 0px)); /* phone safe area */
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 16px rgba(23, 19, 15, 0.14);
+  transition: transform 0.3s ease;
+}
+.mobile-cta-bar .btn { flex: 1 1 0; min-width: 0; padding-inline: 0.5rem; }
+.mobile-cta-bar.is-hidden { transform: translateY(120%); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .mobile-cta-bar { transition: none; }
+}
+
+/* Reserve space so the fixed bar never covers page content (mobile only). */
+@media (max-width: 899.98px) {
+  body { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* --------------------------------------------------------------------------
@@ -573,6 +598,8 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 
   .header-cta { display: inline-flex; margin-left: 0.75rem; }
   .header-cta--mobile { display: none; }
+
+  .mobile-cta-bar { display: none; }  /* desktop unchanged: no bottom bar */
 }
 
 @media (min-width: 1024px) {

@@ -20,8 +20,28 @@
     setupFaqAccordion();
     setupHeroVideo();
     setupHeaderCtaReveal();
+    setupMobileCtaBar();
     setupFadeUp();
   });
+
+  /* ---- Mobile bottom bar: hide while the contact section is on screen -- */
+  function setupMobileCtaBar() {
+    var bar = document.querySelector("[data-mobile-cta-bar]");
+    if (!bar) return;
+
+    // Only the homepage has #contact. Elsewhere the bar simply stays visible.
+    var contact = document.getElementById("contact");
+    if (!contact || !("IntersectionObserver" in window)) return;
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        // Contact section on screen -> tuck the bar away so it doesn't overlap it.
+        bar.classList.toggle("is-hidden", entry.isIntersecting);
+      });
+    }, { threshold: 0 });
+
+    observer.observe(contact);
+  }
 
   /* ---- Homepage header CTA: hide over hero, fade in past it ----------- */
   function setupHeaderCtaReveal() {
