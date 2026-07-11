@@ -574,18 +574,10 @@ form[data-contact-form],
 .stack > * + * { margin-top: 1rem; }
 .lede { font-size: 1.15rem; color: var(--ink-soft); max-width: 60ch; }
 /* Parenthetical detail dropped onto its own line under a program label
-   (dropdown links and program cards). */
-.label-sub {
-  display: block;
-  font-family: var(--font-body);
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.8em;
-  line-height: 1.25;
-  color: var(--ink-soft);
-  margin-top: 0.1rem;
-}
+   (dropdown links and program cards). Only breaks the line — weight, size,
+   case, and color are inherited so every parenthetical looks identical to
+   its inline siblings. */
+.label-sub { display: block; }
 .placeholder-note {
   font-size: 0.85rem;
   color: var(--ink-soft);
