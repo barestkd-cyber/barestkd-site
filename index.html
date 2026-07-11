@@ -385,6 +385,22 @@
       <div>
 <form data-contact-form novalidate>
   <div class="form-field">
+    <label for="cf-program">Which program are you interested in?</label>
+    <select id="cf-program" name="program" required>
+      <option value="" disabled selected>Select one</option>
+      <option>Taekwondo (Ages 5 to Adult)</option>
+      <option>Kickboxing (Ages 13+)</option>
+      <option>Jiu Jitsu (Ages 13+)</option>
+      <option>Cubs (Ages 3-4)</option>
+      <option>Little Kickers (Parent &amp; Me, Ages 2-4)</option>
+      <option>Homeschool Martial Arts (Daytime Classes)</option>
+      <option>Private Lessons</option>
+      <option>Self-Defense Seminars</option>
+      <option>Strength &amp; Conditioning</option>
+      <option>Not sure yet</option>
+    </select>
+  </div>
+  <div class="form-field">
     <label for="cf-name">Name</label>
     <input id="cf-name" name="name" type="text" autocomplete="name" required>
   </div>
@@ -397,7 +413,7 @@
     <input id="cf-email" name="email" type="email" autocomplete="email" required>
   </div>
   <div class="form-field">
-    <label for="cf-message">Message</label>
+    <label for="cf-message">Leave us a message</label>
     <textarea id="cf-message" name="message" rows="5" required></textarea>
   </div>
   <div class="hp-field" aria-hidden="true">

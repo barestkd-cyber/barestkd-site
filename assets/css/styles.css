@@ -200,6 +200,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   gap: 1rem;
   min-height: var(--header-h);
   padding-block: 0.5rem;
+  position: relative;            /* anchor for the centered mobile logo */
 }
 .brand {
   display: inline-flex;
@@ -207,8 +208,12 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   text-decoration: none;
   color: var(--ink);
   flex: 0 0 auto;                /* never let the logo get squished by the nav */
-  padding-inline-start: 0.5rem;  /* breathing room from the left edge */
-  margin-inline-end: 1.5rem;     /* breathing room before the nav */
+  /* Mobile: center the logo across the full header width; the hamburger
+     stays tappable at the right edge (it keeps its own margin-left:auto). */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 .brand img { height: 54px; width: auto; }  /* logo stands alone, slightly larger */
 
@@ -303,7 +308,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   background: var(--paper);
   border-top: 1px solid var(--line);
   box-shadow: 0 -4px 16px rgba(23, 19, 15, 0.14);
-  transition: transform 0.3s ease;
+  transition: transform 0.2s ease;
 }
 .mobile-cta-bar .btn { flex: 1 1 0; min-width: 0; padding-inline: 0.5rem; }
 .mobile-cta-bar.is-hidden { transform: translateY(120%); pointer-events: none; }
@@ -479,6 +484,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .form-field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
 .form-field label { font-weight: 700; font-size: 0.95rem; }
 .form-field input,
+.form-field select,
 .form-field textarea {
   font: inherit;
   padding: 0.75rem 0.85rem;
@@ -488,6 +494,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   color: var(--ink);
 }
 .form-field input:focus,
+.form-field select:focus,
 .form-field textarea:focus { border-color: var(--belt-red); outline-offset: 1px; }
 .form-consent { font-size: 0.82rem; color: var(--ink-soft); margin-top: 0.75rem; }
 .form-status { margin-top: 1rem; font-weight: 600; }
@@ -585,6 +592,14 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   .grid--3 { grid-template-columns: repeat(3, 1fr); }
   .prog-grid { grid-template-columns: repeat(3, 1fr); }
   .footer-grid { grid-template-columns: 1.6fr 1fr 1fr; }
+
+  /* Desktop header unchanged: logo back in flow at the left, not centered. */
+  .brand {
+    position: static;
+    transform: none;
+    padding-inline-start: 0.5rem;
+    margin-inline-end: 1.5rem;
+  }
 
   .nav-toggle { display: none; }
   .primary-nav { display: block; margin-left: auto; }

@@ -24,23 +24,52 @@
     setupFadeUp();
   });
 
-  /* ---- Mobile bottom bar: hide while the contact section is on screen -- */
+  /* ---- Mobile bottom bar: hide on scroll-down / show on scroll-up, and
+     stay hidden while the contact section is on screen ------------------- */
   function setupMobileCtaBar() {
     var bar = document.querySelector("[data-mobile-cta-bar]");
     if (!bar) return;
 
-    // Only the homepage has #contact. Elsewhere the bar simply stays visible.
+    var contactVisible = false; // #contact in view (homepage only)
+    var scrolledDown = false;   // last scroll direction was downward
+
+    function apply() {
+      // Hidden if the contact section is showing OR the user is scrolling down.
+      bar.classList.toggle("is-hidden", contactVisible || scrolledDown);
+    }
+
+    // Only the homepage has #contact; elsewhere this observer is simply skipped.
     var contact = document.getElementById("contact");
-    if (!contact || !("IntersectionObserver" in window)) return;
+    if (contact && "IntersectionObserver" in window) {
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          contactVisible = entry.isIntersecting;
+          apply();
+        });
+      }, { threshold: 0 });
+      observer.observe(contact);
+    }
 
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        // Contact section on screen -> tuck the bar away so it doesn't overlap it.
-        bar.classList.toggle("is-hidden", entry.isIntersecting);
+    // Hide when scrolling down, reveal when scrolling up (rAF-throttled).
+    var lastY = window.pageYOffset || 0;
+    var ticking = false;
+    var DELTA = 6; // ignore tiny jitters
+
+    window.addEventListener("scroll", function () {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(function () {
+        var y = window.pageYOffset || 0;
+        var dy = y - lastY;
+        if (Math.abs(dy) > DELTA) {
+          // Near the top always shows the bar; otherwise follow the direction.
+          scrolledDown = dy > 0 && y > 40;
+          lastY = y;
+          apply();
+        }
+        ticking = false;
       });
-    }, { threshold: 0 });
-
-    observer.observe(contact);
+    }, { passive: true });
   }
 
   /* ---- Homepage header CTA: hide over hero, fade in past it ----------- */

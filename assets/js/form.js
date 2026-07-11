@@ -31,6 +31,7 @@
       }
 
       var data = {
+        program: getVal(form, "program"),
         name: getVal(form, "name"),
         phone: getVal(form, "phone"),
         email: getVal(form, "email"),
@@ -39,8 +40,8 @@
       };
 
       // Required field validation.
-      if (!data.name || !data.phone || !data.email || !data.message) {
-        setStatus(status, "error", "Please fill in your name, phone, email, and message.");
+      if (!data.program || !data.name || !data.phone || !data.email || !data.message) {
+        setStatus(status, "error", "Please choose a program and fill in your name, phone, email, and message.");
         return;
       }
 
