@@ -215,6 +215,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   text-decoration: none;
   color: var(--ink);
   grid-column: 2;                /* middle column => visually centered */
+  grid-row: 1;
   justify-self: center;
   min-width: 0;
 }
@@ -222,6 +223,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 
 .nav-toggle {
   grid-column: 3;                /* end column, stays tappable at the edge */
+  grid-row: 1;
   justify-self: end;
   display: inline-flex;
   flex-direction: column;
@@ -240,6 +242,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
    Desktop: icon + number, no border, sitting left of the red trial CTA. */
 .call-link {
   grid-column: 1;
+  grid-row: 1;
   justify-self: start;
   display: inline-flex;
   align-items: center;
