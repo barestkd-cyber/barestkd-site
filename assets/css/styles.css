@@ -584,7 +584,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 @media (min-width: 900px) {
   .grid--3 { grid-template-columns: repeat(3, 1fr); }
   .prog-grid { grid-template-columns: repeat(3, 1fr); }
-  .footer-grid { grid-template-columns: 1.6fr 1fr 1fr 1fr; }
+  .footer-grid { grid-template-columns: 1.6fr 1fr 1fr; }
 
   .nav-toggle { display: none; }
   .primary-nav { display: block; margin-left: auto; }
