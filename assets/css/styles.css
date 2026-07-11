@@ -640,16 +640,16 @@ form[data-contact-form],
     margin-inline-end: 1.5rem;
   }
 
-  /* Desktop call link: icon + number, secondary to the red trial button. */
+  /* Desktop call link: compact icon-only, secondary to the red trial button.
+     (The full number won't fit inline next to the dense nav + trial button
+     without forcing the header to wrap, so the header shows just the icon.) */
   .call-link {
+    flex-shrink: 0;
     width: auto; height: auto;
     border: none;
-    padding: 0.5rem 0.4rem;
-    font-size: 0.95rem;
-    white-space: nowrap;
+    padding: 0.4rem;
   }
   .call-link:hover { color: var(--belt-red); }
-  .call-link__num { display: inline; }
 
   .nav-toggle { display: none; }
   .primary-nav { display: block; margin-left: auto; }
@@ -676,7 +676,7 @@ form[data-contact-form],
   .dropdown a { padding: 0.5rem 0.7rem; border-radius: 6px; }
   .dropdown a:hover { background: var(--mat-gray); }
 
-  .header-cta { display: inline-flex; margin-left: 0.75rem; }
+  .header-cta { display: inline-flex; margin-left: 0.75rem; flex-shrink: 0; white-space: nowrap; }
   .header-cta--mobile { display: none; }
 
   .mobile-cta-bar { display: none; }  /* desktop unchanged: no bottom bar */
