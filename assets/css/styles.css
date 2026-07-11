@@ -386,6 +386,20 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .card__body h3 { margin: 0; }
 .card__teaser { margin: 0; color: var(--ink-soft); font-size: 0.98rem; flex: 1; }
 .card .btn { margin-top: 0.5rem; align-self: flex-start; }
+/* "Core Program" badge on a program card */
+.card__badge {
+  align-self: flex-start;
+  margin: 0;
+  background: var(--belt-gold);
+  color: var(--ink);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+  line-height: 1;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+}
 
 /* Program link tiles (compact) */
 .prog-grid { display: grid; grid-template-columns: 1fr; gap: 0.85rem; }
@@ -563,13 +577,14 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 @media (min-width: 640px) {
   .grid--3 { grid-template-columns: repeat(2, 1fr); }
   .prog-grid { grid-template-columns: repeat(2, 1fr); }
-  .footer-grid { grid-template-columns: 1.4fr 1fr 1fr; }
+  .footer-grid { grid-template-columns: repeat(2, 1fr); }
   .contact-grid { grid-template-columns: 1.1fr 0.9fr; }
 }
 
 @media (min-width: 900px) {
   .grid--3 { grid-template-columns: repeat(3, 1fr); }
   .prog-grid { grid-template-columns: repeat(3, 1fr); }
+  .footer-grid { grid-template-columns: 1.6fr 1fr 1fr 1fr; }
 
   .nav-toggle { display: none; }
   .primary-nav { display: block; margin-left: auto; }
