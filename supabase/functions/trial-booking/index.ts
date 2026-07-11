@@ -36,7 +36,7 @@ function corsHeaders(origin: string | null) {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Vary": "Origin",
   };
 }
@@ -50,10 +50,79 @@ function json(obj: unknown, status: number, cors: Record<string, string>) {
   });
 }
 
+function adminClient() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false } },
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   GET /trial-booking — the popup's live schedule.
+   Reads schedule_template (service role) for trial_open=true rows, groups them
+   into marketing programs (grouping only; trial_open is what gates bookability),
+   and returns them with each program's kids flag. Cached a few minutes.
+
+   Grouping mapping (schedule_template.day is 0=Mon … 5=Sat):
+     Taekwondo  = prog-juniors, prog-teen, prog-forms   (Forms serves Jr + Teens/Adults)
+     Cubs       = prog-cubs
+     Kickboxing = prog-kick with a "kickbox" label
+     Jiu Jitsu  = prog-kick with a "jiu"/"bjj" label
+   --------------------------------------------------------------------------- */
+const MARKETING = [
+  { program: "Taekwondo", ageLabel: "Ages 5 to Adult", kids: true,
+    match: (r: any) => ["prog-juniors", "prog-teen", "prog-forms"].includes(r.prog_css) },
+  { program: "Cubs", ageLabel: "Ages 3-4", kids: true,
+    match: (r: any) => r.prog_css === "prog-cubs" },
+  { program: "Kickboxing", ageLabel: "Ages 13+", kids: false,
+    match: (r: any) => r.prog_css === "prog-kick" && /kickbox/i.test(r.label || "") },
+  { program: "Jiu Jitsu", ageLabel: "Ages 13+", kids: false,
+    match: (r: any) => r.prog_css === "prog-kick" && /(jiu|bjj)/i.test(r.label || "") },
+];
+
+const CACHE_MS = 5 * 60 * 1000;
+let scheduleCache: { at: number; data: unknown } | null = null;
+
+async function handleSchedule(cors: Record<string, string>) {
+  const cacheHeaders = { ...cors, "Cache-Control": "public, max-age=300" };
+  const now = Date.now();
+  if (scheduleCache && now - scheduleCache.at < CACHE_MS) {
+    return json(scheduleCache.data, 200, cacheHeaders);
+  }
+  try {
+    const { data: rows, error } = await adminClient()
+      .from("schedule_template")
+      .select("day, time_h, time_m, label, prog_css")
+      .eq("trial_open", true);
+    if (error) throw error;
+
+    const programs = MARKETING.map(function (mkt) {
+      var classes = (rows || []).filter(mkt.match).map(function (r: any) {
+        return {
+          dow: r.day + 1,            // schedule 0=Mon -> JS weekday 1=Mon … 5=Sat -> 6
+          h: r.time_h,               // 24-hour clock source
+          m: r.time_m,
+          label: r.label || mkt.program,
+        };
+      });
+      return { program: mkt.program, ageLabel: mkt.ageLabel, kids: mkt.kids, classes: classes };
+    }).filter(function (p) { return p.classes.length > 0; });
+
+    const payload = { programs: programs };
+    scheduleCache = { at: now, data: payload };
+    return json(payload, 200, cacheHeaders);
+  } catch (e) {
+    console.error("[trial-booking] schedule read failed:", e);
+    return json({ error: "schedule unavailable" }, 500, cors);
+  }
+}
+
 Deno.serve(async (req) => {
   const cors = corsHeaders(req.headers.get("origin"));
 
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method === "GET") return await handleSchedule(cors);
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
 
   let body: Record<string, unknown>;
@@ -68,11 +137,7 @@ Deno.serve(async (req) => {
 
   const type = body.type === "trial" ? "trial" : "contact";
 
-  const admin = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    { auth: { persistSession: false } },
-  );
+  const admin = adminClient();
 
   const today = new Date().toISOString().slice(0, 10);
   let subject = "";
@@ -108,7 +173,7 @@ Deno.serve(async (req) => {
           last_name: lastName,
           segment: "trial",
           member_role: "student",
-          program,
+          program: null, // never store the marketing label on contacts; it lives on trial_bookings + the email
           source: "website-trial",
           entered_on: today,
           email,   // parent's email for kids; the adult's otherwise
@@ -161,7 +226,7 @@ Deno.serve(async (req) => {
         last_name: parts.slice(1).join(" "),
         segment: "lead",
         member_role: "student",
-        program: program || null,
+        program: null, // never store the marketing label on contacts; it lives only in the email
         source: "website-contact",
         entered_on: today,
         email,
@@ -171,14 +236,14 @@ Deno.serve(async (req) => {
 
       subject = `New website contact: ${name}`;
       lines = [
-        program ? `Interested in: ${program}` : "",
+        `Program interest: ${program || "(not specified)"}`,
         `Name: ${name}`,
         `Phone: ${phone}`,
         `Email: ${email}`,
         "",
         `Message:`,
         message,
-      ].filter((l) => l !== undefined);
+      ];
     }
   } catch (e) {
     console.error("[trial-booking] DB insert failed:", e);

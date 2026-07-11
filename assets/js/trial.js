@@ -2,69 +2,36 @@
    Bares Taekwondo Fitness — trial.js
    The on-site "Try 1 Week Free" popup. Every [data-trial-open] button opens a
    3-step modal (choose program -> pick a class -> your info) and submits to the
-   Supabase Edge Function. Vanilla JS only.
+   Supabase Edge Function.
+
+   The program list + class times are LIVE: on modal open we GET the
+   trial-booking function, which reads schedule_template (trial_open=true rows
+   only) and groups them into marketing programs with a kids flag. There is no
+   hardcoded schedule here — edit classes in Class Plan / schedule_template.
 
    No-JS fallback: the buttons keep href="/contact-form", so without JS they
-   simply navigate there.
+   simply navigate there. If the live fetch fails, the modal shows a call
+   number + contact link (never an empty step).
    ========================================================================== */
 (function () {
   "use strict";
 
-  /* ==== Supabase Edge Function endpoint (same function the contact form uses) */
   var ENDPOINT = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/trial-booking";
   var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // publishable (public) key — safe to ship
 
-  /* =======================================================================
-     SCHEDULE — ⚠️ EDIT THIS BLOCK ONLY. One place for every class time.
-       • day:  0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
-       • time: 24-hour "HH:MM"
-       • A program with an empty classes:[] array is HIDDEN from the popup.
-       • kids:true shows the Student name + age fields in step 3.
-
-       TODO:SCHEDULE — these times are PLACEHOLDERS. Replace them with the real
-       weekly schedule, and empty out (or delete) any program that has no
-       bookable weekly class. Little Kickers is intentionally not listed.
-     ======================================================================= */
-  var SCHEDULE = [
-    { key: "taekwondo", name: "Taekwondo", ageLabel: "Ages 5 to Adult", kids: true, classes: [
-      { day: 1, time: "18:00", label: "Taekwondo" },   // TODO:SCHEDULE placeholder
-      { day: 3, time: "18:00", label: "Taekwondo" },   // TODO:SCHEDULE placeholder
-      { day: 6, time: "10:00", label: "Taekwondo" }    // TODO:SCHEDULE placeholder
-    ]},
-    { key: "kickboxing", name: "Kickboxing", ageLabel: "Ages 13+", kids: false, classes: [
-      { day: 2, time: "19:00", label: "Kickboxing" },  // TODO:SCHEDULE placeholder
-      { day: 4, time: "19:00", label: "Kickboxing" }   // TODO:SCHEDULE placeholder
-    ]},
-    { key: "jiujitsu", name: "Jiu Jitsu", ageLabel: "Ages 13+", kids: false, classes: [
-      { day: 1, time: "19:30", label: "Jiu Jitsu" },   // TODO:SCHEDULE placeholder
-      { day: 3, time: "19:30", label: "Jiu Jitsu" }    // TODO:SCHEDULE placeholder
-    ]},
-    { key: "cubs", name: "Cubs", ageLabel: "Ages 3-4", kids: true, classes: [
-      { day: 1, time: "17:30", label: "Cubs" },        // TODO:SCHEDULE placeholder
-      { day: 3, time: "17:30", label: "Cubs" }         // TODO:SCHEDULE placeholder
-    ]},
-    { key: "homeschool", name: "Homeschool Martial Arts", ageLabel: "Daytime classes", kids: true, classes: [
-      { day: 2, time: "12:00", label: "Homeschool Martial Arts" }, // TODO:SCHEDULE placeholder
-      { day: 4, time: "12:00", label: "Homeschool Martial Arts" }  // TODO:SCHEDULE placeholder
-    ]},
-    /* These have NO bookable weekly class yet, so they stay hidden (empty
-       classes). Add times to surface them. TODO:SCHEDULE */
-    { key: "private", name: "Private Lessons", ageLabel: "By appointment", kids: false, classes: [] },
-    { key: "selfdefense", name: "Self-Defense Seminars", ageLabel: "All levels", kids: false, classes: [] },
-    { key: "strength", name: "Strength & Conditioning", ageLabel: "All levels", kids: false, classes: [] }
-  ];
-  /* ===================== end editable SCHEDULE block ===================== */
-
   var CONSENT = "By providing your number you consent to receive marketing/promotional/notification messages from Bares Taekwondo Fitness, to opt-out, reply STOP at any moment. Msg & Data rates may apply";
+  var PHONE = "903-561-2966";
   var DAYS_AHEAD = 14;
   var DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+  // Marketing programs served by the GET. Each: {program, ageLabel, kids,
+  // classes:[{dow (1=Mon..6=Sat), h, m, label}]}. Loaded on open.
+  var PROGRAMS = null;
   var state = { program: null, slot: null };
   var modal, dialog, lastFocused;
 
   document.addEventListener("DOMContentLoaded", function () {
-    // Delegated: any Try-1-Week-Free trigger opens the modal instead of leaving.
     document.addEventListener("click", function (e) {
       var trigger = e.target.closest("[data-trial-open]");
       if (!trigger) return;
@@ -75,14 +42,14 @@
 
   /* ---- helpers -------------------------------------------------------- */
   function bookablePrograms() {
-    return SCHEDULE.filter(function (p) { return p.classes && p.classes.length; });
+    return (PROGRAMS || []).filter(function (p) { return p.classes && p.classes.length; });
   }
 
-  function fmtTime(t) {
-    var p = t.split(":"), h = parseInt(p[0], 10), m = p[1];
+  function fmtTime(h, m) {
     var ap = h >= 12 ? "PM" : "AM";
     var h12 = h % 12; if (h12 === 0) h12 = 12;
-    return h12 + ":" + m + " " + ap;
+    var mm = (m < 10 ? "0" : "") + m;
+    return h12 + ":" + mm + " " + ap;
   }
 
   // Next DAYS_AHEAD days of a program's weekly classes, soonest first.
@@ -92,15 +59,14 @@
       var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
       for (var c = 0; c < program.classes.length; c++) {
         var cls = program.classes[c];
-        if (cls.day !== d.getDay()) continue;
-        var hm = cls.time.split(":");
-        var when = new Date(d.getFullYear(), d.getMonth(), d.getDate(), parseInt(hm[0], 10), parseInt(hm[1], 10));
+        if (cls.dow !== d.getDay()) continue;
+        var when = new Date(d.getFullYear(), d.getMonth(), d.getDate(), cls.h, cls.m);
         if (when.getTime() <= now.getTime()) continue; // skip already-past times today
         out.push({
           iso: when.toISOString(),
           label: cls.label,
           dateText: DOW[when.getDay()] + ", " + MON[when.getMonth()] + " " + when.getDate(),
-          timeText: fmtTime(cls.time)
+          timeText: fmtTime(cls.h, cls.m)
         });
       }
     }
@@ -144,11 +110,11 @@
     if (!modal) buildModal();
     lastFocused = trigger || document.activeElement;
     state = { program: null, slot: null };
-    renderStepProgram();
+    renderLoading();
     modal.removeAttribute("hidden");
     document.documentElement.classList.add("trial-open");
-    var focusable = dialog.querySelector("button:not(.trial-close),a,input,select");
-    (focusable || dialog.querySelector(".trial-close")).focus();
+    dialog.querySelector(".trial-close").focus();
+    loadSchedule();
   }
 
   function closeModal() {
@@ -165,28 +131,53 @@
            '<h2 id="trial-title" class="trial-h">' + title + '</h2>';
   }
 
+  /* ---- load the live schedule ---------------------------------------- */
+  function renderLoading() {
+    setBody(stepHead(1, "Choose your program") + '<p class="trial-note">Loading class times&hellip;</p>');
+  }
+
+  function loadSchedule() {
+    fetch(ENDPOINT, { method: "GET", headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } })
+      .then(function (r) { if (!r.ok) throw new Error("bad " + r.status); return r.json(); })
+      .then(function (data) {
+        PROGRAMS = (data && data.programs) || [];
+        if (!bookablePrograms().length) { renderFallback(); return; }
+        renderStepProgram();
+      })
+      .catch(function (err) {
+        console.error("Schedule load failed:", err);
+        renderFallback();
+      });
+  }
+
+  // Never an empty step: offer a call + contact link.
+  function renderFallback() {
+    setBody(
+      '<h2 id="trial-title" class="trial-h">Let\'s get you booked</h2>' +
+      '<p class="trial-note">We couldn\'t load class times right now. Give us a call and we\'ll set up your free week:</p>' +
+      '<p class="trial-confirm"><a href="tel:' + PHONE + '">' + PHONE + '</a></p>' +
+      '<p class="trial-note">Or <a href="/contact-form">send us a message</a> and we\'ll reach out.</p>' +
+      '<div class="trial-actions"><button class="btn btn--primary" type="button" data-trial-close>Close</button></div>'
+    );
+    var b = dialog.querySelector("[data-trial-close]");
+    if (b) b.focus();
+  }
+
   /* ---- step 1: program ------------------------------------------------ */
   function renderStepProgram() {
     var progs = bookablePrograms();
-    var html = stepHead(1, "Choose your program");
-    if (!progs.length) {
-      html += '<p class="trial-note">Class booking isn\'t available online yet. ' +
-              '<a href="/contact-form">Contact us</a> and we\'ll set up your free week.</p>';
-      setBody(html);
-      return;
-    }
-    html += '<div class="trial-options">';
-    progs.forEach(function (p) {
-      html += '<button class="trial-option" type="button" data-prog="' + p.key + '">' +
-                '<span class="trial-option__name">' + p.name + '</span>' +
+    var html = stepHead(1, "Choose your program") + '<div class="trial-options">';
+    progs.forEach(function (p, i) {
+      html += '<button class="trial-option" type="button" data-idx="' + i + '">' +
+                '<span class="trial-option__name">' + p.program + '</span>' +
                 '<span class="trial-option__sub">' + p.ageLabel + '</span>' +
               '</button>';
     });
     html += '</div>';
     setBody(html);
-    dialog.querySelectorAll("[data-prog]").forEach(function (b) {
+    dialog.querySelectorAll("[data-idx]").forEach(function (b) {
       b.addEventListener("click", function () {
-        state.program = SCHEDULE.filter(function (p) { return p.key === b.getAttribute("data-prog"); })[0];
+        state.program = progs[parseInt(b.getAttribute("data-idx"), 10)];
         renderStepClass();
       });
     });
@@ -196,10 +187,11 @@
   function renderStepClass() {
     var slots = upcomingSlots(state.program);
     var html = stepHead(2, "Pick your first class");
-    html += '<p class="trial-sub">' + state.program.name + ' &middot; ' + state.program.ageLabel + '</p>';
+    html += '<p class="trial-sub">' + state.program.program + ' &middot; ' + state.program.ageLabel + '</p>';
     if (!slots.length) {
       html += '<p class="trial-note">No upcoming class times in the next two weeks. ' +
-              '<a href="/contact-form">Contact us</a> to find a time.</p>';
+              'Call <a href="tel:' + PHONE + '">' + PHONE + '</a> or ' +
+              '<a href="/contact-form">contact us</a> to find a time.</p>';
     } else {
       html += '<div class="trial-options trial-slots">';
       slots.forEach(function (s, i) {
@@ -225,7 +217,7 @@
   function renderStepDetails() {
     var kids = !!state.program.kids;
     var html = stepHead(3, "Your info");
-    html += '<p class="trial-sub">' + state.program.name + ' &middot; ' + state.slot.dateText + ' at ' + state.slot.timeText + '</p>';
+    html += '<p class="trial-sub">' + state.program.program + ' &middot; ' + state.slot.dateText + ' at ' + state.slot.timeText + '</p>';
     html += '<form class="trial-form" novalidate>';
     if (kids) {
       html +=
@@ -269,7 +261,7 @@
 
     var payload = {
       type: "trial",
-      program: state.program.name,
+      program: state.program.program,
       class_label: state.slot.label,
       class_datetime: state.slot.iso,
       contact_name: get("contact_name"),
@@ -304,16 +296,16 @@
   }
 
   function showSuccess() {
-    var html =
+    setBody(
       '<div class="trial-success">' +
         '<div class="trial-check" aria-hidden="true">&#10003;</div>' +
         '<h2 id="trial-title" class="trial-h">You\'re booked!</h2>' +
-        '<p class="trial-sub">' + state.program.name + '</p>' +
+        '<p class="trial-sub">' + state.program.program + '</p>' +
         '<p class="trial-confirm">' + state.slot.dateText + '<br>' + state.slot.timeText + '</p>' +
         '<p class="trial-note">We\'ll reach out to confirm. See you in class!</p>' +
         '<div class="trial-actions"><button class="btn btn--primary" type="button" data-trial-close>Done</button></div>' +
-      '</div>';
-    setBody(html);
+      '</div>'
+    );
     var done = dialog.querySelector("[data-trial-close]");
     if (done) done.focus();
   }
