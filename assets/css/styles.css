@@ -235,6 +235,26 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 }
 .nav-toggle span { display: block; height: 3px; width: 22px; margin-inline: auto; background: var(--ink); border-radius: 2px; }
 
+/* Secondary tap-to-call link. Mobile: a compact icon-only button in the left
+   header column, mirroring the hamburger and keeping the logo centered.
+   Desktop: icon + number, no border, sitting left of the red trial CTA. */
+.call-link {
+  grid-column: 1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 46px; height: 46px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 700;
+}
+.call-link__icon { width: 22px; height: 22px; color: var(--belt-red); flex: 0 0 auto; }
+.call-link__num { display: none; }
+
 .primary-nav { display: none; }
 .header-cta { display: none; }
 
@@ -619,6 +639,17 @@ form[data-contact-form],
     padding-inline-start: 0.5rem;
     margin-inline-end: 1.5rem;
   }
+
+  /* Desktop call link: icon + number, secondary to the red trial button. */
+  .call-link {
+    width: auto; height: auto;
+    border: none;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.95rem;
+    white-space: nowrap;
+  }
+  .call-link:hover { color: var(--belt-red); }
+  .call-link__num { display: inline; }
 
   .nav-toggle { display: none; }
   .primary-nav { display: block; margin-left: auto; }
