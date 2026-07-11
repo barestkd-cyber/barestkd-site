@@ -6,8 +6,9 @@
 (function () {
   "use strict";
 
-  // TODO: replace with the deployed Supabase Edge Function URL.
-  var ENDPOINT = "PASTE_SUPABASE_EDGE_FUNCTION_URL_HERE";
+  // Same Supabase Edge Function the trial popup uses (type:"contact").
+  var ENDPOINT = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/trial-booking";
+  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // publishable (public) key — safe to ship
 
   var SUCCESS_MSG = "Thank you for contacting us. We will get back to you as soon as possible.";
   var ERROR_MSG = "Oops, there was an error sending your message. Please try again later.";
@@ -31,6 +32,7 @@
       }
 
       var data = {
+        type: "contact",
         program: getVal(form, "program"),
         name: getVal(form, "name"),
         phone: getVal(form, "phone"),
@@ -45,19 +47,12 @@
         return;
       }
 
-      // Endpoint not configured yet.
-      if (ENDPOINT.indexOf("PASTE_") !== -1) {
-        console.warn("Contact form endpoint is not configured yet (ENDPOINT still contains PASTE_).");
-        setStatus(status, "error", ERROR_MSG);
-        return;
-      }
-
       setBusy(button, true);
       setStatus(status, "", "Sending…");
 
       fetch(ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY },
         body: JSON.stringify(data)
       })
         .then(function (res) {
