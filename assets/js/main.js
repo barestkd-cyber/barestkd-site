@@ -24,52 +24,55 @@
     setupFadeUp();
   });
 
-  /* ---- Mobile bottom bar: hide on scroll-down / show on scroll-up, and
-     stay hidden while the contact section is on screen ------------------- */
+  /* ---- Mobile bottom bar: visible on load, hides on scroll-down, returns
+     on scroll-up, and stays hidden while the contact section is on screen.
+     State is computed from live geometry every scroll (no IntersectionObserver
+     combine that could get stuck hidden). ------------------------------- */
   function setupMobileCtaBar() {
     var bar = document.querySelector("[data-mobile-cta-bar]");
     if (!bar) return;
 
-    var contactVisible = false; // #contact in view (homepage only)
-    var scrolledDown = false;   // last scroll direction was downward
-
-    function apply() {
-      // Hidden if the contact section is showing OR the user is scrolling down.
-      bar.classList.toggle("is-hidden", contactVisible || scrolledDown);
-    }
-
-    // Only the homepage has #contact; elsewhere this observer is simply skipped.
-    var contact = document.getElementById("contact");
-    if (contact && "IntersectionObserver" in window) {
-      var observer = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          contactVisible = entry.isIntersecting;
-          apply();
-        });
-      }, { threshold: 0 });
-      observer.observe(contact);
-    }
-
-    // Hide when scrolling down, reveal when scrolling up (rAF-throttled).
+    var contact = document.getElementById("contact"); // homepage only; null elsewhere
     var lastY = window.pageYOffset || 0;
+    var hidden = false;
     var ticking = false;
-    var DELTA = 6; // ignore tiny jitters
+    var DELTA = 6; // ignore tiny scroll jitters
+
+    function contactOnScreen() {
+      if (!contact) return false;
+      var r = contact.getBoundingClientRect();
+      var vh = window.innerHeight || document.documentElement.clientHeight;
+      return r.top < vh && r.bottom > 0;
+    }
+
+    function update() {
+      var y = window.pageYOffset || 0;
+      var dy = y - lastY;
+      var next;
+      if (contactOnScreen()) {
+        next = true;            // tucked away while the contact section shows
+      } else if (y <= 40) {
+        next = false;           // always visible at/near the top
+      } else if (Math.abs(dy) > DELTA) {
+        next = dy > 0;          // scrolling down hides, scrolling up shows
+      } else {
+        next = hidden;          // tiny move: keep current state
+      }
+      if (Math.abs(dy) > DELTA) lastY = y;
+      if (next !== hidden) {
+        hidden = next;
+        bar.classList.toggle("is-hidden", hidden);
+      }
+    }
 
     window.addEventListener("scroll", function () {
       if (ticking) return;
       ticking = true;
-      window.requestAnimationFrame(function () {
-        var y = window.pageYOffset || 0;
-        var dy = y - lastY;
-        if (Math.abs(dy) > DELTA) {
-          // Near the top always shows the bar; otherwise follow the direction.
-          scrolledDown = dy > 0 && y > 40;
-          lastY = y;
-          apply();
-        }
-        ticking = false;
-      });
+      window.requestAnimationFrame(function () { update(); ticking = false; });
     }, { passive: true });
+
+    // Establish the correct state on load (visible unless contact is already shown).
+    update();
   }
 
   /* ---- Homepage header CTA: hide over hero, fade in past it ----------- */

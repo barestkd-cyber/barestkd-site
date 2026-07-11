@@ -36,6 +36,10 @@
    Reset / base
    -------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
+/* overflow-x: clip is insurance only — the real overflow fixes live in the
+   header grid and the form-control min-width rules. clip (not hidden) does
+   NOT create a scroll container, so it never breaks the sticky header. */
+html, body { overflow-x: clip; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -194,31 +198,31 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
+/* Mobile: three-column grid centers the logo in the full header width with
+   the hamburger pinned to the end column. This can't overflow — the balanced
+   1fr spacers absorb the free space instead of pushing anything off-screen. */
 .site-header__inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 1rem;
   min-height: var(--header-h);
   padding-block: 0.5rem;
-  position: relative;            /* anchor for the centered mobile logo */
 }
 .brand {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
   color: var(--ink);
-  flex: 0 0 auto;                /* never let the logo get squished by the nav */
-  /* Mobile: center the logo across the full header width; the hamburger
-     stays tappable at the right edge (it keeps its own margin-left:auto). */
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  grid-column: 2;                /* middle column => visually centered */
+  justify-self: center;
+  min-width: 0;
 }
 .brand img { height: 54px; width: auto; }  /* logo stands alone, slightly larger */
 
 .nav-toggle {
-  margin-left: auto;
+  grid-column: 3;                /* end column, stays tappable at the edge */
+  justify-self: end;
   display: inline-flex;
   flex-direction: column;
   justify-content: center;
@@ -481,12 +485,21 @@ p { margin: 0 0 1rem; max-width: 66ch; }
    Contact / form
    -------------------------------------------------------------------------- */
 .contact-grid { display: grid; gap: 2rem; grid-template-columns: 1fr; }
+/* min-width:0 lets grid/flex children shrink below their content's intrinsic
+   width — without it a <select> with long option text forces horizontal
+   overflow on narrow phones. */
+.contact-grid > *,
+form[data-contact-form],
+.form-field { min-width: 0; }
 .form-field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
 .form-field label { font-weight: 700; font-size: 0.95rem; }
 .form-field input,
 .form-field select,
 .form-field textarea {
   font: inherit;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 0.75rem 0.85rem;
   border: 2px solid var(--line);
   border-radius: 8px;
@@ -593,10 +606,11 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   .prog-grid { grid-template-columns: repeat(3, 1fr); }
   .footer-grid { grid-template-columns: 1.6fr 1fr 1fr; }
 
-  /* Desktop header unchanged: logo back in flow at the left, not centered. */
+  /* Desktop header unchanged: flex row, logo back at the left (not centered). */
+  .site-header__inner { display: flex; }
   .brand {
-    position: static;
-    transform: none;
+    grid-column: auto;
+    justify-self: auto;
     padding-inline-start: 0.5rem;
     margin-inline-end: 1.5rem;
   }
