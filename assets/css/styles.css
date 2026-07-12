@@ -477,6 +477,8 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 }
 .review p { font-style: italic; }
 .review cite { font-style: normal; font-weight: 700; color: var(--ink); }
+.review .review__stars { font-style: normal; color: var(--belt-gold); font-size: 1.05rem; letter-spacing: 0.15em; line-height: 1; margin: 0 0 0.5rem; }
+.reviews-more { text-align: center; margin-top: 1.5rem; }
 
 /* --------------------------------------------------------------------------
    FAQ accordion
