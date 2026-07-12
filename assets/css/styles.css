@@ -550,6 +550,8 @@ form[data-contact-form],
 
 .nap { line-height: 1.7; }
 .nap a { font-weight: 600; }
+.hours { line-height: 1.55; }
+.hours strong { font-weight: 700; }
 .map-embed {
   aspect-ratio: 16 / 10;
   background: var(--mat-gray);
