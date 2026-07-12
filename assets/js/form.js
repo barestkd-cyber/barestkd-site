@@ -22,6 +22,11 @@
     var status = form.querySelector(".form-status");
     var button = form.querySelector("button[type='submit'], input[type='submit']");
 
+    // Preselect the program dropdown from a ?program= query param
+    // (e.g. /contact-form?program=little-kickers). Matches against the
+    // existing option text, so no option values need adding.
+    preselectProgram(form);
+
     form.addEventListener("submit", function (e) {
       e.preventDefault();
 
@@ -82,6 +87,21 @@
     if (!button) return;
     button.disabled = busy;
     button.setAttribute("aria-busy", busy ? "true" : "false");
+  }
+
+  // Preselect the program <select> from ?program=<slug>. Normalizes both sides
+  // to letters+digits and matches on the existing option text, so slugs like
+  // "little-kickers" or "homeschool" select the right existing option.
+  function preselectProgram(form) {
+    var want = (new URLSearchParams(location.search).get("program") || "")
+      .toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!want) return;
+    var sel = form.querySelector('select[name="program"]');
+    if (!sel) return;
+    for (var i = 0; i < sel.options.length; i++) {
+      var norm = sel.options[i].text.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (norm && norm.indexOf(want) !== -1) { sel.selectedIndex = i; break; }
+    }
   }
 
   function setStatus(status, state, msg) {
