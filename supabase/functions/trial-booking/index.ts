@@ -19,6 +19,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
+import { LOGO_PNG_BASE64 } from "./logo.ts";
 
 const ALLOWED_ORIGINS = [
   "https://www.barestkd.fit",
@@ -105,7 +106,16 @@ async function buildWaiverPdf(d: WaiverDoc): Promise<string> {
   };
   const gap = (n: number) => { y -= n; };
 
-  line("Bares Taekwondo Fitness", bold, 15, 18);
+  let logoDrawn = false;
+  try {
+    const logoRaw = Uint8Array.from(atob(LOGO_PNG_BASE64), (ch) => ch.charCodeAt(0));
+    const logo = await pdf.embedPng(logoRaw);
+    const lw = 150, lh = logo.height * (lw / logo.width);
+    page.drawImage(logo, { x: margin, y: y - lh, width: lw, height: lh });
+    y -= lh + 12;
+    logoDrawn = true;
+  } catch (_e) { /* fall back to the text title below */ }
+  if (!logoDrawn) line("Bares Taekwondo Fitness", bold, 15, 18);
   line("Liability Waiver and Release", bold, 11, 15);
   gap(6);
   line(`Participant: ${d.who}`);
@@ -141,7 +151,7 @@ function buildWaiverHtml(d: WaiverDoc): string {
     `<meta name="viewport" content="width=device-width, initial-scale=1">` +
     `<title>Liability Waiver and Release</title></head>` +
     `<body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#17130f;line-height:1.5">` +
-    `<h1 style="font-size:20px;margin:0 0 2px">Bares Taekwondo Fitness</h1>` +
+    `<img src="data:image/png;base64,${LOGO_PNG_BASE64}" alt="Bares Taekwondo Fitness" style="width:150px;height:auto;margin:0 0 8px">` +
     `<h2 style="font-size:14px;margin:0 0 16px;text-transform:uppercase;letter-spacing:.04em">Liability Waiver and Release</h2>` +
     `<p style="margin:0 0 12px"><strong>Participant:</strong> ${escHtml(d.who)}<br>` +
     `<strong>Date of birth:</strong> ${escHtml(dobLine(d))}<br>` +
