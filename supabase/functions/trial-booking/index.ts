@@ -76,9 +76,6 @@ type WaiverDoc = {
   waiverSignature: string; // PNG data URL, may be ""
 };
 
-const dobLine = (d: WaiverDoc) =>
-  `${d.dob}${d.age != null ? ` (age ${d.age})` : ""}`;
-
 // Signed waiver as a PDF (preferred). Long text wraps + paginates; the drawn
 // signature is embedded as a PNG. Returns base64 of the PDF bytes.
 async function buildWaiverPdf(d: WaiverDoc): Promise<string> {
@@ -116,11 +113,7 @@ async function buildWaiverPdf(d: WaiverDoc): Promise<string> {
   } catch (_e) { /* fall back to the text title below */ }
   if (!logoDrawn) line("Bares Taekwondo Fitness", bold, 15, 18);
   line("Liability Waiver and Release", bold, 11, 15);
-  gap(6);
-  line(`Participant: ${d.who}`);
-  line(`Date of birth: ${dobLine(d)}`);
-  line(`Programs: ${d.programs.join(", ")}`);
-  gap(8);
+  gap(10);
   line(WAIVER_TEXT);
   gap(10);
   line(`Signed: ${d.waiverName}`, bold, 10, 14);
@@ -149,9 +142,6 @@ function buildWaiverHtml(d: WaiverDoc): string {
     `<body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#17130f;line-height:1.5">` +
     `<img src="data:image/png;base64,${LOGO_PNG_BASE64}" alt="Bares Taekwondo Fitness" style="width:150px;height:auto;margin:0 0 8px">` +
     `<h2 style="font-size:14px;margin:0 0 16px;text-transform:uppercase;letter-spacing:.04em">Liability Waiver and Release</h2>` +
-    `<p style="margin:0 0 12px"><strong>Participant:</strong> ${escHtml(d.who)}<br>` +
-    `<strong>Date of birth:</strong> ${escHtml(dobLine(d))}<br>` +
-    `<strong>Programs:</strong> ${escHtml(d.programs.join(", "))}</p>` +
     `<p style="margin:0 0 20px">${escHtml(WAIVER_TEXT)}</p>` +
     `<hr style="border:none;border-top:1px solid #ccc;margin:20px 0">` +
     `<p style="margin:0 0 4px"><strong>Signed:</strong> ${escHtml(d.waiverName)}</p>` +
