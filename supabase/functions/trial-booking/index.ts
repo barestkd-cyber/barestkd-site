@@ -29,6 +29,10 @@ const NOTIFY_TO = "race@barestkd.fit";
 // From-address MUST be on the Resend-verified domain (barestkd.fit).
 const NOTIFY_FROM = "Bares TKD Website <noreply@barestkd.fit>";
 
+// Liability Waiver and Release, verbatim; do not edit. Shown in the popup and
+// included in both emails, followed by the typed signature and timestamp.
+const WAIVER_TEXT = `As an inducement to cause BTF to extend services to the Participant and in consideration of those services, I, the undersigned on behalf of the Participant, my heirs, assigns, and personal representatives, and the Participant's heirs, assigns, and personal representatives the Participant understands and acknowledges that the Participant is about to engage in an activity which includes strenuous exercise and body contact which involves risks, which could result in injury, harm or death to the Participant, the Participant's property, third parties, and/or third parties' property. The Participant is aware that Tae Kwon Do is a vigorous activity involving bodily contact in a unique environment and poses risk of injury. The Participant understands that Tae Kwon Do, and related activities, always involve certain risk, including but not limited to, death, serious injuries, complete or partial paralysis, brain damage, and injury to any and all bones, joints, muscles and internal organs. The risk of harm may be limited by the proper performance of instruction under the supervision of trained instructors, but never eliminated. In full awareness of the risks, both known and unknown, associated with the activities offered by BTF, the Participant hereby expressly, knowingly, and voluntarily release BTF, it's officers, agents, employees, and instructors, from all responsibility, liability, claims, demands, charges, duties, injuries, actions, causes of action, suits, companies and promises of any nature whatsoever relating to or deriving from the Participant's or the Participant's friends' and family's presence at the BTF premises or in same's participation in any activities directly or indirectly related to the activities at BTF. The Participant voluntarily agrees to assume all risk of injury, including paralysis and death, that may occur while the Participant is in the facility of BTF or participating in any event or program hosted or sponsored by BTF. The Participant's participation in these activities is purely voluntary and the Participant knowingly and voluntarily elects to participate after full consideration of risks, and the Participant further understands that he or she will be supervised during the event time only. The Participant hereby releases all of the above-mentioned parties from any and all responsibility for the Participant during non-class or function related times. The Participant further agrees that the Participant, and the Participant's estate, heirs, or assigns will not bring any claim or suit against BTF, it's instructors, employees, staff, guests, landlord or any other party on behalf of the Participant. This release shall be effective even if the loss, damage, or injury results or has resulted from negligence, wrongful acts, omissions, breach of warranty or strict tort liability of BTF. Finally, the Participant agrees to indemnify BTF, it's instructors, staff, students, guests, and any and all additional defendants for all judgments, costs, attorney fees and other expenses incurred should there be a claim against BTF, it's instructors, staff, students, or guests as a result of this member's participation in any service, activities or special event BTF offers. The Participant understands and agrees that this waiver, and covenant-not-to-sue will continue to be as broad and as inclusive as permitted by the law, as the State of Texas and the Participant agrees that if any portion is held invalid, the remainder of the waiver, and covenant-not-to-sue will continue in full legal force and effect. The Participant agrees that the jurisdiction and venue for any legal proceedings arising out of this will be Smith County, Texas. The Participant further agree that this agreement shall be interpreted under Texas law.`;
+
 function corsHeaders(origin: string | null) {
   const allow =
     origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
@@ -263,45 +267,68 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Readable per-class lines (front-end passes friendly date/time text).
-      const classText = bookings.map((b) => {
+      // One clean line per class: program, day, date, time once (no repeated
+      // label, no em dashes). date_text already carries the weekday + date.
+      const classLines = bookings.map((b) => {
         const bo = (b && typeof b === "object") ? b as Record<string, unknown> : {};
         const when = str(bo.date_text) && str(bo.time_text)
           ? `${str(bo.date_text)} at ${str(bo.time_text)}` : str(bo.class_datetime);
-        return `${str(bo.program)} — ${str(bo.class_label)} — ${when}`;
+        return `${str(bo.program)}: ${when}`;
       });
+
+      const guardianLine = (bookedBy && bookedBy !== who)
+        ? `Parent/guardian: ${bookedBy}` +
+          (guardianPhone ? `, ${guardianPhone}` : "") +
+          ((!isKids && parentEmail) ? `, ${parentEmail}` : "")
+        : "";
+
+      const waiverBlock = [
+        "LIABILITY WAIVER AND RELEASE",
+        WAIVER_TEXT,
+        "",
+        `Signed: ${waiverName}`,
+        `Date: ${waiverAt}`,
+      ];
 
       subject = `New free-trial booking: ${who} (${programs.join(", ")})`;
       lines = [
-        `Student: ${who}`,
-        `DOB: ${dob}`,
-        `Programs: ${programs.join(", ")}`,
-        ...classText.map((c) => `Class: ${c}`),
-        (bookedBy && bookedBy !== who)
-          ? `Parent/guardian: ${bookedBy}` +
-            (guardianPhone ? `, ${guardianPhone}` : "") +
-            ((!isKids && parentEmail) ? `, ${parentEmail}` : "")
-          : "",
+        "STUDENT",
+        `Name: ${who}`,
+        `Date of birth: ${dob}`,
+        "",
+        "PROGRAMS & CLASSES",
+        ...classLines,
+        "",
+        "CONTACT",
         `Phone: ${contactPhone}`,
         `Email: ${contactEmail}`,
         `Address: ${addressText}`,
-        `Waiver signed: yes (${waiverName} at ${waiverAt})`,
-      ].filter(Boolean);
+        ...(guardianLine ? [guardianLine] : []),
+        "",
+        ...waiverBlock,
+      ];
 
       // Confirmation email to the parent/student (sent best-effort below).
       confirmTo = contactEmail;
       confirmSubject = "Your free week at Bares Taekwondo Fitness";
       confirmLines = [
         `Hi ${isKids ? (bookedBy || "there") : (studentFirst || "there")},`,
-        ``,
+        "",
         `Thanks for booking a free trial week${isKids ? " for " + who : ""}. Here's what you're signed up for:`,
-        ``,
-        ...classText.map((c) => `• ${c}`),
-        ``,
-        `Where: Bares Taekwondo Fitness, 1901 Deerbrook Dr, Tyler, TX 75703`,
-        `Questions? Call 903-561-2966 or reply to this email.`,
-        ``,
-        `See you on the mat!`,
+        "",
+        "YOUR CLASSES",
+        ...classLines,
+        "",
+        "WHERE",
+        "Bares Taekwondo Fitness",
+        "1901 Deerbrook Dr, Tyler, TX 75703",
+        "",
+        "QUESTIONS?",
+        "Call 903-561-2966 or reply to this email.",
+        "",
+        ...waiverBlock,
+        "",
+        "See you on the mat!",
       ];
     } else {
       const name = str(body.name);

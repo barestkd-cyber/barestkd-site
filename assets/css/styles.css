@@ -785,7 +785,7 @@ form[data-contact-form],
   background: var(--white); font-size: 0.9rem; color: var(--ink-soft);
 }
 .trial-waiver p { margin: 0 0 0.7rem; }
-.trial-waiver__flag { font-weight: 700; color: var(--belt-red); }
+.trial-waiver__title { font-weight: 700; color: var(--ink); margin: 0 0 0.6rem; }
 .trial-agree { display: flex; align-items: flex-start; gap: 0.6rem; margin: 0.2rem 0 0.4rem; cursor: pointer; }
 .trial-agree input { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 2px; }
 

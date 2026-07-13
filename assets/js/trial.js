@@ -32,6 +32,8 @@
   var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // publishable (public) key — safe to ship
 
   var CONSENT = "By providing your number you consent to receive marketing/promotional/notification messages from Bares Taekwondo Fitness, to opt-out, reply STOP at any moment. Msg & Data rates may apply";
+  // Liability Waiver and Release, verbatim; do not edit. Must match the copy in the Edge Function.
+  var WAIVER_TEXT = "As an inducement to cause BTF to extend services to the Participant and in consideration of those services, I, the undersigned on behalf of the Participant, my heirs, assigns, and personal representatives, and the Participant's heirs, assigns, and personal representatives the Participant understands and acknowledges that the Participant is about to engage in an activity which includes strenuous exercise and body contact which involves risks, which could result in injury, harm or death to the Participant, the Participant's property, third parties, and/or third parties' property. The Participant is aware that Tae Kwon Do is a vigorous activity involving bodily contact in a unique environment and poses risk of injury. The Participant understands that Tae Kwon Do, and related activities, always involve certain risk, including but not limited to, death, serious injuries, complete or partial paralysis, brain damage, and injury to any and all bones, joints, muscles and internal organs. The risk of harm may be limited by the proper performance of instruction under the supervision of trained instructors, but never eliminated. In full awareness of the risks, both known and unknown, associated with the activities offered by BTF, the Participant hereby expressly, knowingly, and voluntarily release BTF, it's officers, agents, employees, and instructors, from all responsibility, liability, claims, demands, charges, duties, injuries, actions, causes of action, suits, companies and promises of any nature whatsoever relating to or deriving from the Participant's or the Participant's friends' and family's presence at the BTF premises or in same's participation in any activities directly or indirectly related to the activities at BTF. The Participant voluntarily agrees to assume all risk of injury, including paralysis and death, that may occur while the Participant is in the facility of BTF or participating in any event or program hosted or sponsored by BTF. The Participant's participation in these activities is purely voluntary and the Participant knowingly and voluntarily elects to participate after full consideration of risks, and the Participant further understands that he or she will be supervised during the event time only. The Participant hereby releases all of the above-mentioned parties from any and all responsibility for the Participant during non-class or function related times. The Participant further agrees that the Participant, and the Participant's estate, heirs, or assigns will not bring any claim or suit against BTF, it's instructors, employees, staff, guests, landlord or any other party on behalf of the Participant. This release shall be effective even if the loss, damage, or injury results or has resulted from negligence, wrongful acts, omissions, breach of warranty or strict tort liability of BTF. Finally, the Participant agrees to indemnify BTF, it's instructors, staff, students, guests, and any and all additional defendants for all judgments, costs, attorney fees and other expenses incurred should there be a claim against BTF, it's instructors, staff, students, or guests as a result of this member's participation in any service, activities or special event BTF offers. The Participant understands and agrees that this waiver, and covenant-not-to-sue will continue to be as broad and as inclusive as permitted by the law, as the State of Texas and the Participant agrees that if any portion is held invalid, the remainder of the waiver, and covenant-not-to-sue will continue in full legal force and effect. The Participant agrees that the jurisdiction and venue for any legal proceedings arising out of this will be Smith County, Texas. The Participant further agree that this agreement shall be interpreted under Texas law.";
   var PHONE = "903-561-2966";
   var WEEKS_OUT = 6;   // how many weeks the calendar can page forward
   var DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -350,12 +352,13 @@
     var start = new Date(base.getFullYear(), base.getMonth(), base.getDate() + w * 7);
     var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
 
-    var html = head("Pick a class", n > 1 ? ("Class " + (i + 1) + " of " + n) : null);
-    html += '<p class="trial-sub">' + esc(item.label) + '</p>';
+    var html = head(item.label, n > 1 ? ("Class " + (i + 1) + " of " + n) : null);
+    html += '<p class="trial-sub">Pick a class</p>';
     html += '<p class="trial-weeklabel">' + esc(weekRange(start, end)) + '</p>';
     html += '<div class="trial-cal">';
     for (var dn = 0; dn < 7; dn++) {
       var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + dn);
+      if (d.getDay() === 0) continue; // never show Sunday
       var slots = slotsOnDate(item, d);
       html += '<div class="trial-day">' +
                 '<div class="trial-day__label">' + esc(DOW[d.getDay()].slice(0, 3) + ", " + MON[d.getMonth()] + " " + d.getDate()) + '</div>' +
@@ -546,18 +549,10 @@
 
   /* ---- step 4: waiver ------------------------------------------------ */
   function renderWaiver() {
-    var lorem =
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. " +
-      "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. " +
-      "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. " +
-      "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. " +
-      "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam.";
-
     var html = head("Sign the waiver", "Almost done");
-    html += '<div class="trial-waiver" tabindex="0" aria-label="Waiver text">' +
-              '<p class="trial-waiver__flag">[WAIVER TEXT PLACEHOLDER, Race to provide real language]</p>' +
-              '<p>' + esc(lorem) + '</p>' +
-              '<p>' + esc(lorem) + '</p>' +
+    html += '<div class="trial-waiver" tabindex="0" aria-label="Liability Waiver and Release">' +
+              '<p class="trial-waiver__title">Liability Waiver and Release</p>' +
+              '<p>' + esc(WAIVER_TEXT) + '</p>' +
             '</div>';
     html += '<form class="trial-form" novalidate>';
     html += '<div class="form-field"><label for="tf-sig">Type your full legal name to sign</label>' +
