@@ -364,7 +364,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
-  object-position: 50% 42%; /* upper-center: keep faces from 360px to desktop */
+  object-position: 50% 50%; /* center: keeps the face up in frame from 360px to desktop */
   z-index: 0;
 }
 .hero__video { z-index: 0; background: var(--ink); }
