@@ -168,8 +168,10 @@ Deno.serve(async (req) => {
       const waiverName = str(body.waiver_name);
       const waiverAgreed = !!body.waiver_agreed;
 
-      // Contact channel: parent for kids, the person themselves for 13+.
-      let contactEmail = "", contactPhone = "", parentEmail = "", bookedBy = "";
+      // Contact channel: parent for kids, the person themselves for 18+.
+      // Adults may add an optional guardian; when present it fills booked_by
+      // and (via email) a student_guardians row, same as the kids path.
+      let contactEmail = "", contactPhone = "", parentEmail = "", bookedBy = "", guardianPhone = "";
       if (isKids) {
         contactPhone = str(body.parent_phone);
         contactEmail = str(body.parent_email);
@@ -178,7 +180,10 @@ Deno.serve(async (req) => {
       } else {
         contactPhone = str(body.phone);
         contactEmail = str(body.email);
-        bookedBy = str(body.guardian) || (studentFirst + " " + studentLast).trim();
+        const gName = (str(body.guardian_first) + " " + str(body.guardian_last)).trim();
+        parentEmail = str(body.guardian_email); // optional guardian email
+        guardianPhone = str(body.guardian_phone);
+        bookedBy = gName || (studentFirst + " " + studentLast).trim();
       }
 
       const who = (studentFirst + " " + studentLast).trim();
@@ -248,8 +253,9 @@ Deno.serve(async (req) => {
       const { error: bErr } = await admin.from("trial_bookings").insert(rows);
       if (bErr) throw bErr;
 
-      // Kids: record the parent's email as a guardian (matches existing pattern).
-      if (isKids && parentEmail) {
+      // Record the parent/guardian email as a guardian row (kids always; adults
+      // only when they supplied an optional guardian email).
+      if (parentEmail) {
         await admin.from("student_guardians").insert({
           student_id: contact.id,
           email: parentEmail,
@@ -271,7 +277,11 @@ Deno.serve(async (req) => {
         `DOB: ${dob}`,
         `Programs: ${programs.join(", ")}`,
         ...classText.map((c) => `Class: ${c}`),
-        (bookedBy && bookedBy !== who) ? `Parent/guardian: ${bookedBy}` : "",
+        (bookedBy && bookedBy !== who)
+          ? `Parent/guardian: ${bookedBy}` +
+            (guardianPhone ? `, ${guardianPhone}` : "") +
+            ((!isKids && parentEmail) ? `, ${parentEmail}` : "")
+          : "",
         `Phone: ${contactPhone}`,
         `Email: ${contactEmail}`,
         `Address: ${addressText}`,

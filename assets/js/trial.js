@@ -1,21 +1,22 @@
 /* ==========================================================================
-   Bares Taekwondo Fitness — trial.js  (v2)
+   Bares Taekwondo Fitness — trial.js  (v3)
    The on-site "Try 1 Week Free" popup. Every [data-trial-open] button opens a
    multi-step modal and submits to the Supabase Edge Function.
 
    Flow:
-     1. Age gate      (Under 3 / 3-4 / 5-12 / 13 & Up)
-     2. Program       (13 & Up = MULTI-select TKD/Kickboxing/Jiu Jitsu;
-                        kids buckets skip this, program is implied)
-     3. Scheduler     (one screen per chosen program, "Class X of N",
-                        live classes from the GET, explicit first-class pick)
-     4. Intake        (student first/last, DOB, address; kids collect a
-                        parent/guardian; 18+ give their own phone/email + an
-                        optional guardian)
-     5. Waiver        (inline placeholder text + typed signature + agree box)
-     6. Submit        (one contact per student, tags = chosen programs, one
-                        trial_bookings row per class) then success + the option
-                        to book another family member (parent/address kept).
+     1. Program select  (six programs; the three 13+ programs multi-select,
+                         Little Kickers/Cubs/Juniors each solo. Little Kickers
+                         is coming-soon and routes to the interest list.)
+     2. Scheduler       (a one-week calendar strip per chosen program, pageable
+                         up to six weeks out, "Class X of N", live classes from
+                         the GET; days with no class show empty.)
+     3. Intake          (student first/last, DOB, address; parent/guardian is
+                         required when the DOB is under 18, optional at 18+;
+                         adults also give their own phone/email.)
+     4. Waiver          (inline placeholder text + typed signature + agree box.)
+     5. Submit          (one contact per student, tags = chosen programs, one
+                         trial_bookings row per class) then success + the option
+                         to book another family member (parent/address kept).
 
    The program list + class times are LIVE: on open we GET the trial-booking
    function, which reads schedule_template (trial_open=true) and groups rows
@@ -32,16 +33,21 @@
 
   var CONSENT = "By providing your number you consent to receive marketing/promotional/notification messages from Bares Taekwondo Fitness, to opt-out, reply STOP at any moment. Msg & Data rates may apply";
   var PHONE = "903-561-2966";
-  var DAYS_AHEAD = 14;
+  var WEEKS_OUT = 6;   // how many weeks the calendar can page forward
   var DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  // One-line program descriptors (reused from the homepage program cards).
-  var TEASER = {
-    "Taekwondo": "Traditional forms, sparring, board breaking, and high-level kick development.",
-    "Kickboxing": "High-energy striking and conditioning built on Muay Thai, Taekwondo, and boxing fundamentals.",
-    "Jiu Jitsu": "Grappling for teens and adults, all experience levels welcome."
-  };
+  // The six program buttons. `get` + `re` map each to the live GET program and
+  // an optional class-label filter. `tag` is the stored program name (tags +
+  // trial_bookings.program). solo programs clear all other selections.
+  var PROGRAM_MENU = [
+    { key: "lk",      label: "Little Kickers",         desc: "Ages 2-3 · Parent & Me · Coming Soon", solo: true,  comingSoon: true },
+    { key: "cubs",    label: "Cubs",                   desc: "Ages 3-4",  solo: true,  tag: "Cubs",         get: "Cubs",      re: null },
+    { key: "juniors", label: "Juniors",                desc: "Ages 5-12", solo: true,  tag: "Juniors",      get: "Taekwondo", re: /juniors|forms/i },
+    { key: "tkd",     label: "Teens/Adults Taekwondo", desc: "Ages 13+",  solo: false, tag: "Teens/Adults", get: "Taekwondo", re: /teens|adult|forms/i },
+    { key: "kb",      label: "Kickboxing",             desc: "Ages 13+",  solo: false, tag: "Kickboxing",   get: "Kickboxing", re: null },
+    { key: "jj",      label: "Jiu Jitsu",              desc: "Ages 13+",  solo: false, tag: "Jiu Jitsu",    get: "Jiu Jitsu",  re: null }
+  ];
 
   // Marketing programs served by the GET. Each: {program, ageLabel, kids,
   // classes:[{dow (1=Mon..6=Sat), h, m, label}]}. Loaded on open.
@@ -52,13 +58,14 @@
 
   function freshState() {
     return {
-      bucket: null,        // 'u3' | '3-4' | '5-12' | '13+'
-      kids: false,         // true for the 3-4 and 5-12 buckets
-      programs: [],        // chosen program objects (single for kids, 1..3 for 13+)
-      bookings: [],        // aligned to programs: [{program, slot}]
+      picked: [],          // selected menu keys on screen 1
+      selected: [],        // bookable menu items to schedule (excludes Little Kickers)
+      bookings: [],        // aligned to selected: [{tag, label, slot}]
       schedIdx: 0,         // current program index in the scheduler loop
+      weekOffset: 0,       // current calendar week page (0..WEEKS_OUT-1)
       waiverName: "",
       waiverAgreed: false,
+      intake: null,
       keep: null           // preserved parent/guardian + address for the family loop
     };
   }
@@ -87,24 +94,17 @@
     return bookablePrograms().filter(function (p) { return p.program === name; })[0] || null;
   }
 
-  // A Taekwondo program view whose classes are filtered by age bucket, matching
-  // how the GET labels them: 5-12 = Juniors + Forms, 13+ = Teens/Adults + Forms.
-  function taekwondoFor(bucket) {
-    var tkd = programByName("Taekwondo");
-    if (!tkd) return null;
-    var re = bucket === "5-12" ? /juniors|forms/i : /teens|adult|forms/i;
-    var classes = tkd.classes.filter(function (c) { return re.test(c.label || ""); });
-    if (!classes.length) return null;
-    return { program: "Taekwondo", ageLabel: tkd.ageLabel, kids: tkd.kids, classes: classes };
+  function menuByKey(key) {
+    return PROGRAM_MENU.filter(function (m) { return m.key === key; })[0] || null;
   }
 
-  // The 13 & Up multi-select menu, in a stable order, only bookable ones.
-  function adultPrograms() {
-    var out = [];
-    var tkd = taekwondoFor("13+"); if (tkd) out.push(tkd);
-    var kb = programByName("Kickboxing"); if (kb) out.push(kb);
-    var jj = programByName("Jiu Jitsu"); if (jj) out.push(jj);
-    return out;
+  // Classes for a menu item, filtered by its label regex (Cubs=all,
+  // Juniors=Juniors+Forms, Teens/Adults=Teens/Adults+Forms, etc.).
+  function classesFor(item) {
+    var p = item.get ? programByName(item.get) : null;
+    if (!p) return [];
+    if (!item.re) return p.classes;
+    return p.classes.filter(function (c) { return item.re.test(c.label || ""); });
   }
 
   function fmtTime(h, m) {
@@ -114,26 +114,48 @@
     return h12 + ":" + mm + " " + ap;
   }
 
-  // Next DAYS_AHEAD days of a program's weekly classes, soonest first.
-  function upcomingSlots(program) {
-    var out = [], now = new Date();
-    for (var i = 0; i < DAYS_AHEAD; i++) {
-      var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-      for (var c = 0; c < program.classes.length; c++) {
-        var cls = program.classes[c];
-        if (cls.dow !== d.getDay()) continue;
-        var when = new Date(d.getFullYear(), d.getMonth(), d.getDate(), cls.h, cls.m);
-        if (when.getTime() <= now.getTime()) continue; // skip already-past times today
-        out.push({
-          iso: when.toISOString(),
-          label: cls.label,
-          dateText: DOW[when.getDay()] + ", " + MON[when.getMonth()] + " " + when.getDate(),
-          timeText: fmtTime(cls.h, cls.m)
-        });
-      }
+  function midnight(dt) { return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
+
+  // Bookable classes for a program on a specific date, future only, soonest first.
+  function slotsOnDate(item, d) {
+    var now = new Date();
+    var classes = classesFor(item);
+    var out = [];
+    for (var c = 0; c < classes.length; c++) {
+      var cls = classes[c];
+      if (cls.dow !== d.getDay()) continue;
+      var when = new Date(d.getFullYear(), d.getMonth(), d.getDate(), cls.h, cls.m);
+      if (when.getTime() <= now.getTime()) continue;
+      out.push({
+        iso: when.toISOString(),
+        label: cls.label,
+        dateText: DOW[when.getDay()] + ", " + MON[when.getMonth()] + " " + when.getDate(),
+        timeText: fmtTime(cls.h, cls.m),
+        mins: cls.h * 60 + cls.m
+      });
     }
-    out.sort(function (a, b) { return a.iso < b.iso ? -1 : 1; });
+    out.sort(function (a, b) { return a.mins - b.mins; });
     return out;
+  }
+
+  // Does a program have any bookable slot within the paging window?
+  function anyUpcoming(item) {
+    var base = midnight(new Date());
+    for (var i = 0; i < WEEKS_OUT * 7; i++) {
+      var d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+      if (slotsOnDate(item, d).length) return true;
+    }
+    return false;
+  }
+
+  function ageFromISO(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || "")) return null;
+    var p = iso.split("-"), y = +p[0], mo = +p[1] - 1, da = +p[2];
+    var b = new Date(y, mo, da);
+    if (isNaN(b.getTime())) return null;
+    var t = new Date(), a = t.getFullYear() - y, m = t.getMonth() - mo;
+    if (m < 0 || (m === 0 && t.getDate() < da)) a--;
+    return (a >= 0 && a < 120) ? a : null;
   }
 
   /* ---- modal shell ---------------------------------------------------- */
@@ -209,7 +231,7 @@
       .then(function (data) {
         PROGRAMS = (data && data.programs) || [];
         if (!bookablePrograms().length) { renderFallback(); return; }
-        renderAgeGate();
+        renderPrograms();
       })
       .catch(function (err) {
         console.error("Schedule load failed:", err);
@@ -229,59 +251,57 @@
     focusFirst();
   }
 
-  /* ---- step 1: age gate ---------------------------------------------- */
-  var AGE_OPTIONS = [
-    { key: "u3",   name: "Under 3",  sub: "Our Little Kickers parent-and-me class for ages 2 to 3, launching soon." },
-    { key: "3-4",  name: "3 to 4",   sub: "Cubs, our preschool program. Age 3 and ready to train without a parent? Cubs it is. Age 2 to 3 and not quite ready? Little Kickers may fit." },
-    { key: "5-12", name: "5 to 12",  sub: "Juniors Taekwondo plus Forms. Just turned 5 and still building focus? Cubs may be the better start." },
-    { key: "13+",  name: "13 & Up",  sub: "Teens and adults, Taekwondo, Kickboxing, and Jiu Jitsu, try any or all." }
-  ];
-
-  function renderAgeGate() {
-    var html = head("How old is the student?") + '<div class="trial-options">';
-    AGE_OPTIONS.forEach(function (o) {
-      html += '<button class="trial-option" type="button" data-age="' + o.key + '">' +
-                '<span class="trial-option__name">' + esc(o.name) + '</span>' +
-                '<span class="trial-option__sub">' + esc(o.sub) + '</span>' +
+  /* ---- step 1: program select ---------------------------------------- */
+  function renderPrograms() {
+    var html = head("Choose your program");
+    html += '<p class="trial-note">Teens and adults can select more than one.</p>';
+    html += '<div class="trial-options">';
+    PROGRAM_MENU.forEach(function (m) {
+      var on = state.picked.indexOf(m.key) >= 0;
+      html += '<button class="trial-option trial-toggle" type="button" role="checkbox" aria-checked="' + (on ? "true" : "false") + '" data-key="' + m.key + '">' +
+                '<span class="trial-toggle__box" aria-hidden="true"></span>' +
+                '<span class="trial-toggle__text">' +
+                  '<span class="trial-option__name">' + esc(m.label) + '</span>' +
+                  '<span class="trial-option__sub">' + esc(m.desc) + '</span>' +
+                '</span>' +
               '</button>';
     });
     html += '</div>';
+    html += '<div class="trial-actions"><button class="btn btn--primary trial-next" type="button" disabled>Continue</button></div>';
     setBody(html);
-    dialog.querySelectorAll("[data-age]").forEach(function (b) {
-      b.addEventListener("click", function () { chooseAge(b.getAttribute("data-age")); });
+
+    function refresh() {
+      dialog.querySelectorAll(".trial-toggle").forEach(function (b) {
+        b.setAttribute("aria-checked", state.picked.indexOf(b.getAttribute("data-key")) >= 0 ? "true" : "false");
+      });
+      dialog.querySelector(".trial-next").disabled = state.picked.length === 0;
+    }
+    dialog.querySelectorAll(".trial-toggle").forEach(function (b) {
+      b.addEventListener("click", function () { toggleKey(b.getAttribute("data-key")); refresh(); });
     });
+    dialog.querySelector(".trial-next").addEventListener("click", proceedFromPrograms);
+    refresh();
     focusFirst();
   }
 
-  function chooseAge(bucket) {
-    state.bucket = bucket;
-    state.programs = [];
-    state.bookings = [];
-    state.schedIdx = 0;
+  // Solo programs clear everything else; multi programs clear any solo pick.
+  function toggleKey(key) {
+    var m = menuByKey(key);
+    var idx = state.picked.indexOf(key);
+    if (idx >= 0) { state.picked.splice(idx, 1); return; }
+    if (m.solo) { state.picked = [key]; return; }
+    state.picked = state.picked.filter(function (k) { return !menuByKey(k).solo; });
+    state.picked.push(key);
+  }
 
-    if (bucket === "u3") { renderLittleKickers(); return; }
-
-    if (bucket === "3-4") {
-      state.kids = true;
-      var cubs = programByName("Cubs");
-      if (!cubs) { renderNoProgram("Cubs"); return; }
-      state.programs = [cubs];
-      startScheduler();
-      return;
-    }
-
-    if (bucket === "5-12") {
-      state.kids = true;
-      var tkd = taekwondoFor("5-12");
-      if (!tkd) { renderNoProgram("Taekwondo"); return; }
-      state.programs = [tkd];
-      startScheduler();
-      return;
-    }
-
-    // 13+
-    state.kids = false;
-    renderProgramMulti();
+  function proceedFromPrograms() {
+    var picks = state.picked.map(menuByKey);
+    if (!picks.length) return;
+    // Little Kickers is solo + coming soon.
+    if (picks.length === 1 && picks[0].comingSoon) { renderLittleKickers(); return; }
+    state.selected = picks.filter(function (m) { return !m.comingSoon; });
+    if (!state.selected.length) { renderLittleKickers(); return; }
+    startScheduler();
   }
 
   function renderLittleKickers() {
@@ -293,138 +313,108 @@
         '<a class="btn btn--primary" href="/contact-form?program=little-kickers">Join the interest list</a>' +
       '</div>'
     );
-    dialog.querySelector(".trial-back").addEventListener("click", renderAgeGate);
+    dialog.querySelector(".trial-back").addEventListener("click", renderPrograms);
     focusFirst();
   }
 
   function renderNoProgram(name) {
     setBody(
       head("No open classes right now") +
-      '<p class="trial-note">We don\'t have ' + esc(name) + ' trial times open this week. Call <a href="tel:' + PHONE + '">' + PHONE + '</a> or <a href="/contact-form">contact us</a> and we\'ll find a spot.</p>' +
+      '<p class="trial-note">We don\'t have ' + esc(name) + ' trial times open in the next few weeks. Call <a href="tel:' + PHONE + '">' + PHONE + '</a> or <a href="/contact-form">contact us</a> and we\'ll find a spot.</p>' +
       '<div class="trial-actions"><button class="btn btn--secondary trial-back" type="button">Back</button></div>'
     );
-    dialog.querySelector(".trial-back").addEventListener("click", renderAgeGate);
+    dialog.querySelector(".trial-back").addEventListener("click", renderPrograms);
     focusFirst();
   }
 
-  /* ---- step 2: program (13 & Up multi-select) ------------------------ */
-  function renderProgramMulti() {
-    var progs = adultPrograms();
-    if (!progs.length) { renderNoProgram("13 & Up"); return; }
-
-    // Preserve any prior selection by program name when coming Back.
-    var chosen = {};
-    state.programs.forEach(function (p) { chosen[p.program] = true; });
-
-    var html = head("Which programs?", "Step 2");
-    html += '<p class="trial-note">Pick one or more, you can try them all.</p>';
-    html += '<div class="trial-options">';
-    progs.forEach(function (p, i) {
-      var on = !!chosen[p.program];
-      html += '<button class="trial-option trial-toggle" type="button" role="checkbox" aria-checked="' + (on ? "true" : "false") + '" data-idx="' + i + '">' +
-                '<span class="trial-toggle__box" aria-hidden="true"></span>' +
-                '<span class="trial-toggle__text">' +
-                  '<span class="trial-option__name">' + esc(p.program) + '</span>' +
-                  '<span class="trial-option__sub">' + esc(TEASER[p.program] || p.ageLabel) + '</span>' +
-                '</span>' +
-              '</button>';
-    });
-    html += '</div>';
-    html += '<div class="trial-actions">' +
-              '<button class="btn btn--secondary trial-back" type="button">Back</button>' +
-              '<button class="btn btn--primary trial-next" type="button" disabled>Continue</button>' +
-            '</div>';
-    setBody(html);
-
-    var next = dialog.querySelector(".trial-next");
-    function sync() {
-      var any = dialog.querySelectorAll('.trial-toggle[aria-checked="true"]').length > 0;
-      next.disabled = !any;
-    }
-    dialog.querySelectorAll(".trial-toggle").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var on = b.getAttribute("aria-checked") === "true";
-        b.setAttribute("aria-checked", on ? "false" : "true");
-        sync();
-      });
-    });
-    dialog.querySelector(".trial-back").addEventListener("click", renderAgeGate);
-    next.addEventListener("click", function () {
-      state.programs = [];
-      dialog.querySelectorAll('.trial-toggle[aria-checked="true"]').forEach(function (b) {
-        state.programs.push(progs[parseInt(b.getAttribute("data-idx"), 10)]);
-      });
-      if (!state.programs.length) return;
-      startScheduler();
-    });
-    sync();
-    focusFirst();
-  }
-
-  /* ---- step 3: scheduler (loops once per chosen program) ------------- */
+  /* ---- step 2: calendar scheduler (one week at a time) --------------- */
   function startScheduler() {
     state.schedIdx = 0;
+    state.weekOffset = 0;
     state.bookings = [];
     renderScheduler();
   }
 
-  function renderScheduler() {
-    var n = state.programs.length;
-    var i = state.schedIdx;
-    var program = state.programs[i];
-    var slots = upcomingSlots(program);
+  function weekRange(start, end) {
+    return MON[start.getMonth()] + " " + start.getDate() + " - " + MON[end.getMonth()] + " " + end.getDate();
+  }
 
-    var html = head("Pick your first class", n > 1 ? ("Class " + (i + 1) + " of " + n) : null);
-    html += '<p class="trial-sub">' + esc(program.program) + ' &middot; ' + esc(program.ageLabel) + '</p>';
-    if (!slots.length) {
-      html += '<p class="trial-note">No upcoming ' + esc(program.program) + ' times in the next two weeks. ' +
-              'Call <a href="tel:' + PHONE + '">' + PHONE + '</a> or ' +
-              '<a href="/contact-form">contact us</a> to find a time.</p>';
-    } else {
-      html += '<div class="trial-options trial-slots">';
-      slots.forEach(function (s, si) {
-        html += '<button class="trial-option" type="button" data-slot="' + si + '">' +
-                  '<span class="trial-option__name">' + esc(s.dateText) + '</span>' +
-                  '<span class="trial-option__sub">' + esc(s.timeText) + ' &middot; ' + esc(s.label) + '</span>' +
-                '</button>';
-      });
-      html += '</div>';
+  function renderScheduler() {
+    var n = state.selected.length;
+    var i = state.schedIdx;
+    var item = state.selected[i];
+    if (!anyUpcoming(item)) { renderNoProgram(item.label); return; }
+
+    var base = midnight(new Date());
+    var w = state.weekOffset;
+    var start = new Date(base.getFullYear(), base.getMonth(), base.getDate() + w * 7);
+    var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+
+    var html = head("Pick a class", n > 1 ? ("Class " + (i + 1) + " of " + n) : null);
+    html += '<p class="trial-sub">' + esc(item.label) + '</p>';
+    html += '<p class="trial-weeklabel">' + esc(weekRange(start, end)) + '</p>';
+    html += '<div class="trial-cal">';
+    for (var dn = 0; dn < 7; dn++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + dn);
+      var slots = slotsOnDate(item, d);
+      html += '<div class="trial-day">' +
+                '<div class="trial-day__label">' + esc(DOW[d.getDay()].slice(0, 3) + ", " + MON[d.getMonth()] + " " + d.getDate()) + '</div>' +
+                '<div class="trial-day__slots">';
+      if (!slots.length) {
+        html += '<span class="trial-day__empty">No class</span>';
+      } else {
+        slots.forEach(function (s) {
+          html += '<button class="trial-slot" type="button" data-iso="' + esc(s.iso) + '" data-label="' + esc(s.label) + '" data-date="' + esc(s.dateText) + '" data-time="' + esc(s.timeText) + '">' +
+                    esc(s.timeText) + ' &middot; ' + esc(s.label) +
+                  '</button>';
+        });
+      }
+      html += '</div></div>';
     }
-    html += '<div class="trial-actions"><button class="btn btn--secondary trial-back" type="button">Back</button></div>';
+    html += '</div>';
+    html += '<div class="trial-actions">' +
+              '<button class="btn btn--secondary trial-back" type="button">Back</button>' +
+              '<button class="btn btn--secondary trial-nextweek" type="button"' + (w >= WEEKS_OUT - 1 ? " disabled" : "") + '>Next week</button>' +
+            '</div>';
     setBody(html);
 
-    dialog.querySelector(".trial-back").addEventListener("click", function () {
-      if (i > 0) { state.schedIdx = i - 1; state.bookings.pop(); renderScheduler(); }
-      else if (state.kids) { renderAgeGate(); }
-      else { renderProgramMulti(); }
+    var nw = dialog.querySelector(".trial-nextweek");
+    if (nw) nw.addEventListener("click", function () {
+      if (state.weekOffset < WEEKS_OUT - 1) { state.weekOffset++; renderScheduler(); }
     });
-    dialog.querySelectorAll("[data-slot]").forEach(function (b) {
+    dialog.querySelector(".trial-back").addEventListener("click", function () {
+      if (state.weekOffset > 0) { state.weekOffset--; renderScheduler(); }
+      else if (i > 0) { state.schedIdx = i - 1; state.weekOffset = 0; state.bookings.pop(); renderScheduler(); }
+      else { renderPrograms(); }
+    });
+    dialog.querySelectorAll(".trial-slot").forEach(function (b) {
       b.addEventListener("click", function () {
-        var slot = slots[parseInt(b.getAttribute("data-slot"), 10)];
-        state.bookings[i] = { program: program.program, slot: slot };
-        if (i + 1 < n) { state.schedIdx = i + 1; renderScheduler(); }
+        var slot = {
+          iso: b.getAttribute("data-iso"),
+          label: b.getAttribute("data-label"),
+          dateText: b.getAttribute("data-date"),
+          timeText: b.getAttribute("data-time")
+        };
+        state.bookings[i] = { tag: item.tag, label: item.label, slot: slot };
+        if (i + 1 < n) { state.schedIdx = i + 1; state.weekOffset = 0; renderScheduler(); }
         else { renderIntake(); }
       });
     });
     focusFirst();
   }
 
-  /* ---- step 4: intake ------------------------------------------------ */
-  function field(id, label, name, type, extra) {
-    var k = state.keep || {};
-    var val = k[name] != null ? k[name] : "";
+  /* ---- step 3: intake (DOB drives parent/guardian requirement) ------- */
+  function keepVal(name) { return (state.keep && state.keep[name] != null) ? state.keep[name] : ""; }
+
+  function addrField(id, label, name, extra) {
     return '<div class="form-field"><label for="' + id + '">' + esc(label) + '</label>' +
-           '<input id="' + id + '" name="' + name + '" type="' + type + '"' +
-           (extra || "") + ' value="' + esc(val) + '"></div>';
+           '<input id="' + id + '" name="' + name + '" type="text"' + (extra || "") + ' value="' + esc(keepVal(name)) + '"></div>';
   }
 
   function renderIntake() {
-    var kids = state.kids;
     var todayISO = new Date().toISOString().slice(0, 10);
     var html = head("A little about the student", "Your info");
     html += '<form class="trial-form" novalidate>';
-
-    // Student (never prefilled from the family loop — each member is their own).
     html += '<div class="trial-grid trial-grid--2">' +
               '<div class="form-field"><label for="tf-sfirst">Student first name</label>' +
               '<input id="tf-sfirst" name="student_first" type="text" autocomplete="given-name" required></div>' +
@@ -433,33 +423,15 @@
             '</div>';
     html += '<div class="form-field"><label for="tf-dob">Student date of birth</label>' +
             '<input id="tf-dob" name="dob" type="date" max="' + todayISO + '" required></div>';
-
-    // Address (single line + city/state/zip; kept for the family loop).
-    html += field("tf-street", "Street address", "street", "text", ' autocomplete="address-line1" required');
+    html += addrField("tf-street", "Street address", "street", ' autocomplete="address-line1" required');
     html += '<div class="trial-grid trial-grid--3">' +
-              field("tf-city", "City", "city", "text", ' autocomplete="address-level2" required') +
-              field("tf-state", "State", "state", "text", ' autocomplete="address-level1" maxlength="20" required') +
-              field("tf-zip", "ZIP", "zip", "text", ' autocomplete="postal-code" inputmode="numeric" maxlength="10" required') +
+              addrField("tf-city", "City", "city", ' autocomplete="address-level2" required') +
+              addrField("tf-state", "State", "state", ' autocomplete="address-level1" maxlength="20" required') +
+              addrField("tf-zip", "ZIP", "zip", ' autocomplete="postal-code" inputmode="numeric" maxlength="10" required') +
             '</div>';
-
-    if (kids) {
-      html += '<p class="trial-legend">Parent / guardian</p>';
-      html += '<div class="trial-grid trial-grid--2">' +
-                field("tf-pfirst", "First name", "parent_first", "text", ' autocomplete="given-name" required') +
-                field("tf-plast", "Last name", "parent_last", "text", ' autocomplete="family-name" required') +
-              '</div>';
-      html += field("tf-pphone", "Phone", "parent_phone", "tel", ' autocomplete="tel" required');
-      html += field("tf-pemail", "Email", "parent_email", "email", ' autocomplete="email" required');
-    } else {
-      html += field("tf-phone", "Your phone", "phone", "tel", ' autocomplete="tel" required');
-      html += field("tf-email", "Your email", "email", "email", ' autocomplete="email" required');
-      html += field("tf-guardian", "Parent / guardian (optional)", "guardian", "text", '');
-    }
-
-    // Honeypot.
+    html += '<div id="tf-contact"></div>';
     html += '<div class="hp-field" aria-hidden="true"><label for="tf-company">Company</label>' +
             '<input id="tf-company" name="company" type="text" tabindex="-1" autocomplete="off"></div>';
-
     html += '<div class="trial-actions">' +
               '<button class="btn btn--secondary trial-back" type="button">Back</button>' +
               '<button class="btn btn--primary" type="submit">Continue</button>' +
@@ -469,35 +441,85 @@
     html += '</form>';
     setBody(html);
 
+    var dob = dialog.querySelector("#tf-dob");
+    dob.addEventListener("input", renderContact);
+    dob.addEventListener("change", renderContact);
+    renderContact();
+
     dialog.querySelector(".trial-back").addEventListener("click", function () {
-      state.schedIdx = state.programs.length - 1;
+      state.schedIdx = state.selected.length - 1;
+      state.weekOffset = 0;
       renderScheduler();
     });
     dialog.querySelector(".trial-form").addEventListener("submit", function (e) {
       e.preventDefault();
-      onIntakeSubmit(e.target, kids);
+      onIntakeSubmit(e.target);
     });
     focusFirst();
   }
 
-  function onIntakeSubmit(form, kids) {
+  // Contact fields depend on the entered DOB: parent required under 18, the
+  // student's own phone/email plus an optional guardian at 18+.
+  function renderContact() {
+    var host = dialog.querySelector("#tf-contact");
+    if (!host) return;
+    // Preserve anything already typed across the re-render.
+    var cur = {};
+    host.querySelectorAll("input").forEach(function (el) { cur[el.name] = el.value; });
+    var val = function (n) { return cur[n] != null && cur[n] !== "" ? cur[n] : keepVal(n); };
+
+    var age = ageFromISO((dialog.querySelector("#tf-dob") || {}).value || "");
+    var cf = function (id, label, name, type, req) {
+      return '<div class="form-field"><label for="' + id + '">' + esc(label) + '</label>' +
+             '<input id="' + id + '" name="' + name + '" type="' + type + '"' + (req ? " data-req" : "") + ' value="' + esc(val(name)) + '"></div>';
+    };
+    var parentBlock = function (req) {
+      return '<div class="trial-grid trial-grid--2">' +
+               cf("tf-pfirst", "First name", "parent_first", "text", req) +
+               cf("tf-plast", "Last name", "parent_last", "text", req) +
+             '</div>' +
+             cf("tf-pphone", "Phone", "parent_phone", "tel", req) +
+             cf("tf-pemail", "Email", "parent_email", "email", req);
+    };
+
+    var html;
+    if (age === null) {
+      html = '<p class="trial-note">Enter the date of birth above to continue.</p>';
+    } else if (age < 18) {
+      html = '<p class="trial-legend">Parent / guardian</p>' + parentBlock(true);
+    } else {
+      html = '<p class="trial-legend">Your contact</p>' +
+             cf("tf-phone", "Phone", "phone", "tel", true) +
+             cf("tf-email", "Email", "email", "email", true) +
+             '<p class="trial-legend">Parent / guardian (optional)</p>' + parentBlock(false);
+    }
+    host.innerHTML = html;
+  }
+
+  function onIntakeSubmit(form) {
     var status = form.querySelector(".form-status");
     var get = function (n) { var el = form.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ""; };
 
     // Honeypot -> silently pretend success (no record).
     if (get("company") !== "") { renderSuccess(); return; }
 
+    var dob = get("dob");
+    var age = ageFromISO(dob);
+    if (age === null) { setStatus(status, "error", "Please enter a valid date of birth."); return; }
+
     var d = {
       student_first: get("student_first"),
       student_last: get("student_last"),
-      dob: get("dob"),
+      dob: dob,
       street: get("street"),
       city: get("city"),
       state: get("state"),
-      zip: get("zip")
+      zip: get("zip"),
+      isKids: age < 18
     };
-    var required = [d.student_first, d.student_last, d.dob, d.street, d.city, d.state, d.zip];
-    if (kids) {
+    var required = [d.student_first, d.student_last, d.street, d.city, d.state, d.zip];
+
+    if (d.isKids) {
       d.parent_first = get("parent_first");
       d.parent_last = get("parent_last");
       d.parent_phone = get("parent_phone");
@@ -506,7 +528,11 @@
     } else {
       d.phone = get("phone");
       d.email = get("email");
-      d.guardian = get("guardian");
+      // Optional guardian for adults.
+      d.guardian_first = get("parent_first");
+      d.guardian_last = get("parent_last");
+      d.guardian_phone = get("parent_phone");
+      d.guardian_email = get("parent_email");
       required = required.concat([d.phone, d.email]);
     }
     if (required.some(function (v) { return !v; })) {
@@ -518,7 +544,7 @@
     renderWaiver();
   }
 
-  /* ---- step 5: waiver ------------------------------------------------ */
+  /* ---- step 4: waiver ------------------------------------------------ */
   function renderWaiver() {
     var lorem =
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. " +
@@ -565,7 +591,7 @@
     focusFirst();
   }
 
-  /* ---- step 6: submit ------------------------------------------------ */
+  /* ---- step 5: submit ------------------------------------------------ */
   function submitBooking(form) {
     var status = form.querySelector(".form-status");
     var button = form.querySelector('button[type="submit"]');
@@ -573,15 +599,15 @@
 
     var payload = {
       type: "trial",
-      is_kids: state.kids,
+      is_kids: d.isKids,
       student_first: d.student_first,
       student_last: d.student_last,
       dob: d.dob,
       address: { street: d.street, city: d.city, state: d.state, zip: d.zip },
-      programs: state.programs.map(function (p) { return p.program; }),
+      programs: state.selected.map(function (m) { return m.tag; }),
       bookings: state.bookings.map(function (b) {
         return {
-          program: b.program,
+          program: b.tag,
           class_datetime: b.slot.iso,
           class_label: b.slot.label,
           date_text: b.slot.dateText,
@@ -592,7 +618,7 @@
       waiver_agreed: true,
       company: ""
     };
-    if (state.kids) {
+    if (d.isKids) {
       payload.parent_first = d.parent_first;
       payload.parent_last = d.parent_last;
       payload.parent_phone = d.parent_phone;
@@ -600,7 +626,10 @@
     } else {
       payload.phone = d.phone;
       payload.email = d.email;
-      payload.guardian = d.guardian || "";
+      payload.guardian_first = d.guardian_first || "";
+      payload.guardian_last = d.guardian_last || "";
+      payload.guardian_phone = d.guardian_phone || "";
+      payload.guardian_email = d.guardian_email || "";
     }
 
     button.disabled = true;
@@ -623,9 +652,9 @@
   /* ---- confirmation + family loop ------------------------------------ */
   function renderSuccess() {
     var d = state.intake || {};
-    var email = state.kids ? (d.parent_email || "") : (d.email || "");
+    var email = d.isKids ? (d.parent_email || "") : (d.email || "");
     var recap = state.bookings.map(function (b) {
-      return '<li>' + esc(b.program) + ' &middot; ' + esc(b.slot.dateText) + ' at ' + esc(b.slot.timeText) + '</li>';
+      return '<li>' + esc(b.label) + ' &middot; ' + esc(b.slot.dateText) + ' at ' + esc(b.slot.timeText) + '</li>';
     }).join("");
 
     setBody(
@@ -646,27 +675,19 @@
     focusFirst();
   }
 
-  // Loop back to the age gate for a new student, keeping the parent/guardian
+  // Loop back to program select for a new student, keeping the parent/guardian
   // contact + address so the same family isn't re-typed. Each member still
   // becomes its own contact + bookings + waiver.
   function bookAnother() {
     var d = state.intake || {};
-    var keep = {
-      street: d.street, city: d.city, state: d.state, zip: d.zip
-    };
-    if (state.kids) {
-      keep.parent_first = d.parent_first;
-      keep.parent_last = d.parent_last;
-      keep.parent_phone = d.parent_phone;
-      keep.parent_email = d.parent_email;
-    } else {
-      keep.phone = d.phone;
-      keep.email = d.email;
-      keep.guardian = d.guardian;
-    }
+    var keep = { street: d.street, city: d.city, state: d.state, zip: d.zip };
+    keep.parent_first = d.parent_first || d.guardian_first || "";
+    keep.parent_last = d.parent_last || d.guardian_last || "";
+    keep.parent_phone = d.parent_phone || d.guardian_phone || "";
+    keep.parent_email = d.parent_email || d.guardian_email || "";
     state = freshState();
     state.keep = keep;
-    renderAgeGate();
+    renderPrograms();
   }
 
   function setStatus(status, state2, msg) {

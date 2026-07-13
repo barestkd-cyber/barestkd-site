@@ -794,3 +794,18 @@ form[data-contact-form],
   padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--white); font-weight: 600; font-size: 0.92rem;
 }
+
+/* trial popup v3: calendar week strip */
+.trial-weeklabel { text-align: center; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.85rem; color: var(--ink-soft); margin: 0 0 0.75rem; }
+.trial-cal { display: flex; flex-direction: column; gap: 0.4rem; max-height: 46vh; overflow-y: auto; }
+.trial-day { display: grid; grid-template-columns: 5.2rem 1fr; gap: 0.6rem; align-items: start; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+.trial-day:first-child { border-top: none; }
+.trial-day__label { font-weight: 700; font-size: 0.85rem; padding-top: 0.35rem; }
+.trial-day__slots { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.trial-slot {
+  padding: 0.45rem 0.7rem; border: 2px solid var(--line); border-radius: var(--radius);
+  background: var(--white); cursor: pointer; font: inherit; color: var(--ink);
+  font-size: 0.85rem; font-weight: 600; transition: border-color 0.15s ease;
+}
+.trial-slot:hover { border-color: var(--belt-red); }
+.trial-day__empty { color: var(--ink-soft); font-size: 0.85rem; padding-top: 0.35rem; }
