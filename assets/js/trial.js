@@ -450,17 +450,19 @@
               pfield("tf-zip", "ZIP", "zip", "text", ' autocomplete="postal-code" inputmode="numeric" maxlength="10" required') +
             '</div>';
     html += '<p class="trial-legend">Parent / guardian</p>' +
-            '<p class="trial-fieldnote">Required for students under 18. This is the contact we\'ll use for a child.</p>' +
+            '<p class="trial-fieldnote">Not required for students over eighteen.</p>' +
             '<div class="trial-grid trial-grid--2">' +
               pfield("tf-pfirst", "First name", "parent_first", "text", ' autocomplete="given-name"') +
               pfield("tf-plast", "Last name", "parent_last", "text", ' autocomplete="family-name"') +
             '</div>' +
             pfield("tf-pphone", "Phone", "parent_phone", "tel", ' autocomplete="tel"') +
-            pfield("tf-pemail", "Email", "parent_email", "email", ' autocomplete="email"');
-    html += '<p class="trial-legend">If the student is 18 or older</p>' +
-            '<p class="trial-fieldnote">Enter the adult student\'s own phone and email.</p>' +
+            pfield("tf-pemail", "Email", "parent_email", "email", ' autocomplete="email"') +
+            '<p class="trial-fielderr" id="tf-parent-err" role="alert" aria-live="polite"></p>';
+    html += '<p class="trial-legend">Adult student contact</p>' +
+            '<p class="trial-fieldnote">Not required for students under eighteen.</p>' +
             pfield("tf-aphone", "Phone", "adult_phone", "tel", ' autocomplete="tel"') +
-            pfield("tf-aemail", "Email", "adult_email", "email", ' autocomplete="email"');
+            pfield("tf-aemail", "Email", "adult_email", "email", ' autocomplete="email"') +
+            '<p class="trial-fielderr" id="tf-adult-err" role="alert" aria-live="polite"></p>';
     // Honeypot: neutral name + hidden so browser autofill never fills it.
     html += '<div class="hp-field" aria-hidden="true"><label for="tf-hp">Do not fill this in</label>' +
             '<input id="tf-hp" name="hp" type="text" tabindex="-1" autocomplete="off"></div>';
@@ -490,7 +492,12 @@
 
   function onIntakeSubmit(form) {
     var status = form.querySelector(".form-status");
+    var perr = form.querySelector("#tf-parent-err");
+    var aerr = form.querySelector("#tf-adult-err");
     var get = function (n) { var el = form.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ""; };
+    if (perr) perr.textContent = "";
+    if (aerr) aerr.textContent = "";
+    setStatus(status, "", "");
 
     // Honeypot -> silently pretend success (no record).
     if (get("hp") !== "") { renderSuccess(); return; }
@@ -509,29 +516,37 @@
       zip: get("zip"),
       isKids: age < 18
     };
-    var required = [d.student_first, d.student_last, d.street, d.city, d.state, d.zip];
+
+    // Student + address are always required.
+    if ([d.student_first, d.student_last, d.street, d.city, d.state, d.zip].some(function (v) { return !v; })) {
+      setStatus(status, "error", "Please fill in all the required fields.");
+      return;
+    }
 
     if (d.isKids) {
+      // Under 18: parent/guardian is silently required.
       d.parent_first = get("parent_first");
       d.parent_last = get("parent_last");
       d.parent_phone = get("parent_phone");
       d.parent_email = get("parent_email");
-      required = required.concat([d.parent_first, d.parent_last, d.parent_phone, d.parent_email]);
+      if ([d.parent_first, d.parent_last, d.parent_phone, d.parent_email].some(function (v) { return !v; })) {
+        if (perr) perr.textContent = "Please fill this out.";
+        var pf = form.querySelector('[name="parent_first"]'); if (pf) pf.focus();
+        return;
+      }
     } else {
+      // 18+: their own contact required; parent/guardian optional.
       d.phone = get("adult_phone");
       d.email = get("adult_email");
-      // Optional guardian for adults (from the parent/guardian block above).
       d.guardian_first = get("parent_first");
       d.guardian_last = get("parent_last");
       d.guardian_phone = get("parent_phone");
       d.guardian_email = get("parent_email");
-      required = required.concat([d.phone, d.email]);
-    }
-    if (required.some(function (v) { return !v; })) {
-      setStatus(status, "error", d.isKids
-        ? "Please fill in the student, address, and parent/guardian fields."
-        : "Please fill in the student, address, and the adult student's phone and email.");
-      return;
+      if (!d.phone || !d.email) {
+        if (aerr) aerr.textContent = "Please fill this out.";
+        var af = form.querySelector('[name="adult_phone"]'); if (af) af.focus();
+        return;
+      }
     }
 
     state.intake = d;

@@ -778,6 +778,8 @@ form[data-contact-form],
 }
 .trial-legend { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; color: var(--ink-soft); margin: 0.4rem 0 0.6rem; }
 .trial-fieldnote { font-size: 0.82rem; color: var(--ink-soft); margin: -0.35rem 0 0.7rem; }
+.trial-fielderr { font-size: 0.85rem; font-weight: 700; color: var(--belt-red); margin: -0.4rem 0 0.4rem; }
+.trial-fielderr:empty { display: none; }
 
 .trial-waiver {
   max-height: 34vh; overflow-y: auto;
