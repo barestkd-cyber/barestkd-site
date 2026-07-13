@@ -112,10 +112,15 @@
 </header>
 <main id="main-content">
 <section class="hero">
-  <!-- Hero video; shows the poster under prefers-reduced-motion or if the file is missing. -->
-  <video class="hero__media" autoplay muted loop playsinline poster="/assets/img/hero-poster.jpg">
-    <source src="/assets/video/hero.mp4" type="video/mp4">
-  </video>
+  <!-- Poster photo: loads eagerly, shows instantly, and stays for reduced-motion,
+       data-saver, or anyone the video can't play for. -->
+  <img class="hero__media hero__poster" src="/assets/img/hero.jpg"
+       alt="A young student in uniform high-fiving an instructor at Bares Taekwondo Fitness"
+       fetchpriority="high" decoding="async" width="1600" height="2400">
+  <!-- Highlight reel: JS adds the source and fades it in once it can play. Never
+       loads or plays under prefers-reduced-motion or data-saver. -->
+  <video class="hero__media hero__video" muted loop playsinline preload="auto"
+         aria-hidden="true" data-hero-video data-src="/assets/video/hero-reel.mp4"></video>
   <div class="hero__scrim"></div>
   <div class="container hero__inner">
     <h1>Martial Arts for Every Age in Tyler, TX</h1>

@@ -364,19 +364,29 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
+  object-position: 50% 42%; /* upper-center: keep faces from 360px to desktop */
   z-index: 0;
 }
+.hero__video { z-index: 0; background: var(--ink); }
+.hero__poster { z-index: 1; opacity: 1; transition: opacity 0.8s ease; } /* fades out to reveal the reel */
+.hero__poster.is-hidden { opacity: 0; }
 .hero__scrim {
   position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(23,19,15,0.85) 0%, rgba(23,19,15,0.35) 55%, rgba(23,19,15,0.15) 100%);
-  z-index: 1;
+  z-index: 2;
+  /* Stronger scrim, weighted to the bottom-left where the headline + buttons sit. */
+  background:
+    linear-gradient(to top, rgba(23,19,15,0.92) 0%, rgba(23,19,15,0.60) 42%, rgba(23,19,15,0.30) 72%, rgba(23,19,15,0.22) 100%),
+    linear-gradient(to right, rgba(23,19,15,0.55) 0%, rgba(23,19,15,0.18) 55%, rgba(23,19,15,0) 100%);
 }
-.hero__inner { position: relative; z-index: 2; padding-block: clamp(2rem, 6vw, 4rem); }
+.hero__inner { position: relative; z-index: 3; padding-block: clamp(2rem, 6vw, 4rem); }
 .hero h1 { color: var(--white); max-width: 16ch; }
 .hero__sub { font-size: 1.15rem; max-width: 46ch; color: #ece7df; }
 .hero__actions { display: flex; flex-wrap: wrap; gap: 0.85rem; margin-top: 1.5rem; }
 .hero .btn--secondary { color: var(--white); border-color: var(--white); }
 .hero .btn--secondary:hover { background: var(--white); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) {
+  .hero__poster.is-hidden { opacity: 1; } /* photo only, never reveal the reel */
+}
 
 /* --------------------------------------------------------------------------
    Grids / cards
