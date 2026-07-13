@@ -44,7 +44,7 @@
     { key: "lk",      label: "Little Kickers",         desc: "Ages 2-3 · Parent & Me · Coming Soon", solo: true,  comingSoon: true },
     { key: "cubs",    label: "Cubs",                   desc: "Ages 3-4",  solo: true,  tag: "Cubs",         get: "Cubs",      re: null },
     { key: "juniors", label: "Juniors",                desc: "Ages 5-12", solo: true,  tag: "Juniors",      get: "Taekwondo", re: /juniors|forms/i },
-    { key: "tkd",     label: "Teens/Adults Taekwondo", desc: "Ages 13+",  solo: false, tag: "Teens/Adults", get: "Taekwondo", re: /teens|adult|forms/i },
+    { key: "tkd",     label: "Teens/Adults Taekwondo", desc: "Ages 13+",  solo: false, tag: "Teens/Adults Taekwondo", get: "Taekwondo", re: /teens|adult|forms/i },
     { key: "kb",      label: "Kickboxing",             desc: "Ages 13+",  solo: false, tag: "Kickboxing",   get: "Kickboxing", re: null },
     { key: "jj",      label: "Jiu Jitsu",              desc: "Ages 13+",  solo: false, tag: "Jiu Jitsu",    get: "Jiu Jitsu",  re: null }
   ];
