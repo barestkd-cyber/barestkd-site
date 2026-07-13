@@ -220,7 +220,10 @@
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     var conn = navigator.connection || {};
     var src = hv.getAttribute("data-src");
-    if (src && !reduce && !conn.saveData) {
+    // Alternate by the hour so the photo gets its turn: odd hours play the reel,
+    // even hours stay on the photo. Reduced-motion / data-saver always show the photo.
+    var reelHour = (new Date().getHours() % 2) === 1;
+    if (src && reelHour && !reduce && !conn.saveData) {
       var source = document.createElement("source");
       source.src = src;
       source.type = "video/mp4";
