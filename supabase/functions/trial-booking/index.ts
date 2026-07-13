@@ -143,74 +143,156 @@ Deno.serve(async (req) => {
   let subject = "";
   let lines: string[] = [];
 
+  // A second, best-effort confirmation email to the parent/student. Populated
+  // by the trial branch; left empty for contacts (no confirmation there).
+  let confirmTo = "";
+  let confirmSubject = "";
+  let confirmLines: string[] = [];
+
   // ---- 1 & 2: validate + DB insert FIRST -------------------------------
   try {
     if (type === "trial") {
-      const program = str(body.program);
-      const classLabel = str(body.class_label);
-      const classDatetime = str(body.class_datetime);
-      const contactName = str(body.contact_name); // the "Your name" field (parent for kids)
-      const studentName = str(body.student_name); // kids only
-      const phone = str(body.phone);
-      const email = str(body.email);
+      // v2 shape: one student, one or more chosen programs, one booking per
+      // chosen class, a real DOB, a full address, and a signed waiver.
+      const studentFirst = str(body.student_first);
+      const studentLast = str(body.student_last);
+      const dob = str(body.dob); // YYYY-MM-DD
+      const addr = (body.address && typeof body.address === "object")
+        ? body.address as Record<string, unknown> : {};
+      const street = str(addr.street), city = str(addr.city);
+      const region = str(addr.state), zip = str(addr.zip);
       const isKids = !!body.is_kids;
-      const studentAge = body.student_age ? parseInt(String(body.student_age), 10) : null;
+      const programs = Array.isArray(body.programs)
+        ? body.programs.map((p) => str(p)).filter(Boolean) : [];
+      const bookings = Array.isArray(body.bookings) ? body.bookings : [];
+      const waiverName = str(body.waiver_name);
+      const waiverAgreed = !!body.waiver_agreed;
 
-      if (!program || !classDatetime || !contactName || !phone || !email || (isKids && !studentName)) {
+      // Contact channel: parent for kids, the person themselves for 13+.
+      let contactEmail = "", contactPhone = "", parentEmail = "", bookedBy = "";
+      if (isKids) {
+        contactPhone = str(body.parent_phone);
+        contactEmail = str(body.parent_email);
+        parentEmail = contactEmail;
+        bookedBy = (str(body.parent_first) + " " + str(body.parent_last)).trim();
+      } else {
+        contactPhone = str(body.phone);
+        contactEmail = str(body.email);
+        bookedBy = str(body.guardian) || (studentFirst + " " + studentLast).trim();
+      }
+
+      const who = (studentFirst + " " + studentLast).trim();
+
+      if (!studentFirst || !studentLast || !dob || !street || !city || !region || !zip ||
+          !contactPhone || !contactEmail || !programs.length || !bookings.length ||
+          !waiverAgreed || !waiverName || (isKids && !bookedBy)) {
         return json({ error: "Missing required fields" }, 400, cors);
       }
 
-      // The contact row is the student: their name for kids, the adult otherwise.
-      const who = isKids ? studentName : contactName;
-      const parts = who.split(" ");
-      const firstName = parts[0] || who;
-      const lastName = parts.slice(1).join(" ");
+      const addressText = [street, city, [region, zip].filter(Boolean).join(" ")]
+        .filter(Boolean).join(", ");
 
+      // Real age from DOB (kept for CRM compatibility; DOB is the source of truth).
+      let studentAge: number | null = null;
+      const dobDate = new Date(dob);
+      if (!isNaN(dobDate.getTime())) {
+        const t = new Date();
+        let a = t.getFullYear() - dobDate.getFullYear();
+        const mo = t.getMonth() - dobDate.getMonth();
+        if (mo < 0 || (mo === 0 && t.getDate() < dobDate.getDate())) a--;
+        studentAge = a >= 0 && a < 120 ? a : null;
+      }
+
+      // ONE contact per student. program stays NULL; trial-interest programs
+      // live in tags (text[]) and on the booking rows.
       const { data: contact, error: cErr } = await admin
         .from("contacts")
         .insert({
-          first_name: firstName,
-          last_name: lastName,
+          first_name: studentFirst,
+          last_name: studentLast,
           segment: "trial",
           member_role: "student",
-          program: null, // never store the marketing label on contacts; it lives on trial_bookings + the email
+          program: null,
           source: "website-trial",
           entered_on: today,
-          email,   // parent's email for kids; the adult's otherwise
-          phone,   // parent's phone for kids; the adult's otherwise
+          email: contactEmail,   // parent's for kids; the adult's otherwise
+          phone: contactPhone,
+          dob,
+          address: addressText,
+          tags: programs,        // e.g. ["Taekwondo","Jiu Jitsu"]
         })
         .select("id")
         .single();
       if (cErr) throw cErr;
 
-      const { error: bErr } = await admin.from("trial_bookings").insert({
-        contact_id: contact.id,
-        program,
-        class_datetime: classDatetime,
-        class_label: classLabel,
-        student_age: studentAge,
-        booked_by: contactName,
-      });
+      const waiverAt = new Date().toISOString();
+      const rows = bookings
+        .map((b) => {
+          const bo = (b && typeof b === "object") ? b as Record<string, unknown> : {};
+          return {
+            contact_id: contact.id,
+            program: str(bo.program),
+            class_datetime: str(bo.class_datetime),
+            class_label: str(bo.class_label),
+            student_age: studentAge,
+            booked_by: bookedBy,
+            dob,
+            waiver_name: waiverName,
+            waiver_signed_at: waiverAt,
+            waiver_agreed: true,
+          };
+        })
+        .filter((r) => r.program && r.class_datetime);
+      if (!rows.length) return json({ error: "Missing required fields" }, 400, cors);
+
+      const { error: bErr } = await admin.from("trial_bookings").insert(rows);
       if (bErr) throw bErr;
 
       // Kids: record the parent's email as a guardian (matches existing pattern).
-      if (isKids && email) {
+      if (isKids && parentEmail) {
         await admin.from("student_guardians").insert({
           student_id: contact.id,
-          email,
+          email: parentEmail,
           label: "parent",
         });
       }
 
-      subject = `New free-trial booking: ${who} (${program})`;
+      // Readable per-class lines (front-end passes friendly date/time text).
+      const classText = bookings.map((b) => {
+        const bo = (b && typeof b === "object") ? b as Record<string, unknown> : {};
+        const when = str(bo.date_text) && str(bo.time_text)
+          ? `${str(bo.date_text)} at ${str(bo.time_text)}` : str(bo.class_datetime);
+        return `${str(bo.program)} — ${str(bo.class_label)} — ${when}`;
+      });
+
+      subject = `New free-trial booking: ${who} (${programs.join(", ")})`;
       lines = [
-        `Program: ${program}`,
-        `Class: ${classLabel} — ${classDatetime}`,
-        isKids ? `Student: ${studentName}${studentAge ? " (age " + studentAge + ")" : ""}` : `Name: ${contactName}`,
-        isKids ? `Parent/guardian: ${contactName}` : "",
-        `Phone: ${phone}`,
-        `Email: ${email}`,
+        `Student: ${who}`,
+        `DOB: ${dob}`,
+        `Programs: ${programs.join(", ")}`,
+        ...classText.map((c) => `Class: ${c}`),
+        (bookedBy && bookedBy !== who) ? `Parent/guardian: ${bookedBy}` : "",
+        `Phone: ${contactPhone}`,
+        `Email: ${contactEmail}`,
+        `Address: ${addressText}`,
+        `Waiver signed: yes (${waiverName} at ${waiverAt})`,
       ].filter(Boolean);
+
+      // Confirmation email to the parent/student (sent best-effort below).
+      confirmTo = contactEmail;
+      confirmSubject = "Your free week at Bares Taekwondo Fitness";
+      confirmLines = [
+        `Hi ${isKids ? (bookedBy || "there") : (studentFirst || "there")},`,
+        ``,
+        `Thanks for booking a free trial week${isKids ? " for " + who : ""}. Here's what you're signed up for:`,
+        ``,
+        ...classText.map((c) => `• ${c}`),
+        ``,
+        `Where: Bares Taekwondo Fitness, 1901 Deerbrook Dr, Tyler, TX 75703`,
+        `Questions? Call 903-561-2966 or reply to this email.`,
+        ``,
+        `See you on the mat!`,
+      ];
     } else {
       const name = str(body.name);
       const phone = str(body.phone);
@@ -250,31 +332,32 @@ Deno.serve(async (req) => {
     return json({ error: "Could not save your request. Please try again." }, 500, cors);
   }
 
-  // ---- 3: Resend notification (best-effort, NEVER loses the lead) -------
-  try {
-    const key = Deno.env.get("RESEND_API_KEY");
+  // ---- 3: Resend emails (best-effort, NEVER lose the saved record) -----
+  const key = Deno.env.get("RESEND_API_KEY");
+  async function sendEmail(to: string, subj: string, text: string, tag: string) {
     if (!key) {
-      console.warn("[trial-booking] RESEND_API_KEY not set; email skipped (lead is saved).");
-    } else {
+      console.warn(`[trial-booking] RESEND_API_KEY not set; ${tag} skipped (record is saved).`);
+      return;
+    }
+    try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: NOTIFY_FROM,
-          to: [NOTIFY_TO],
-          subject,
-          text: lines.join("\n"),
-        }),
+        headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: NOTIFY_FROM, to: [to], subject: subj, text }),
       });
       if (!res.ok) {
-        console.error("[trial-booking] Resend non-OK (lead is saved):", res.status, await res.text());
+        console.error(`[trial-booking] Resend ${tag} non-OK (record saved):`, res.status, await res.text());
       }
+    } catch (e) {
+      console.error(`[trial-booking] Resend ${tag} threw (record saved):`, e);
     }
-  } catch (e) {
-    console.error("[trial-booking] Resend threw (lead is saved):", e);
+  }
+
+  // Staff notification.
+  await sendEmail(NOTIFY_TO, subject, lines.join("\n"), "staff notify");
+  // Confirmation to the parent/student (trial only).
+  if (confirmTo) {
+    await sendEmail(confirmTo, confirmSubject, confirmLines.join("\n"), "confirmation");
   }
 
   return json({ ok: true }, 200, cors);

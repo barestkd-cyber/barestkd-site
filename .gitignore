@@ -1,3 +1,6 @@
 # Local dev tooling — not part of the deployed site
 .claude/
 serve.ps1
+
+# Supabase CLI local link cache
+supabase/.temp/
