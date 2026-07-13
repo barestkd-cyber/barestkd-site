@@ -362,7 +362,7 @@
 
     var html = head(item.label, n > 1 ? ("Class " + (i + 1) + " of " + n) : null);
     html += '<p class="trial-sub">Schedule your <strong>first</strong> class</p>';
-    html += '<p class="trial-note trial-firstnote">Just your first class. Your free week covers every class you want to attend that week, so there\'s no need to book each one.</p>';
+    html += '<p class="trial-note trial-firstnote">Just your first class. Your free week covers every class you want to attend, but there\'s no need to book each one.</p>';
     html += '<p class="trial-weeklabel">' + esc(weekRange(start, end)) + '</p>';
     html += '<div class="trial-cal">';
     for (var dn = 0; dn < 7; dn++) {

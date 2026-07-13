@@ -18,6 +18,7 @@
 // ===========================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 
 const ALLOWED_ORIGINS = [
   "https://www.barestkd.fit",
@@ -57,6 +58,101 @@ function toBase64(s: string): string {
   let bin = "";
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
   return btoa(bin);
+}
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+type WaiverDoc = {
+  who: string;
+  dob: string;
+  age: number | null;
+  programs: string[];
+  classLines: string[];
+  waiverName: string;
+  waiverAt: string;
+  waiverSignature: string; // PNG data URL, may be ""
+};
+
+const dobLine = (d: WaiverDoc) =>
+  `${d.dob}${d.age != null ? ` (age ${d.age})` : ""}`;
+
+// Signed waiver as a PDF (preferred). Long text wraps + paginates; the drawn
+// signature is embedded as a PNG. Returns base64 of the PDF bytes.
+async function buildWaiverPdf(d: WaiverDoc): Promise<string> {
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const pageW = 612, pageH = 792, margin = 54, maxW = pageW - margin * 2;
+  let page = pdf.addPage([pageW, pageH]);
+  let y = pageH - margin;
+  const line = (text: string, f = font, s = 10, lh = 14) => {
+    const words = String(text).split(/\s+/).filter(Boolean);
+    let cur = "";
+    const flush = () => {
+      if (y - lh < margin) { page = pdf.addPage([pageW, pageH]); y = pageH - margin; }
+      page.drawText(cur, { x: margin, y, size: s, font: f });
+      y -= lh;
+    };
+    for (const w of words) {
+      const test = cur ? cur + " " + w : w;
+      if (cur && f.widthOfTextAtSize(test, s) > maxW) { flush(); cur = w; }
+      else cur = test;
+    }
+    if (cur) flush();
+  };
+  const gap = (n: number) => { y -= n; };
+
+  line("Bares Taekwondo Fitness", bold, 15, 18);
+  line("Liability Waiver and Release", bold, 11, 15);
+  gap(6);
+  line(`Participant: ${d.who}`);
+  line(`Date of birth: ${dobLine(d)}`);
+  line(`Programs: ${d.programs.join(", ")}`);
+  gap(4);
+  for (const c of d.classLines) line(c);
+  gap(8);
+  line(WAIVER_TEXT);
+  gap(10);
+  line(`Signed: ${d.waiverName}`, bold, 10, 14);
+  if (d.waiverSignature.indexOf("data:image/png") === 0) {
+    const b64 = d.waiverSignature.split(",")[1] || "";
+    const raw = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+    const png = await pdf.embedPng(raw);
+    const w = 200, h = png.height * (w / png.width);
+    if (y - h - 6 < margin) { page = pdf.addPage([pageW, pageH]); y = pageH - margin; }
+    y -= h;
+    page.drawImage(png, { x: margin, y, width: w, height: h });
+    gap(8);
+  }
+  line(`Date: ${d.waiverAt}`);
+  return bytesToBase64(await pdf.save());
+}
+
+// HTML fallback if the PDF library ever fails (opens in a browser).
+function buildWaiverHtml(d: WaiverDoc): string {
+  const classListHtml = d.classLines.map((c) => `<li>${escHtml(c)}</li>`).join("");
+  const sigImg = d.waiverSignature
+    ? `<div style="margin:8px 0"><img src="${d.waiverSignature}" alt="Signature" style="max-width:340px;height:auto"></div>`
+    : "";
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width, initial-scale=1">` +
+    `<title>Liability Waiver and Release</title></head>` +
+    `<body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#17130f;line-height:1.5">` +
+    `<h1 style="font-size:20px;margin:0 0 2px">Bares Taekwondo Fitness</h1>` +
+    `<h2 style="font-size:14px;margin:0 0 16px;text-transform:uppercase;letter-spacing:.04em">Liability Waiver and Release</h2>` +
+    `<p style="margin:0 0 12px"><strong>Participant:</strong> ${escHtml(d.who)}<br>` +
+    `<strong>Date of birth:</strong> ${escHtml(dobLine(d))}<br>` +
+    `<strong>Programs:</strong> ${escHtml(d.programs.join(", "))}</p>` +
+    `<ul style="margin:0 0 16px;padding-left:20px">${classListHtml}</ul>` +
+    `<p style="margin:0 0 20px">${escHtml(WAIVER_TEXT)}</p>` +
+    `<hr style="border:none;border-top:1px solid #ccc;margin:20px 0">` +
+    `<p style="margin:0 0 4px"><strong>Signed:</strong> ${escHtml(d.waiverName)}</p>` +
+    sigImg +
+    `<p style="margin:0"><strong>Date:</strong> ${escHtml(d.waiverAt)}</p>` +
+    `</body></html>`;
 }
 
 function json(obj: unknown, status: number, cors: Record<string, string>) {
@@ -164,8 +260,11 @@ Deno.serve(async (req) => {
   let confirmTo = "";
   let confirmSubject = "";
   let confirmLines: string[] = [];
-  // Signed-waiver document, attached to both emails (built in the trial branch).
+  // Signed-waiver document, attached to both emails. Its data is gathered in
+  // the trial branch; the actual PDF is built later (best-effort) so a document
+  // failure can never lose the saved booking.
   let waiverAttachments: Array<{ filename: string; content: string }> = [];
+  let waiverDocData: WaiverDoc | null = null;
 
   // ---- 1 & 2: validate + DB insert FIRST -------------------------------
   try {
@@ -297,31 +396,11 @@ Deno.serve(async (req) => {
           ((!isKids && parentEmail) ? `, ${parentEmail}` : "")
         : "";
 
-      // Signed waiver as an attached HTML document (opens in a browser, prints
-      // to PDF). Contains the full text and the drawn signature image.
-      const classListHtml = classLines.map((c) => `<li>${escHtml(c)}</li>`).join("");
-      const sigImg = waiverSignature
-        ? `<div style="margin:8px 0"><img src="${waiverSignature}" alt="Signature" style="max-width:340px;height:auto"></div>`
-        : "";
-      const waiverDoc =
-        `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
-        `<meta name="viewport" content="width=device-width, initial-scale=1">` +
-        `<title>Liability Waiver and Release</title></head>` +
-        `<body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#17130f;line-height:1.5">` +
-        `<h1 style="font-size:20px;margin:0 0 2px">Bares Taekwondo Fitness</h1>` +
-        `<h2 style="font-size:14px;margin:0 0 16px;text-transform:uppercase;letter-spacing:.04em">Liability Waiver and Release</h2>` +
-        `<p style="margin:0 0 12px"><strong>Participant:</strong> ${escHtml(who)}<br>` +
-        `<strong>Date of birth:</strong> ${escHtml(dob)}<br>` +
-        `<strong>Programs:</strong> ${escHtml(programs.join(", "))}</p>` +
-        `<ul style="margin:0 0 16px;padding-left:20px">${classListHtml}</ul>` +
-        `<p style="margin:0 0 20px">${escHtml(WAIVER_TEXT)}</p>` +
-        `<hr style="border:none;border-top:1px solid #ccc;margin:20px 0">` +
-        `<p style="margin:0 0 4px"><strong>Signed:</strong> ${escHtml(waiverName)}</p>` +
-        sigImg +
-        `<p style="margin:0"><strong>Date:</strong> ${escHtml(waiverAt)}</p>` +
-        `</body></html>`;
-      const safeName = who.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "participant";
-      waiverAttachments = [{ filename: `Waiver-${safeName}.html`, content: toBase64(waiverDoc) }];
+      // Gather the data for the signed-waiver document; the PDF is built later.
+      waiverDocData = {
+        who, dob, age: studentAge, programs,
+        classLines, waiverName, waiverAt, waiverSignature,
+      };
 
       const waiverBlock = [
         "LIABILITY WAIVER AND RELEASE",
@@ -334,6 +413,7 @@ Deno.serve(async (req) => {
         "STUDENT",
         `Name: ${who}`,
         `Date of birth: ${dob}`,
+        `Age: ${studentAge != null ? studentAge : "unknown"}`,
         "",
         "PROGRAMS & CLASSES",
         ...classLines,
@@ -434,6 +514,24 @@ Deno.serve(async (req) => {
       }
     } catch (e) {
       console.error(`[trial-booking] Resend ${tag} threw (record saved):`, e);
+    }
+  }
+
+  // Build the signed-waiver PDF (HTML fallback). Best-effort; never blocks the
+  // saved booking or the emails.
+  // TODO(crm): also persist this signed waiver to the student's profile under
+  // Documents once the CRM supports document storage, e.g. upload the PDF to a
+  // Supabase Storage bucket keyed by contact_id and surface it in the CRM.
+  if (waiverDocData) {
+    const safeName = waiverDocData.who.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "participant";
+    try {
+      const content = await buildWaiverPdf(waiverDocData);
+      waiverAttachments = [{ filename: `Waiver-${safeName}.pdf`, content }];
+    } catch (e) {
+      console.error("[trial-booking] waiver PDF failed, using HTML fallback:", e);
+      try {
+        waiverAttachments = [{ filename: `Waiver-${safeName}.html`, content: toBase64(buildWaiverHtml(waiverDocData)) }];
+      } catch (_e) { /* send without attachment */ }
     }
   }
 
