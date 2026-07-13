@@ -777,6 +777,7 @@ form[data-contact-form],
   .trial-grid--2, .trial-grid--3 { grid-template-columns: 1fr; }
 }
 .trial-legend { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; color: var(--ink-soft); margin: 0.4rem 0 0.6rem; }
+.trial-fieldnote { font-size: 0.82rem; color: var(--ink-soft); margin: -0.35rem 0 0.7rem; }
 
 .trial-waiver {
   max-height: 34vh; overflow-y: auto;

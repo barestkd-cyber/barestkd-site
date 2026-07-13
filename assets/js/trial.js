@@ -418,9 +418,18 @@
   /* ---- step 3: intake (DOB drives parent/guardian requirement) ------- */
   function keepVal(name) { return (state.keep && state.keep[name] != null) ? state.keep[name] : ""; }
 
-  function addrField(id, label, name, extra) {
+  function pfield(id, label, name, type, extra) {
     return '<div class="form-field"><label for="' + id + '">' + esc(label) + '</label>' +
-           '<input id="' + id + '" name="' + name + '" type="text"' + (extra || "") + ' value="' + esc(keepVal(name)) + '"></div>';
+           '<input id="' + id + '" name="' + name + '" type="' + (type || "text") + '"' + (extra || "") + ' value="' + esc(keepVal(name)) + '"></div>';
+  }
+
+  // Auto-format a typed date of birth into MM/DD/YYYY as the user types.
+  function formatDOB(el) {
+    var digits = el.value.replace(/\D/g, "").slice(0, 8);
+    var out = digits;
+    if (digits.length > 4) out = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
+    else if (digits.length > 2) out = digits.slice(0, 2) + "/" + digits.slice(2);
+    el.value = out;
   }
 
   function renderIntake() {
@@ -433,16 +442,28 @@
               '<input id="tf-slast" name="student_last" type="text" autocomplete="family-name" required></div>' +
             '</div>';
     html += '<div class="form-field"><label for="tf-dob">Student date of birth</label>' +
-            '<input id="tf-dob" name="dob" type="text" inputmode="numeric" autocomplete="bday" placeholder="MM/DD/YYYY" required></div>';
-    html += addrField("tf-street", "Street address", "street", ' autocomplete="address-line1" required');
+            '<input id="tf-dob" name="dob" type="text" inputmode="numeric" autocomplete="bday" placeholder="MM/DD/YYYY" maxlength="10" required></div>';
+    html += pfield("tf-street", "Street address", "street", "text", ' autocomplete="address-line1" required');
     html += '<div class="trial-grid trial-grid--3">' +
-              addrField("tf-city", "City", "city", ' autocomplete="address-level2" required') +
-              addrField("tf-state", "State", "state", ' autocomplete="address-level1" maxlength="20" required') +
-              addrField("tf-zip", "ZIP", "zip", ' autocomplete="postal-code" inputmode="numeric" maxlength="10" required') +
+              pfield("tf-city", "City", "city", "text", ' autocomplete="address-level2" required') +
+              pfield("tf-state", "State", "state", "text", ' autocomplete="address-level1" maxlength="20" required') +
+              pfield("tf-zip", "ZIP", "zip", "text", ' autocomplete="postal-code" inputmode="numeric" maxlength="10" required') +
             '</div>';
-    html += '<div id="tf-contact"></div>';
-    html += '<div class="hp-field" aria-hidden="true"><label for="tf-company">Company</label>' +
-            '<input id="tf-company" name="company" type="text" tabindex="-1" autocomplete="off"></div>';
+    html += '<p class="trial-legend">Parent / guardian</p>' +
+            '<p class="trial-fieldnote">Required for students under 18. This is the contact we\'ll use for a child.</p>' +
+            '<div class="trial-grid trial-grid--2">' +
+              pfield("tf-pfirst", "First name", "parent_first", "text", ' autocomplete="given-name"') +
+              pfield("tf-plast", "Last name", "parent_last", "text", ' autocomplete="family-name"') +
+            '</div>' +
+            pfield("tf-pphone", "Phone", "parent_phone", "tel", ' autocomplete="tel"') +
+            pfield("tf-pemail", "Email", "parent_email", "email", ' autocomplete="email"');
+    html += '<p class="trial-legend">If the student is 18 or older</p>' +
+            '<p class="trial-fieldnote">Enter the adult student\'s own phone and email.</p>' +
+            pfield("tf-aphone", "Phone", "adult_phone", "tel", ' autocomplete="tel"') +
+            pfield("tf-aemail", "Email", "adult_email", "email", ' autocomplete="email"');
+    // Honeypot: neutral name + hidden so browser autofill never fills it.
+    html += '<div class="hp-field" aria-hidden="true"><label for="tf-hp">Do not fill this in</label>' +
+            '<input id="tf-hp" name="hp" type="text" tabindex="-1" autocomplete="off"></div>';
     html += '<div class="trial-actions">' +
               '<button class="btn btn--secondary trial-back" type="button">Back</button>' +
               '<button class="btn btn--primary" type="submit">Continue</button>' +
@@ -452,10 +473,8 @@
     html += '</form>';
     setBody(html);
 
-    var dob = dialog.querySelector("#tf-dob");
-    dob.addEventListener("input", renderContact);
-    dob.addEventListener("change", renderContact);
-    renderContact();
+    var dobEl = dialog.querySelector("#tf-dob");
+    dobEl.addEventListener("input", function () { formatDOB(dobEl); });
 
     dialog.querySelector(".trial-back").addEventListener("click", function () {
       state.schedIdx = state.selected.length - 1;
@@ -469,51 +488,12 @@
     focusFirst();
   }
 
-  // Contact fields depend on the entered DOB: parent required under 18, the
-  // student's own phone/email plus an optional guardian at 18+.
-  function renderContact() {
-    var host = dialog.querySelector("#tf-contact");
-    if (!host) return;
-    // Preserve anything already typed across the re-render.
-    var cur = {};
-    host.querySelectorAll("input").forEach(function (el) { cur[el.name] = el.value; });
-    var val = function (n) { return cur[n] != null && cur[n] !== "" ? cur[n] : keepVal(n); };
-
-    var parsed = parseDOB((dialog.querySelector("#tf-dob") || {}).value || "");
-    var age = parsed ? parsed.age : null;
-    var cf = function (id, label, name, type, req) {
-      return '<div class="form-field"><label for="' + id + '">' + esc(label) + '</label>' +
-             '<input id="' + id + '" name="' + name + '" type="' + type + '"' + (req ? " data-req" : "") + ' value="' + esc(val(name)) + '"></div>';
-    };
-    var parentBlock = function (req) {
-      return '<div class="trial-grid trial-grid--2">' +
-               cf("tf-pfirst", "First name", "parent_first", "text", req) +
-               cf("tf-plast", "Last name", "parent_last", "text", req) +
-             '</div>' +
-             cf("tf-pphone", "Phone", "parent_phone", "tel", req) +
-             cf("tf-pemail", "Email", "parent_email", "email", req);
-    };
-
-    var html;
-    if (age === null) {
-      html = '<p class="trial-note">Enter the date of birth above to continue.</p>';
-    } else if (age < 18) {
-      html = '<p class="trial-legend">Parent / guardian</p>' + parentBlock(true);
-    } else {
-      html = '<p class="trial-legend">Your contact</p>' +
-             cf("tf-phone", "Phone", "phone", "tel", true) +
-             cf("tf-email", "Email", "email", "email", true) +
-             '<p class="trial-legend">Parent / guardian (optional)</p>' + parentBlock(false);
-    }
-    host.innerHTML = html;
-  }
-
   function onIntakeSubmit(form) {
     var status = form.querySelector(".form-status");
     var get = function (n) { var el = form.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ""; };
 
     // Honeypot -> silently pretend success (no record).
-    if (get("company") !== "") { renderSuccess(); return; }
+    if (get("hp") !== "") { renderSuccess(); return; }
 
     var parsed = parseDOB(get("dob"));
     if (!parsed) { setStatus(status, "error", "Please enter the date of birth as MM/DD/YYYY."); return; }
@@ -538,9 +518,9 @@
       d.parent_email = get("parent_email");
       required = required.concat([d.parent_first, d.parent_last, d.parent_phone, d.parent_email]);
     } else {
-      d.phone = get("phone");
-      d.email = get("email");
-      // Optional guardian for adults.
+      d.phone = get("adult_phone");
+      d.email = get("adult_email");
+      // Optional guardian for adults (from the parent/guardian block above).
       d.guardian_first = get("parent_first");
       d.guardian_last = get("parent_last");
       d.guardian_phone = get("parent_phone");
@@ -548,7 +528,9 @@
       required = required.concat([d.phone, d.email]);
     }
     if (required.some(function (v) { return !v; })) {
-      setStatus(status, "error", "Please fill in all the required fields.");
+      setStatus(status, "error", d.isKids
+        ? "Please fill in the student, address, and parent/guardian fields."
+        : "Please fill in the student, address, and the adult student's phone and email.");
       return;
     }
 
