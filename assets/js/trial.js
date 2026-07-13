@@ -67,6 +67,7 @@
       weekOffset: 0,       // current calendar week page (0..WEEKS_OUT-1)
       waiverName: "",
       waiverAgreed: false,
+      waiverSignature: "",
       intake: null,
       keep: null           // preserved parent/guardian + address for the family loop
     };
@@ -150,14 +151,21 @@
     return false;
   }
 
-  function ageFromISO(iso) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || "")) return null;
-    var p = iso.split("-"), y = +p[0], mo = +p[1] - 1, da = +p[2];
-    var b = new Date(y, mo, da);
-    if (isNaN(b.getTime())) return null;
-    var t = new Date(), a = t.getFullYear() - y, m = t.getMonth() - mo;
-    if (m < 0 || (m === 0 && t.getDate() < da)) a--;
-    return (a >= 0 && a < 120) ? a : null;
+  // Parse a typed date of birth (MM/DD/YYYY, also accepts - or . separators).
+  // Returns { iso: "YYYY-MM-DD", age } or null if incomplete/invalid/future.
+  function parseDOB(raw) {
+    var m = (raw || "").trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+    if (!m) return null;
+    var mo = parseInt(m[1], 10), da = parseInt(m[2], 10), y = parseInt(m[3], 10);
+    var b = new Date(y, mo - 1, da);
+    if (b.getFullYear() !== y || b.getMonth() !== mo - 1 || b.getDate() !== da) return null;
+    var t = new Date();
+    if (b.getTime() > t.getTime()) return null;
+    var a = t.getFullYear() - y, mm = t.getMonth() - (mo - 1);
+    if (mm < 0 || (mm === 0 && t.getDate() < da)) a--;
+    if (a < 0 || a >= 120) return null;
+    var iso = y + "-" + (mo < 10 ? "0" : "") + mo + "-" + (da < 10 ? "0" : "") + da;
+    return { iso: iso, age: a };
   }
 
   /* ---- modal shell ---------------------------------------------------- */
@@ -353,7 +361,8 @@
     var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
 
     var html = head(item.label, n > 1 ? ("Class " + (i + 1) + " of " + n) : null);
-    html += '<p class="trial-sub">Pick a class</p>';
+    html += '<p class="trial-sub">Schedule your <strong>first</strong> class</p>';
+    html += '<p class="trial-note trial-firstnote">Just your first class. Your free week covers every class you want to attend that week, so there\'s no need to book each one.</p>';
     html += '<p class="trial-weeklabel">' + esc(weekRange(start, end)) + '</p>';
     html += '<div class="trial-cal">';
     for (var dn = 0; dn < 7; dn++) {
@@ -415,7 +424,6 @@
   }
 
   function renderIntake() {
-    var todayISO = new Date().toISOString().slice(0, 10);
     var html = head("A little about the student", "Your info");
     html += '<form class="trial-form" novalidate>';
     html += '<div class="trial-grid trial-grid--2">' +
@@ -425,7 +433,7 @@
               '<input id="tf-slast" name="student_last" type="text" autocomplete="family-name" required></div>' +
             '</div>';
     html += '<div class="form-field"><label for="tf-dob">Student date of birth</label>' +
-            '<input id="tf-dob" name="dob" type="date" max="' + todayISO + '" required></div>';
+            '<input id="tf-dob" name="dob" type="text" inputmode="numeric" autocomplete="bday" placeholder="MM/DD/YYYY" required></div>';
     html += addrField("tf-street", "Street address", "street", ' autocomplete="address-line1" required');
     html += '<div class="trial-grid trial-grid--3">' +
               addrField("tf-city", "City", "city", ' autocomplete="address-level2" required') +
@@ -471,7 +479,8 @@
     host.querySelectorAll("input").forEach(function (el) { cur[el.name] = el.value; });
     var val = function (n) { return cur[n] != null && cur[n] !== "" ? cur[n] : keepVal(n); };
 
-    var age = ageFromISO((dialog.querySelector("#tf-dob") || {}).value || "");
+    var parsed = parseDOB((dialog.querySelector("#tf-dob") || {}).value || "");
+    var age = parsed ? parsed.age : null;
     var cf = function (id, label, name, type, req) {
       return '<div class="form-field"><label for="' + id + '">' + esc(label) + '</label>' +
              '<input id="' + id + '" name="' + name + '" type="' + type + '"' + (req ? " data-req" : "") + ' value="' + esc(val(name)) + '"></div>';
@@ -506,14 +515,14 @@
     // Honeypot -> silently pretend success (no record).
     if (get("company") !== "") { renderSuccess(); return; }
 
-    var dob = get("dob");
-    var age = ageFromISO(dob);
-    if (age === null) { setStatus(status, "error", "Please enter a valid date of birth."); return; }
+    var parsed = parseDOB(get("dob"));
+    if (!parsed) { setStatus(status, "error", "Please enter the date of birth as MM/DD/YYYY."); return; }
+    var age = parsed.age;
 
     var d = {
       student_first: get("student_first"),
       student_last: get("student_last"),
-      dob: dob,
+      dob: parsed.iso,
       street: get("street"),
       city: get("city"),
       state: get("state"),
@@ -555,8 +564,13 @@
               '<p>' + esc(WAIVER_TEXT) + '</p>' +
             '</div>';
     html += '<form class="trial-form" novalidate>';
-    html += '<div class="form-field"><label for="tf-sig">Type your full legal name to sign</label>' +
-            '<input id="tf-sig" name="waiver_name" type="text" autocomplete="off" required></div>';
+    html += '<div class="form-field"><label for="tf-signer">Full legal name of the person signing</label>' +
+            '<input id="tf-signer" name="waiver_name" type="text" autocomplete="name" required></div>';
+    html += '<div class="form-field"><label>Signature</label>' +
+              '<div class="trial-sigwrap">' +
+                '<canvas class="trial-sigpad" id="tf-sigpad" width="600" height="180" aria-label="Sign with your finger or mouse"></canvas>' +
+                '<button class="trial-sigclear" type="button">Clear</button>' +
+              '</div></div>';
     html += '<label class="trial-agree"><input id="tf-agree" name="waiver_agreed" type="checkbox">' +
             '<span>I have read and agree to the waiver above.</span></label>';
     html += '<div class="trial-actions">' +
@@ -567,19 +581,48 @@
     html += '</form>';
     setBody(html);
 
-    var sig = dialog.querySelector("#tf-sig");
+    var signer = dialog.querySelector("#tf-signer");
     var agree = dialog.querySelector("#tf-agree");
     var submit = dialog.querySelector(".trial-submit");
-    function sync() { submit.disabled = !(agree.checked && sig.value.trim()); }
-    sig.addEventListener("input", sync);
+    var canvas = dialog.querySelector("#tf-sigpad");
+    var ctx = canvas.getContext("2d");
+    var drawing = false, hasSig = false, lastX = 0, lastY = 0;
+
+    function sync() { submit.disabled = !(agree.checked && signer.value.trim() && hasSig); }
+    function pos(e) {
+      var r = canvas.getBoundingClientRect();
+      var t = (e.touches && e.touches[0]) ? e.touches[0] : e;
+      return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
+    }
+    function start(e) { e.preventDefault(); drawing = true; var p = pos(e); lastX = p.x; lastY = p.y; }
+    function move(e) {
+      if (!drawing) return; e.preventDefault();
+      var p = pos(e);
+      ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.strokeStyle = "#17130f";
+      ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+      lastX = p.x; lastY = p.y; hasSig = true; sync();
+    }
+    function end() { drawing = false; }
+    canvas.addEventListener("mousedown", start);
+    canvas.addEventListener("mousemove", move);
+    canvas.addEventListener("mouseup", end);
+    canvas.addEventListener("mouseleave", end);
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    canvas.addEventListener("touchend", end);
+    dialog.querySelector(".trial-sigclear").addEventListener("click", function () {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); hasSig = false; sync();
+    });
+    signer.addEventListener("input", sync);
     agree.addEventListener("change", sync);
 
     dialog.querySelector(".trial-back").addEventListener("click", renderIntake);
     dialog.querySelector(".trial-form").addEventListener("submit", function (e) {
       e.preventDefault();
-      state.waiverName = sig.value.trim();
+      state.waiverName = signer.value.trim();
       state.waiverAgreed = !!agree.checked;
-      if (!state.waiverAgreed || !state.waiverName) return;
+      state.waiverSignature = hasSig ? canvas.toDataURL("image/png") : "";
+      if (!state.waiverAgreed || !state.waiverName || !state.waiverSignature) return;
       submitBooking(e.target);
     });
     sync();
@@ -611,6 +654,7 @@
       }),
       waiver_name: state.waiverName,
       waiver_agreed: true,
+      waiver_signature: state.waiverSignature,
       company: ""
     };
     if (d.isKids) {

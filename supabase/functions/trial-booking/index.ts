@@ -47,6 +47,18 @@ function corsHeaders(origin: string | null) {
 
 const str = (v: unknown) => (v == null ? "" : String(v)).trim();
 
+const escHtml = (v: unknown) =>
+  String(v == null ? "" : v).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+
+// UTF-8 safe base64 for email attachments.
+function toBase64(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
 function json(obj: unknown, status: number, cors: Record<string, string>) {
   return new Response(JSON.stringify(obj), {
     status,
@@ -152,6 +164,8 @@ Deno.serve(async (req) => {
   let confirmTo = "";
   let confirmSubject = "";
   let confirmLines: string[] = [];
+  // Signed-waiver document, attached to both emails (built in the trial branch).
+  let waiverAttachments: Array<{ filename: string; content: string }> = [];
 
   // ---- 1 & 2: validate + DB insert FIRST -------------------------------
   try {
@@ -171,6 +185,7 @@ Deno.serve(async (req) => {
       const bookings = Array.isArray(body.bookings) ? body.bookings : [];
       const waiverName = str(body.waiver_name);
       const waiverAgreed = !!body.waiver_agreed;
+      const waiverSignature = str(body.waiver_signature); // PNG data URL (drawn)
 
       // Contact channel: parent for kids, the person themselves for 18+.
       // Adults may add an optional guardian; when present it fills booked_by
@@ -282,12 +297,36 @@ Deno.serve(async (req) => {
           ((!isKids && parentEmail) ? `, ${parentEmail}` : "")
         : "";
 
+      // Signed waiver as an attached HTML document (opens in a browser, prints
+      // to PDF). Contains the full text and the drawn signature image.
+      const classListHtml = classLines.map((c) => `<li>${escHtml(c)}</li>`).join("");
+      const sigImg = waiverSignature
+        ? `<div style="margin:8px 0"><img src="${waiverSignature}" alt="Signature" style="max-width:340px;height:auto"></div>`
+        : "";
+      const waiverDoc =
+        `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+        `<meta name="viewport" content="width=device-width, initial-scale=1">` +
+        `<title>Liability Waiver and Release</title></head>` +
+        `<body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#17130f;line-height:1.5">` +
+        `<h1 style="font-size:20px;margin:0 0 2px">Bares Taekwondo Fitness</h1>` +
+        `<h2 style="font-size:14px;margin:0 0 16px;text-transform:uppercase;letter-spacing:.04em">Liability Waiver and Release</h2>` +
+        `<p style="margin:0 0 12px"><strong>Participant:</strong> ${escHtml(who)}<br>` +
+        `<strong>Date of birth:</strong> ${escHtml(dob)}<br>` +
+        `<strong>Programs:</strong> ${escHtml(programs.join(", "))}</p>` +
+        `<ul style="margin:0 0 16px;padding-left:20px">${classListHtml}</ul>` +
+        `<p style="margin:0 0 20px">${escHtml(WAIVER_TEXT)}</p>` +
+        `<hr style="border:none;border-top:1px solid #ccc;margin:20px 0">` +
+        `<p style="margin:0 0 4px"><strong>Signed:</strong> ${escHtml(waiverName)}</p>` +
+        sigImg +
+        `<p style="margin:0"><strong>Date:</strong> ${escHtml(waiverAt)}</p>` +
+        `</body></html>`;
+      const safeName = who.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "participant";
+      waiverAttachments = [{ filename: `Waiver-${safeName}.html`, content: toBase64(waiverDoc) }];
+
       const waiverBlock = [
         "LIABILITY WAIVER AND RELEASE",
-        WAIVER_TEXT,
-        "",
-        `Signed: ${waiverName}`,
-        `Date: ${waiverAt}`,
+        `Signed by ${waiverName} on ${waiverAt}.`,
+        "The full signed waiver is attached to this email.",
       ];
 
       subject = `New free-trial booking: ${who} (${programs.join(", ")})`;
@@ -371,16 +410,24 @@ Deno.serve(async (req) => {
 
   // ---- 3: Resend emails (best-effort, NEVER lose the saved record) -----
   const key = Deno.env.get("RESEND_API_KEY");
-  async function sendEmail(to: string, subj: string, text: string, tag: string) {
+  async function sendEmail(
+    to: string,
+    subj: string,
+    text: string,
+    tag: string,
+    attachments?: Array<{ filename: string; content: string }>,
+  ) {
     if (!key) {
       console.warn(`[trial-booking] RESEND_API_KEY not set; ${tag} skipped (record is saved).`);
       return;
     }
     try {
+      const payload: Record<string, unknown> = { from: NOTIFY_FROM, to: [to], subject: subj, text };
+      if (attachments && attachments.length) payload.attachments = attachments;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: NOTIFY_FROM, to: [to], subject: subj, text }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         console.error(`[trial-booking] Resend ${tag} non-OK (record saved):`, res.status, await res.text());
@@ -390,11 +437,11 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Staff notification.
-  await sendEmail(NOTIFY_TO, subject, lines.join("\n"), "staff notify");
+  // Staff notification (with the signed waiver attached, on trials).
+  await sendEmail(NOTIFY_TO, subject, lines.join("\n"), "staff notify", waiverAttachments);
   // Confirmation to the parent/student (trial only).
   if (confirmTo) {
-    await sendEmail(confirmTo, confirmSubject, confirmLines.join("\n"), "confirmation");
+    await sendEmail(confirmTo, confirmSubject, confirmLines.join("\n"), "confirmation", waiverAttachments);
   }
 
   return json({ ok: true }, 200, cors);

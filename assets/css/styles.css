@@ -809,3 +809,10 @@ form[data-contact-form],
 }
 .trial-slot:hover { border-color: var(--belt-red); }
 .trial-day__empty { color: var(--ink-soft); font-size: 0.85rem; padding-top: 0.35rem; }
+
+/* trial popup: first-class note + signature pad */
+.trial-firstnote { font-size: 0.9rem; margin: 0 0 0.9rem; }
+.trial-sigwrap { position: relative; }
+.trial-sigpad { display: block; width: 100%; height: 150px; border: 2px solid var(--line); border-radius: var(--radius); background: var(--white); touch-action: none; cursor: crosshair; }
+.trial-sigclear { position: absolute; top: 0.45rem; right: 0.5rem; font: inherit; font-size: 0.8rem; font-weight: 600; padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink-soft); cursor: pointer; }
+.trial-sigclear:hover { color: var(--belt-red); border-color: var(--belt-red); }
