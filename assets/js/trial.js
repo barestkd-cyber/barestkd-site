@@ -418,8 +418,9 @@
   /* ---- step 3: intake (DOB drives parent/guardian requirement) ------- */
   function keepVal(name) { return (state.keep && state.keep[name] != null) ? state.keep[name] : ""; }
 
-  function pfield(id, label, name, type, extra) {
-    return '<div class="form-field"><label for="' + id + '">' + esc(label) + '</label>' +
+  function pfield(id, label, name, type, extra, required) {
+    var star = required ? ' <span class="req" aria-hidden="true">*</span>' : '';
+    return '<div class="form-field"><label for="' + id + '">' + esc(label) + star + '</label>' +
            '<input id="' + id + '" name="' + name + '" type="' + (type || "text") + '"' + (extra || "") + ' value="' + esc(keepVal(name)) + '"></div>';
   }
 
@@ -436,33 +437,19 @@
     var html = head("A little about the student", "Your info");
     html += '<form class="trial-form" novalidate>';
     html += '<div class="trial-grid trial-grid--2">' +
-              '<div class="form-field"><label for="tf-sfirst">Student first name</label>' +
-              '<input id="tf-sfirst" name="student_first" type="text" autocomplete="given-name" required></div>' +
-              '<div class="form-field"><label for="tf-slast">Student last name</label>' +
-              '<input id="tf-slast" name="student_last" type="text" autocomplete="family-name" required></div>' +
+              pfield("tf-sfirst", "Student first name", "student_first", "text", ' autocomplete="off"', true) +
+              pfield("tf-slast", "Student last name", "student_last", "text", ' autocomplete="off"', true) +
             '</div>';
-    html += '<div class="form-field"><label for="tf-dob">Student date of birth</label>' +
-            '<input id="tf-dob" name="dob" type="text" inputmode="numeric" autocomplete="bday" placeholder="MM/DD/YYYY" maxlength="10" required></div>';
-    html += pfield("tf-street", "Street address", "street", "text", ' autocomplete="address-line1" required');
-    html += '<div class="trial-grid trial-grid--3">' +
-              pfield("tf-city", "City", "city", "text", ' autocomplete="address-level2" required') +
-              pfield("tf-state", "State", "state", "text", ' autocomplete="address-level1" maxlength="20" required') +
-              pfield("tf-zip", "ZIP", "zip", "text", ' autocomplete="postal-code" inputmode="numeric" maxlength="10" required') +
-            '</div>';
+    html += pfield("tf-dob", "Date of birth", "dob", "text", ' inputmode="numeric" autocomplete="bday" placeholder="MM/DD/YYYY" maxlength="10"', true);
+    html += pfield("tf-phone", "Phone", "phone", "tel", ' autocomplete="tel"', true);
+    html += pfield("tf-email", "Email", "email", "email", ' autocomplete="email"', true);
     html += '<p class="trial-legend">Parent / guardian</p>' +
             '<p class="trial-fieldnote">Not required for students over eighteen.</p>' +
             '<div class="trial-grid trial-grid--2">' +
               pfield("tf-pfirst", "First name", "parent_first", "text", ' autocomplete="given-name"') +
               pfield("tf-plast", "Last name", "parent_last", "text", ' autocomplete="family-name"') +
             '</div>' +
-            pfield("tf-pphone", "Phone", "parent_phone", "tel", ' autocomplete="tel"') +
-            pfield("tf-pemail", "Email", "parent_email", "email", ' autocomplete="email"') +
             '<p class="trial-fielderr" id="tf-parent-err" role="alert" aria-live="polite"></p>';
-    html += '<p class="trial-legend">Adult student contact</p>' +
-            '<p class="trial-fieldnote">Not required for students under eighteen.</p>' +
-            pfield("tf-aphone", "Phone", "adult_phone", "tel", ' autocomplete="tel"') +
-            pfield("tf-aemail", "Email", "adult_email", "email", ' autocomplete="email"') +
-            '<p class="trial-fielderr" id="tf-adult-err" role="alert" aria-live="polite"></p>';
     // Honeypot: neutral name + hidden so browser autofill never fills it.
     html += '<div class="hp-field" aria-hidden="true"><label for="tf-hp">Do not fill this in</label>' +
             '<input id="tf-hp" name="hp" type="text" tabindex="-1" autocomplete="off"></div>';
@@ -493,10 +480,8 @@
   function onIntakeSubmit(form) {
     var status = form.querySelector(".form-status");
     var perr = form.querySelector("#tf-parent-err");
-    var aerr = form.querySelector("#tf-adult-err");
     var get = function (n) { var el = form.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ""; };
     if (perr) perr.textContent = "";
-    if (aerr) aerr.textContent = "";
     setStatus(status, "", "");
 
     // Honeypot -> silently pretend success (no record).
@@ -504,49 +489,28 @@
 
     var parsed = parseDOB(get("dob"));
     if (!parsed) { setStatus(status, "error", "Please enter the date of birth as MM/DD/YYYY."); return; }
-    var age = parsed.age;
 
     var d = {
       student_first: get("student_first"),
       student_last: get("student_last"),
       dob: parsed.iso,
-      street: get("street"),
-      city: get("city"),
-      state: get("state"),
-      zip: get("zip"),
-      isKids: age < 18
+      phone: get("phone"),
+      email: get("email"),
+      parent_first: get("parent_first"),
+      parent_last: get("parent_last"),
+      isKids: parsed.age < 18
     };
 
-    // Student + address are always required.
-    if ([d.student_first, d.student_last, d.street, d.city, d.state, d.zip].some(function (v) { return !v; })) {
+    // Name, DOB, phone, and email are always required.
+    if ([d.student_first, d.student_last, d.phone, d.email].some(function (v) { return !v; })) {
       setStatus(status, "error", "Please fill in all the required fields.");
       return;
     }
-
-    if (d.isKids) {
-      // Under 18: parent/guardian is silently required.
-      d.parent_first = get("parent_first");
-      d.parent_last = get("parent_last");
-      d.parent_phone = get("parent_phone");
-      d.parent_email = get("parent_email");
-      if ([d.parent_first, d.parent_last, d.parent_phone, d.parent_email].some(function (v) { return !v; })) {
-        if (perr) perr.textContent = "Please fill this out.";
-        var pf = form.querySelector('[name="parent_first"]'); if (pf) pf.focus();
-        return;
-      }
-    } else {
-      // 18+: their own contact required; parent/guardian optional.
-      d.phone = get("adult_phone");
-      d.email = get("adult_email");
-      d.guardian_first = get("parent_first");
-      d.guardian_last = get("parent_last");
-      d.guardian_phone = get("parent_phone");
-      d.guardian_email = get("parent_email");
-      if (!d.phone || !d.email) {
-        if (aerr) aerr.textContent = "Please fill this out.";
-        var af = form.querySelector('[name="adult_phone"]'); if (af) af.focus();
-        return;
-      }
+    // Under 18: a parent/guardian name is required.
+    if (d.isKids && (!d.parent_first || !d.parent_last)) {
+      if (perr) perr.textContent = "Please fill this out.";
+      var pf = form.querySelector('[name="parent_first"]'); if (pf) pf.focus();
+      return;
     }
 
     state.intake = d;
@@ -638,7 +602,6 @@
       student_first: d.student_first,
       student_last: d.student_last,
       dob: d.dob,
-      address: { street: d.street, city: d.city, state: d.state, zip: d.zip },
       programs: state.selected.map(function (m) { return m.tag; }),
       bookings: state.bookings.map(function (b) {
         return {
@@ -655,17 +618,17 @@
       company: ""
     };
     if (d.isKids) {
+      // The one contact is the parent's; the parent name is required.
       payload.parent_first = d.parent_first;
       payload.parent_last = d.parent_last;
-      payload.parent_phone = d.parent_phone;
-      payload.parent_email = d.parent_email;
+      payload.parent_phone = d.phone;
+      payload.parent_email = d.email;
     } else {
+      // Adult: their own contact; an optional guardian name goes to booked_by.
       payload.phone = d.phone;
       payload.email = d.email;
-      payload.guardian_first = d.guardian_first || "";
-      payload.guardian_last = d.guardian_last || "";
-      payload.guardian_phone = d.guardian_phone || "";
-      payload.guardian_email = d.guardian_email || "";
+      payload.guardian_first = d.parent_first || "";
+      payload.guardian_last = d.parent_last || "";
     }
 
     button.disabled = true;
@@ -688,7 +651,7 @@
   /* ---- confirmation + family loop ------------------------------------ */
   function renderSuccess() {
     var d = state.intake || {};
-    var email = d.isKids ? (d.parent_email || "") : (d.email || "");
+    var email = d.email || "";
     var recap = state.bookings.map(function (b) {
       return '<li>' + esc(b.label) + ' &middot; ' + esc(b.slot.dateText) + ' at ' + esc(b.slot.timeText) + '</li>';
     }).join("");
@@ -716,11 +679,12 @@
   // becomes its own contact + bookings + waiver.
   function bookAnother() {
     var d = state.intake || {};
-    var keep = { street: d.street, city: d.city, state: d.state, zip: d.zip };
-    keep.parent_first = d.parent_first || d.guardian_first || "";
-    keep.parent_last = d.parent_last || d.guardian_last || "";
-    keep.parent_phone = d.parent_phone || d.guardian_phone || "";
-    keep.parent_email = d.parent_email || d.guardian_email || "";
+    var keep = {
+      phone: d.phone || "",
+      email: d.email || "",
+      parent_first: d.parent_first || "",
+      parent_last: d.parent_last || ""
+    };
     state = freshState();
     state.keep = keep;
     renderPrograms();

@@ -780,6 +780,7 @@ form[data-contact-form],
 .trial-fieldnote { font-size: 0.82rem; color: var(--ink-soft); margin: -0.35rem 0 0.7rem; }
 .trial-fielderr { font-size: 0.85rem; font-weight: 700; color: var(--belt-red); margin: -0.4rem 0 0.4rem; }
 .trial-fielderr:empty { display: none; }
+.form-field .req { color: var(--belt-red); }
 
 .trial-waiver {
   max-height: 34vh; overflow-y: auto;

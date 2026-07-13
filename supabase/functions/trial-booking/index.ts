@@ -71,7 +71,6 @@ type WaiverDoc = {
   dob: string;
   age: number | null;
   programs: string[];
-  classLines: string[];
   waiverName: string;
   waiverAt: string;
   waiverSignature: string; // PNG data URL, may be ""
@@ -121,8 +120,6 @@ async function buildWaiverPdf(d: WaiverDoc): Promise<string> {
   line(`Participant: ${d.who}`);
   line(`Date of birth: ${dobLine(d)}`);
   line(`Programs: ${d.programs.join(", ")}`);
-  gap(4);
-  for (const c of d.classLines) line(c);
   gap(8);
   line(WAIVER_TEXT);
   gap(10);
@@ -143,7 +140,6 @@ async function buildWaiverPdf(d: WaiverDoc): Promise<string> {
 
 // HTML fallback if the PDF library ever fails (opens in a browser).
 function buildWaiverHtml(d: WaiverDoc): string {
-  const classListHtml = d.classLines.map((c) => `<li>${escHtml(c)}</li>`).join("");
   const sigImg = d.waiverSignature
     ? `<div style="margin:8px 0"><img src="${d.waiverSignature}" alt="Signature" style="max-width:340px;height:auto"></div>`
     : "";
@@ -156,7 +152,6 @@ function buildWaiverHtml(d: WaiverDoc): string {
     `<p style="margin:0 0 12px"><strong>Participant:</strong> ${escHtml(d.who)}<br>` +
     `<strong>Date of birth:</strong> ${escHtml(dobLine(d))}<br>` +
     `<strong>Programs:</strong> ${escHtml(d.programs.join(", "))}</p>` +
-    `<ul style="margin:0 0 16px;padding-left:20px">${classListHtml}</ul>` +
     `<p style="margin:0 0 20px">${escHtml(WAIVER_TEXT)}</p>` +
     `<hr style="border:none;border-top:1px solid #ccc;margin:20px 0">` +
     `<p style="margin:0 0 4px"><strong>Signed:</strong> ${escHtml(d.waiverName)}</p>` +
@@ -284,10 +279,6 @@ Deno.serve(async (req) => {
       const studentFirst = str(body.student_first);
       const studentLast = str(body.student_last);
       const dob = str(body.dob); // YYYY-MM-DD
-      const addr = (body.address && typeof body.address === "object")
-        ? body.address as Record<string, unknown> : {};
-      const street = str(addr.street), city = str(addr.city);
-      const region = str(addr.state), zip = str(addr.zip);
       const isKids = !!body.is_kids;
       const programs = Array.isArray(body.programs)
         ? body.programs.map((p) => str(p)).filter(Boolean) : [];
@@ -316,14 +307,11 @@ Deno.serve(async (req) => {
 
       const who = (studentFirst + " " + studentLast).trim();
 
-      if (!studentFirst || !studentLast || !dob || !street || !city || !region || !zip ||
+      if (!studentFirst || !studentLast || !dob ||
           !contactPhone || !contactEmail || !programs.length || !bookings.length ||
           !waiverAgreed || !waiverName || (isKids && !bookedBy)) {
         return json({ error: "Missing required fields" }, 400, cors);
       }
-
-      const addressText = [street, city, [region, zip].filter(Boolean).join(" ")]
-        .filter(Boolean).join(", ");
 
       // Real age from DOB (kept for CRM compatibility; DOB is the source of truth).
       let studentAge: number | null = null;
@@ -351,7 +339,6 @@ Deno.serve(async (req) => {
           email: contactEmail,   // parent's for kids; the adult's otherwise
           phone: contactPhone,
           dob,
-          address: addressText,
           tags: programs,        // e.g. ["Taekwondo","Jiu Jitsu"]
         })
         .select("id")
@@ -409,7 +396,7 @@ Deno.serve(async (req) => {
       // Gather the data for the signed-waiver document; the PDF is built later.
       waiverDocData = {
         who, dob, age: studentAge, programs,
-        classLines, waiverName, waiverAt, waiverSignature,
+        waiverName, waiverAt, waiverSignature,
       };
 
       const waiverBlock = [
@@ -431,7 +418,6 @@ Deno.serve(async (req) => {
         "CONTACT",
         `Phone: ${contactPhone}`,
         `Email: ${contactEmail}`,
-        `Address: ${addressText}`,
         ...(guardianLine ? [guardianLine] : []),
         "",
         ...waiverBlock,
