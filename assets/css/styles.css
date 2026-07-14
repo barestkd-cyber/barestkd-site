@@ -474,6 +474,20 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .prog-tile:hover { border-color: var(--belt-red); color: var(--ink); }
 .prog-tile__media { flex: 0 0 auto; width: 56px; height: 56px; border-radius: 8px; background: var(--mat-gray); overflow: hidden; }
 .prog-tile__media img { width: 100%; height: 100%; object-fit: cover; }
+.prog-tile__soon { display: block; margin-top: 2px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--belt-gold); }
+
+/* Weekly schedule — populated by schedule.js from the live schedule_template. */
+.schedule { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.schedule-day { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--white); }
+.schedule-day__name { margin: 0; padding: 0.6rem 0.9rem; background: var(--ink); color: var(--white); font-family: var(--font-display); font-size: 1rem; }
+.schedule-day__list { list-style: none; margin: 0; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.schedule-class { display: flex; flex-direction: column; gap: 1px; padding: 0.55rem 0.7rem; border-radius: 8px; background: var(--mat-gray); }
+.schedule-class__time { font-weight: 800; font-size: 0.9rem; color: var(--ink); }
+.schedule-class__name { font-weight: 600; }
+.schedule-class__prog { margin-top: 1px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft); }
+.schedule-class__prog[data-p="Taekwondo"] { color: var(--belt-red); }
+.schedule-class__prog[data-p="Cubs"] { color: var(--belt-gold); }
+.schedule-fallback[hidden] { display: none; }
 
 /* --------------------------------------------------------------------------
    Free-week CTA band
