@@ -26,7 +26,7 @@
     "Cubs":            { name: "Cubs",           detail: "Ages 3-4" },
     "Juniors":         { name: "Juniors",        detail: "Ages 5-12" },
     "Teens / Adults":  { name: "Teens / Adults", detail: "Ages 13+" },
-    "Forms":           { name: "Forms",          detail: "Ages 5+" },
+    "Forms":           { name: "Forms",          detail: "Juniors, Teens & Adults" },
     "Leadership":      { name: "Leadership",     detail: "By invitation" },
     "Sparring":        { name: "Sparring",       detail: "Ages 13+" },
     "Kickboxing":      { name: "Kickboxing",     detail: "Ages 13+" },
