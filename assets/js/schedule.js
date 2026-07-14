@@ -1,29 +1,35 @@
 /* ==========================================================================
    Bares Taekwondo Fitness — schedule.js
-   Renders the live weekly class schedule on the Schedule page. Reads the SAME
-   schedule_template the classplan/curriculum apps use, via the trial-booking
-   Edge Function's GET endpoint, so it always matches what staff set in-app.
-   Vanilla JS. If the fetch fails, the static fallback message stays visible.
+   Renders live class times from the SAME schedule_template the classplan /
+   curriculum apps use, via the trial-booking GET endpoint. Two mount modes:
+
+   - Full weekly grid (Schedule page):
+       <div data-schedule-mount></div>
+   - Per-program list (a program page, that program's classes only):
+       <div data-schedule-mount data-schedule-program="Taekwondo"
+            data-schedule-labels="juniors,forms"></div>
+
+   Shows every class, trial-bookable or not. If the fetch fails, the sibling
+   .schedule-fallback message stays visible. Vanilla JS.
    ========================================================================== */
 (function () {
   "use strict";
 
   var ENDPOINT = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/trial-booking";
   var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // publishable (public) key
-  var DAYS = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]; // dow 1..6
+  var DAYS = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var SHORT = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   document.addEventListener("DOMContentLoaded", function () {
-    var mount = document.querySelector("[data-schedule-mount]");
-    if (!mount) return;
-    var fallback = document.querySelector(".schedule-fallback");
+    var mounts = [].slice.call(document.querySelectorAll("[data-schedule-mount]"));
+    if (!mounts.length) return;
 
     fetch(ENDPOINT, { method: "GET", headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function (data) {
-        var classes = flatten(data && data.programs);
-        if (!classes.length) throw new Error("no classes");
-        render(mount, classes);
-        if (fallback) fallback.hidden = true;
+        var all = flatten(data && data.programs);
+        if (!all.length) throw new Error("no classes");
+        mounts.forEach(function (mount) { fill(mount, all); });
       })
       .catch(function (err) {
         console.error("[schedule] load failed (fallback shown):", err);
@@ -34,10 +40,27 @@
     var out = [];
     (programs || []).forEach(function (p) {
       (p.classes || []).forEach(function (c) {
-        out.push({ dow: c.dow, h: c.h, m: c.m, label: c.label || p.program, program: p.program });
+        out.push({ dow: c.dow, h: c.h, m: c.m, label: c.label || p.program, program: p.program, trialOpen: c.trialOpen !== false });
       });
     });
     return out;
+  }
+
+  function fill(mount, all) {
+    var prog = mount.getAttribute("data-schedule-program");
+    var labels = mount.getAttribute("data-schedule-labels");
+    var classes = all;
+    if (prog) classes = classes.filter(function (c) { return c.program === prog; });
+    if (labels) {
+      var re = new RegExp(labels.split(",").map(function (s) { return s.trim(); }).filter(Boolean).join("|"), "i");
+      classes = classes.filter(function (c) { return re.test(c.label); });
+    }
+    if (!classes.length) return; // leave the static fallback message
+
+    if (prog) { renderList(mount, classes); } else { renderGrid(mount, classes); }
+
+    var fb = mount.parentNode && mount.parentNode.querySelector(".schedule-fallback");
+    if (fb) fb.hidden = true;
   }
 
   function fmtTime(h, m) {
@@ -46,59 +69,71 @@
     return hh + ":" + (m < 10 ? "0" : "") + m + " " + ap;
   }
 
-  function render(mount, classes) {
+  function slot(c) { return c.dow * 1440 + c.h * 60 + c.m; }
+
+  /* Full weekly grid, one column per day (Schedule page). */
+  function renderGrid(mount, classes) {
     var byDay = {};
     classes.forEach(function (c) { (byDay[c.dow] = byDay[c.dow] || []).push(c); });
     var days = Object.keys(byDay).map(Number).sort(function (a, b) { return a - b; });
 
     var grid = document.createElement("div");
     grid.className = "schedule";
-
     days.forEach(function (dow) {
       var list = byDay[dow].sort(function (a, b) { return (a.h * 60 + a.m) - (b.h * 60 + b.m); });
-
       var col = document.createElement("div");
       col.className = "schedule-day";
-
-      var head = document.createElement("h3");
-      head.className = "schedule-day__name";
-      head.textContent = DAYS[dow] || ("Day " + dow);
-      col.appendChild(head);
-
+      col.appendChild(el("h3", "schedule-day__name", DAYS[dow] || ("Day " + dow)));
       var ul = document.createElement("ul");
       ul.className = "schedule-day__list";
       list.forEach(function (c) {
         var li = document.createElement("li");
         li.className = "schedule-class";
-
-        var t = document.createElement("span");
-        t.className = "schedule-class__time";
-        t.textContent = fmtTime(c.h, c.m);
-
-        var n = document.createElement("span");
-        n.className = "schedule-class__name";
-        n.textContent = c.label;
-
-        li.appendChild(t);
-        li.appendChild(n);
-
-        // Show the marketing program as a colored tag when it adds information
-        // beyond the class label (e.g. Taekwondo's Juniors / Teens / Forms).
+        li.appendChild(el("span", "schedule-class__time", fmtTime(c.h, c.m)));
+        li.appendChild(el("span", "schedule-class__name", c.label));
         if (c.program && c.label.toLowerCase().indexOf(c.program.toLowerCase()) === -1) {
-          var pg = document.createElement("span");
-          pg.className = "schedule-class__prog";
+          var pg = el("span", "schedule-class__prog", c.program);
           pg.setAttribute("data-p", c.program);
-          pg.textContent = c.program;
           li.appendChild(pg);
         }
-
         ul.appendChild(li);
       });
       col.appendChild(ul);
       grid.appendChild(col);
     });
-
     mount.textContent = "";
     mount.appendChild(grid);
+  }
+
+  /* Per-program list: group by class (label), each with its day/time list. */
+  function renderList(mount, classes) {
+    var byLabel = {};
+    classes.forEach(function (c) { (byLabel[c.label] = byLabel[c.label] || []).push(c); });
+    var labels = Object.keys(byLabel).sort(function (a, b) {
+      return Math.min.apply(null, byLabel[a].map(slot)) - Math.min.apply(null, byLabel[b].map(slot));
+    });
+
+    var wrap = document.createElement("div");
+    wrap.className = "schedule-classes";
+    labels.forEach(function (lab) {
+      var times = byLabel[lab].sort(function (a, b) { return slot(a) - slot(b); });
+      var row = document.createElement("div");
+      row.className = "schedule-class-row";
+      row.appendChild(el("h3", "schedule-class-row__name", lab));
+      var ul = document.createElement("ul");
+      ul.className = "schedule-class-row__times";
+      times.forEach(function (c) { ul.appendChild(el("li", "", SHORT[c.dow] + " " + fmtTime(c.h, c.m))); });
+      row.appendChild(ul);
+      wrap.appendChild(row);
+    });
+    mount.textContent = "";
+    mount.appendChild(wrap);
+  }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
   }
 })();

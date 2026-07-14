@@ -488,6 +488,12 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .schedule-class__prog[data-p="Taekwondo"] { color: var(--belt-red); }
 .schedule-class__prog[data-p="Cubs"] { color: var(--belt-gold); }
 .schedule-fallback[hidden] { display: none; }
+/* Per-program class-times list (program pages). */
+.schedule-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
+.schedule-class-row { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.85rem 1rem; background: var(--white); }
+.schedule-class-row__name { margin: 0 0 0.55rem; font-size: 1.05rem; }
+.schedule-class-row__times { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.schedule-class-row__times li { padding: 0.3rem 0.6rem; border-radius: 6px; background: var(--mat-gray); font-weight: 700; font-size: 0.85rem; }
 
 /* --------------------------------------------------------------------------
    Free-week CTA band

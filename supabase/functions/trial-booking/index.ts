@@ -179,45 +179,68 @@ function adminClient() {
    --------------------------------------------------------------------------- */
 const MARKETING = [
   { program: "Taekwondo", ageLabel: "Ages 5 to Adult", kids: true,
-    match: (r: any) => ["prog-juniors", "prog-teen", "prog-forms"].includes(r.prog_css) },
+    match: (r: any) => ["prog-juniors", "prog-teen", "prog-forms", "prog-leader", "prog-sparring"].includes(r.prog_css) },
   { program: "Cubs", ageLabel: "Ages 3-4", kids: true,
     match: (r: any) => r.prog_css === "prog-cubs" },
   { program: "Kickboxing", ageLabel: "Ages 13+", kids: false,
     match: (r: any) => r.prog_css === "prog-kick" && /kickbox/i.test(r.label || "") },
   { program: "Jiu Jitsu", ageLabel: "Ages 13+", kids: false,
     match: (r: any) => r.prog_css === "prog-kick" && /(jiu|bjj)/i.test(r.label || "") },
+  { program: "AMP'D", ageLabel: "Students", kids: false,
+    match: (r: any) => r.prog_css === "prog-ampd" },
 ];
 
 const CACHE_MS = 5 * 60 * 1000;
 let scheduleCache: { at: number; data: unknown } | null = null;
 
-async function handleSchedule(cors: Record<string, string>) {
+function titleFromCss(css: string): string {
+  return (css || "other").replace(/^prog-/, "").replace(/-/g, " ")
+    .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+}
+
+async function handleSchedule(cors: Record<string, string>, req: Request) {
+  const wantRaw = new URL(req.url).searchParams.get("raw") === "1";
   const cacheHeaders = { ...cors, "Cache-Control": "public, max-age=300" };
   const now = Date.now();
-  if (scheduleCache && now - scheduleCache.at < CACHE_MS) {
+  if (!wantRaw && scheduleCache && now - scheduleCache.at < CACHE_MS) {
     return json(scheduleCache.data, 200, cacheHeaders);
   }
   try {
+    // ALL classes now (no trial_open filter). trialOpen flags which are bookable
+    // for a free trial; the public schedule shows every class either way.
     const { data: rows, error } = await adminClient()
       .from("schedule_template")
-      .select("day, time_h, time_m, label, prog_css")
-      .eq("trial_open", true);
+      .select("day, time_h, time_m, label, prog_css, trial_open");
     if (error) throw error;
 
-    const programs = MARKETING.map(function (mkt) {
-      var classes = (rows || []).filter(mkt.match).map(function (r: any) {
-        return {
-          dow: r.day + 1,            // schedule 0=Mon -> JS weekday 1=Mon … 5=Sat -> 6
-          h: r.time_h,               // 24-hour clock source
-          m: r.time_m,
-          label: r.label || mkt.program,
-        };
-      });
+    const list = (rows || []) as any[];
+    const used = new Array(list.length).fill(false);
+    const mk = function (r: any, i: number) {
+      used[i] = true;
+      return { dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "", trialOpen: !!r.trial_open };
+    };
+
+    const programs: any[] = MARKETING.map(function (mkt) {
+      const classes = list.map(function (r: any, i: number) { return mkt.match(r) ? mk(r, i) : null; })
+        .filter(Boolean);
       return { program: mkt.program, ageLabel: mkt.ageLabel, kids: mkt.kids, classes: classes };
     }).filter(function (p) { return p.classes.length > 0; });
 
-    const payload = { programs: programs };
-    scheduleCache = { at: now, data: payload };
+    // Any class not claimed by a marketing group still appears, grouped by its
+    // prog_css, so the public schedule never silently hides a class.
+    const leftovers: Record<string, any[]> = {};
+    list.forEach(function (r: any, i: number) {
+      if (used[i]) return;
+      const key = r.prog_css || "other";
+      (leftovers[key] = leftovers[key] || []).push({ dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "", trialOpen: !!r.trial_open });
+    });
+    Object.keys(leftovers).forEach(function (k) {
+      programs.push({ program: titleFromCss(k), ageLabel: "", kids: false, classes: leftovers[k] });
+    });
+
+    const payload: any = { programs: programs };
+    if (wantRaw) payload.raw = list;
+    if (!wantRaw) scheduleCache = { at: now, data: payload };
     return json(payload, 200, cacheHeaders);
   } catch (e) {
     console.error("[trial-booking] schedule read failed:", e);
@@ -229,7 +252,7 @@ Deno.serve(async (req) => {
   const cors = corsHeaders(req.headers.get("origin"));
 
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method === "GET") return await handleSchedule(cors);
+  if (req.method === "GET") return await handleSchedule(cors, req);
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
 
   let body: Record<string, unknown>;

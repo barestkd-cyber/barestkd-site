@@ -89,8 +89,15 @@
     });
   }
 
+  // A class is bookable for a free trial unless the schedule explicitly marks it
+  // trialOpen:false (advanced/leadership/AMP'D). Older responses omit the flag,
+  // so treat missing as bookable.
+  function isTrialClass(c) { return c && c.trialOpen !== false; }
+
   function bookablePrograms() {
-    return (PROGRAMS || []).filter(function (p) { return p.classes && p.classes.length; });
+    return (PROGRAMS || []).filter(function (p) {
+      return p.classes && p.classes.some(isTrialClass);
+    });
   }
 
   function programByName(name) {
@@ -106,8 +113,9 @@
   function classesFor(item) {
     var p = item.get ? programByName(item.get) : null;
     if (!p) return [];
-    if (!item.re) return p.classes;
-    return p.classes.filter(function (c) { return item.re.test(c.label || ""); });
+    var open = p.classes.filter(isTrialClass);
+    if (!item.re) return open;
+    return open.filter(function (c) { return item.re.test(c.label || ""); });
   }
 
   function fmtTime(h, m) {
