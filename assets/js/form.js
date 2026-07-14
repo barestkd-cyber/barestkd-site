@@ -30,8 +30,10 @@
     form.addEventListener("submit", function (e) {
       e.preventDefault();
 
-      // Honeypot: if the hidden "company" field is filled, silently abort.
-      var honey = form.querySelector('input[name="company"]');
+      // Honeypot: if the hidden "hp" field is filled, silently abort.
+      // (Must NOT be named "company"/"organization" etc. — browsers autofill
+      //  those, which would silently kill every real submission.)
+      var honey = form.querySelector('input[name="hp"]');
       if (honey && honey.value.trim() !== "") {
         return;
       }
