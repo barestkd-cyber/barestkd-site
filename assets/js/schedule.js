@@ -20,6 +20,20 @@
   var DAYS = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var SHORT = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  // Display name + age/detail per class, keyed by the schedule_template label.
+  // Purely presentational; edit here to retitle a class or fix an age range.
+  var CLASS_META = {
+    "Cubs":            { name: "Cubs",           detail: "Ages 3-4" },
+    "Juniors":         { name: "Juniors",        detail: "Ages 5-12" },
+    "Teens / Adults":  { name: "Teens / Adults", detail: "Ages 13+" },
+    "Forms":           { name: "Forms",          detail: "Ages 5+" },
+    "Leadership":      { name: "Leadership",     detail: "By invitation" },
+    "Sparring":        { name: "Sparring",       detail: "Ages 13+" },
+    "Kickboxing":      { name: "Kickboxing",     detail: "Ages 13+" },
+    "Jiu-Jitsu (BJJ)": { name: "Jiu Jitsu",      detail: "No-Gi BJJ · 13+" },
+    "AMP'D":           { name: "AMP'D",          detail: "By invitation" }
+  };
+
   document.addEventListener("DOMContentLoaded", function () {
     var mounts = [].slice.call(document.querySelectorAll("[data-schedule-mount]"));
     if (!mounts.length) return;
@@ -40,7 +54,9 @@
     var out = [];
     (programs || []).forEach(function (p) {
       (p.classes || []).forEach(function (c) {
-        out.push({ dow: c.dow, h: c.h, m: c.m, label: c.label || p.program, program: p.program, trialOpen: c.trialOpen !== false });
+        var lab = c.label || p.program;
+        var meta = CLASS_META[lab] || { name: lab, detail: "" };
+        out.push({ dow: c.dow, h: c.h, m: c.m, label: lab, name: meta.name, detail: meta.detail, program: p.program, trialOpen: c.trialOpen !== false });
       });
     });
     return out;
@@ -89,13 +105,10 @@
       list.forEach(function (c) {
         var li = document.createElement("li");
         li.className = "schedule-class";
+        if (c.program) li.setAttribute("data-p", c.program);
         li.appendChild(el("span", "schedule-class__time", fmtTime(c.h, c.m)));
-        li.appendChild(el("span", "schedule-class__name", c.label));
-        if (c.program && c.label.toLowerCase().indexOf(c.program.toLowerCase()) === -1) {
-          var pg = el("span", "schedule-class__prog", c.program);
-          pg.setAttribute("data-p", c.program);
-          li.appendChild(pg);
-        }
+        li.appendChild(el("span", "schedule-class__name", c.name));
+        if (c.detail) li.appendChild(el("span", "schedule-class__detail", c.detail));
         ul.appendChild(li);
       });
       col.appendChild(ul);
@@ -107,19 +120,21 @@
 
   /* Per-program list: group by class (label), each with its day/time list. */
   function renderList(mount, classes) {
-    var byLabel = {};
-    classes.forEach(function (c) { (byLabel[c.label] = byLabel[c.label] || []).push(c); });
-    var labels = Object.keys(byLabel).sort(function (a, b) {
-      return Math.min.apply(null, byLabel[a].map(slot)) - Math.min.apply(null, byLabel[b].map(slot));
+    var byName = {};
+    classes.forEach(function (c) { (byName[c.name] = byName[c.name] || []).push(c); });
+    var names = Object.keys(byName).sort(function (a, b) {
+      return Math.min.apply(null, byName[a].map(slot)) - Math.min.apply(null, byName[b].map(slot));
     });
 
     var wrap = document.createElement("div");
     wrap.className = "schedule-classes";
-    labels.forEach(function (lab) {
-      var times = byLabel[lab].sort(function (a, b) { return slot(a) - slot(b); });
+    names.forEach(function (nm) {
+      var group = byName[nm];
+      var times = group.sort(function (a, b) { return slot(a) - slot(b); });
       var row = document.createElement("div");
       row.className = "schedule-class-row";
-      row.appendChild(el("h3", "schedule-class-row__name", lab));
+      row.appendChild(el("h3", "schedule-class-row__name", nm));
+      if (group[0].detail) row.appendChild(el("p", "schedule-class-row__age", group[0].detail));
       var ul = document.createElement("ul");
       ul.className = "schedule-class-row__times";
       times.forEach(function (c) { ul.appendChild(el("li", "", SHORT[c.dow] + " " + fmtTime(c.h, c.m))); });
