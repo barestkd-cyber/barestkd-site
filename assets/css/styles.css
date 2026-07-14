@@ -198,6 +198,25 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
+/* Slim contact strip above the nav (desktop only; mobile uses the header phone
+   icon + the bottom action bar). */
+.header-utility { display: none; }
+@media (min-width: 900px) {
+  .header-utility { display: block; background: var(--ink); }
+  .header-utility__inner {
+    display: flex; justify-content: flex-end; align-items: center;
+    gap: 1.5rem; padding-block: 0.35rem;
+  }
+  .header-utility__link {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    color: #ece7df; font-size: 0.85rem; font-weight: 600;
+    text-decoration: none; line-height: 1;
+  }
+  .header-utility__link svg { width: 15px; height: 15px; color: var(--belt-red); }
+  .header-utility__link:hover { color: var(--white); }
+  .header-utility__ask { color: var(--belt-gold); }
+  .header-utility__ask:hover { color: #e2b757; }
+}
 /* Mobile: three-column grid centers the logo in the full header width with
    the hamburger pinned to the end column. This can't overflow — the balanced
    1fr spacers absorb the free space instead of pushing anything off-screen. */
