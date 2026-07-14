@@ -481,15 +481,14 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .schedule-day { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--white); }
 .schedule-day__name { margin: 0; padding: 0.6rem 0.9rem; background: var(--ink); color: var(--white); font-family: var(--font-display); font-size: 1rem; }
 .schedule-day__list { list-style: none; margin: 0; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.5rem; }
-.schedule-class { display: flex; flex-direction: column; gap: 1px; padding: 0.55rem 0.7rem; border-radius: 8px; background: var(--mat-gray); border-left: 3px solid var(--line); }
+.schedule-class { display: flex; flex-direction: column; gap: 1px; padding: 0.55rem 0.7rem; border-radius: 8px; background: var(--mat-gray); }
 .schedule-class__time { font-weight: 800; font-size: 0.9rem; color: var(--ink); }
 .schedule-class__name { font-weight: 600; }
 .schedule-class__detail { font-size: 0.72rem; font-weight: 600; color: var(--ink-soft); }
-.schedule-class[data-p="Taekwondo"] { border-left-color: var(--belt-red); }
-.schedule-class[data-p="Cubs"] { border-left-color: var(--belt-gold); }
-.schedule-class[data-p="Kickboxing"] { border-left-color: #2f6f4f; }
-.schedule-class[data-p="Jiu Jitsu"] { border-left-color: #2b5c8a; }
-.schedule-class[data-p="AMP'D"] { border-left-color: var(--ink); }
+.schedule-class[data-p="Taekwondo"] { background: #fbe7e7; }
+.schedule-class[data-p="Cubs"] { background: #fdecd9; }
+.schedule-class[data-p="Kickboxing"] { background: #e7f0fb; }
+.schedule-class[data-p="Jiu Jitsu"] { background: #e6f4ea; }
 .schedule-fallback[hidden] { display: none; }
 /* Per-program class-times list (program pages). */
 .schedule-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
