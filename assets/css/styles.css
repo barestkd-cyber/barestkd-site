@@ -666,7 +666,7 @@ form[data-contact-form],
 .stack > * + * { margin-top: 1rem; }
 .lede { font-size: 1.15rem; color: var(--ink-soft); max-width: 60ch; }
 /* /free-week conversion landing page */
-.free-week__cta { margin-top: 1.6rem; }
+.free-week__form { margin-top: 1.6rem; }
 .free-week__note { margin-top: 1rem; font-size: 0.95rem; color: var(--ink-soft); }
 /* Parenthetical detail dropped onto its own line under a program label
    (dropdown links and program cards). Only breaks the line — weight, size,
@@ -791,6 +791,17 @@ form[data-contact-form],
   color: var(--ink-soft); cursor: pointer; border-radius: 8px;
 }
 .trial-close:hover { color: var(--belt-red); }
+/* Inline trial form (/free-week): same flow, rendered into the page instead of
+   a modal. The page scrolls, so no inner scroller and nothing to close. */
+[data-trial-inline] {
+  max-width: 520px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: clamp(1.1rem, 4vw, 1.75rem);
+}
+[data-trial-inline] [data-trial-close] { display: none; }
+[data-trial-inline] .trial-slots { max-height: none; overflow-y: visible; }
 .trial-eyebrow { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; color: var(--belt-red); margin: 0 0 0.4rem; }
 .trial-h { margin: 0 0 0.75rem; }
 .trial-sub { color: var(--ink-soft); margin: 0 0 1rem; font-weight: 600; }

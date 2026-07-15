@@ -56,7 +56,7 @@
   var PROGRAMS = null;
 
   var state = freshState();
-  var modal, dialog, lastFocused;
+  var modal, dialog, lastFocused, inlineHost;
 
   function freshState() {
     return {
@@ -74,10 +74,21 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    // Inline mode (/free-week): render the same flow straight into the page
+    // instead of a modal. Everything below is shared by both modes.
+    inlineHost = document.querySelector("[data-trial-inline]");
+    if (inlineHost) startInline();
+
     document.addEventListener("click", function (e) {
       var trigger = e.target.closest("[data-trial-open]");
       if (!trigger) return;
       e.preventDefault();
+      // The form is already on the page, so send them to it. Opening the modal
+      // too would run a second copy of the flow over the same module state.
+      if (inlineHost) {
+        inlineHost.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
       openModal(trigger);
     });
   });
@@ -226,9 +237,22 @@
     if (lastFocused && lastFocused.focus) lastFocused.focus();
   }
 
+  /* ---- inline shell (no modal) ---------------------------------------- */
+  // Renders the same #trial-body the modal uses, so every step/render function
+  // and setBody() below work unchanged in both modes.
+  function startInline() {
+    inlineHost.innerHTML = '<div class="trial-body" id="trial-body"></div>';
+    state = freshState();
+    renderLoading();
+    loadSchedule();
+  }
+
   function setBody(html) { document.getElementById("trial-body").innerHTML = html; }
 
   function focusFirst() {
+    // Inline the form is just part of the page: stealing focus would scroll the
+    // visitor down to it. Focus management only matters for the modal.
+    if (inlineHost) return;
     var el = dialog.querySelector(".trial-body input, .trial-body button, .trial-body a[href]");
     if (el) el.focus();
   }
@@ -271,7 +295,7 @@
 
   /* ---- step 1: program select ---------------------------------------- */
   function renderPrograms() {
-    var html = head("Choose your program");
+    var html = head("Choose your program", "Step 1 of 4");
     html += '<p class="trial-note">Teens and adults can select more than one.</p>';
     html += '<div class="trial-options">';
     PROGRAM_MENU.forEach(function (m) {
@@ -368,7 +392,7 @@
     var start = new Date(base.getFullYear(), base.getMonth(), base.getDate() + w * 7);
     var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
 
-    var html = head(item.label, n > 1 ? ("Class " + (i + 1) + " of " + n) : null);
+    var html = head(item.label, "Step 2 of 4" + (n > 1 ? " (class " + (i + 1) + " of " + n + ")" : ""));
     html += '<p class="trial-sub">Schedule your <strong>first</strong> class</p>';
     html += '<p class="trial-note trial-firstnote">Just your first class. Your free week covers every class you want to attend, but there\'s no need to book each one.</p>';
     html += '<p class="trial-weeklabel">' + esc(weekRange(start, end)) + '</p>';
@@ -442,7 +466,7 @@
   }
 
   function renderIntake() {
-    var html = head("A little about the student", "Your info");
+    var html = head("A little about the student", "Step 3 of 4");
     html += '<form class="trial-form" novalidate>';
     html += '<div class="trial-grid trial-grid--2">' +
               pfield("tf-sfirst", "Student first name", "student_first", "text", ' autocomplete="off"', true) +
@@ -527,7 +551,7 @@
 
   /* ---- step 4: waiver ------------------------------------------------ */
   function renderWaiver() {
-    var html = head("Sign the waiver", "Almost done");
+    var html = head("Sign the waiver", "Step 4 of 4");
     html += '<div class="trial-waiver" tabindex="0" aria-label="Liability Waiver and Release">' +
               '<p class="trial-waiver__title">Liability Waiver and Release</p>' +
               '<p>' + esc(WAIVER_TEXT) + '</p>' +
