@@ -663,6 +663,9 @@ form[data-contact-form],
    -------------------------------------------------------------------------- */
 .stack > * + * { margin-top: 1rem; }
 .lede { font-size: 1.15rem; color: var(--ink-soft); max-width: 60ch; }
+/* /free-week conversion landing page */
+.free-week__cta { margin-top: 1.6rem; }
+.free-week__note { margin-top: 1rem; font-size: 0.95rem; color: var(--ink-soft); }
 /* Parenthetical detail dropped onto its own line under a program label
    (dropdown links and program cards). Only breaks the line — weight, size,
    case, and color are inherited so every parenthetical looks identical to
