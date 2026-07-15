@@ -493,7 +493,12 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .schedule-day__list { list-style: none; margin: 0; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.5rem; }
 .schedule-class { display: flex; flex-direction: column; gap: 1px; padding: 0.55rem 0.7rem; border-radius: 8px; background: var(--mat-gray); }
 .schedule-class__time { font-weight: 800; font-size: 0.9rem; color: var(--ink); }
-.schedule-class__name { font-weight: 600; }
+.schedule-class__name { font-weight: 700; }
+.schedule-class[data-p="Taekwondo"] .schedule-class__name { color: #e9292d; }
+.schedule-class[data-p="Cubs"] .schedule-class__name { color: #d9660a; }
+.schedule-class[data-p="Kickboxing"] .schedule-class__name { color: #1565c0; }
+.schedule-class[data-p="Jiu Jitsu"] .schedule-class__name { color: #6d4c41; }
+.schedule-class[data-p="AMP'D"] .schedule-class__name { color: #2e7d32; }
 .schedule-class__rank { font-size: 0.73rem; font-weight: 700; color: var(--ink); }
 .schedule-class__detail { font-size: 0.72rem; font-weight: 600; color: var(--ink-soft); }
 .schedule-fallback[hidden] { display: none; }
