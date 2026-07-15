@@ -49,9 +49,6 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    var printBtn = document.querySelector("[data-print-schedule]");
-    if (printBtn) printBtn.addEventListener("click", function () { window.print(); });
-
     var mounts = [].slice.call(document.querySelectorAll("[data-schedule-mount]"));
     if (!mounts.length) return;
 
