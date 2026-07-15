@@ -481,16 +481,16 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .schedule-day { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--white); }
 .schedule-day__name { margin: 0; padding: 0.6rem 0.9rem; background: var(--ink); color: var(--white); font-family: var(--font-display); font-size: 1rem; }
 .schedule-day__list { list-style: none; margin: 0; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.5rem; }
-.schedule-class { display: flex; flex-direction: column; gap: 1px; padding: 0.55rem 0.7rem; border-radius: 8px; background: var(--mat-gray); }
-.schedule-class__time { font-weight: 800; font-size: 0.9rem; color: var(--ink); }
-.schedule-class__name { font-weight: 600; }
-.schedule-class__rank { font-size: 0.73rem; font-weight: 700; color: var(--ink); }
-.schedule-class__detail { font-size: 0.72rem; font-weight: 600; color: var(--ink-soft); }
-.schedule-class[data-p="Taekwondo"] { background: #f4d6d6; }
-.schedule-class[data-p="Cubs"] { background: #f9e2c9; }
-.schedule-class[data-p="Kickboxing"] { background: #d7e4f3; }
-.schedule-class[data-p="Jiu Jitsu"] { background: #e7ddc9; }
-.schedule-class[data-p="AMP'D"] { background: #d8ead9; }
+.schedule-class { display: flex; flex-direction: column; gap: 1px; padding: 0.55rem 0.7rem; border-radius: 8px; background: #555; color: var(--white); }
+.schedule-class__time { font-weight: 800; font-size: 0.9rem; color: var(--white); }
+.schedule-class__name { font-weight: 700; color: var(--white); }
+.schedule-class__rank { font-size: 0.73rem; font-weight: 700; color: rgba(255, 255, 255, 0.92); }
+.schedule-class__detail { font-size: 0.72rem; font-weight: 600; color: rgba(255, 255, 255, 0.92); }
+.schedule-class[data-p="Taekwondo"] { background: #e9292d; }
+.schedule-class[data-p="Cubs"] { background: #ef6c00; }
+.schedule-class[data-p="Kickboxing"] { background: #1565c0; }
+.schedule-class[data-p="Jiu Jitsu"] { background: #6d4c41; }
+.schedule-class[data-p="AMP'D"] { background: #2e7d32; }
 .schedule-fallback[hidden] { display: none; }
 /* Per-program class-times list (program pages). */
 .schedule-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
@@ -499,6 +499,26 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .schedule-class-row__age { margin: 0 0 0.6rem; font-size: 0.8rem; font-weight: 600; color: var(--ink-soft); }
 .schedule-class-row__times { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .schedule-class-row__times li { padding: 0.3rem 0.6rem; border-radius: 6px; background: var(--mat-gray); font-weight: 700; font-size: 0.85rem; }
+.schedule-toolbar { margin: 0 0 1rem; }
+.print-head { display: none; }
+
+/* Printable weekly schedule: drop the site chrome, keep the grid + a header
+   with the studio name, phone, and website, and force class colors to print. */
+@media print {
+  .site-header, .site-footer, .mobile-cta-bar, .cta-band, .belt-divider,
+  .header-utility, .schedule-toolbar, .schedule-fallback, .no-print, .lede,
+  section[aria-label="Related programs"] { display: none !important; }
+  body { background: #fff; }
+  .section { padding-block: 0 !important; }
+  .print-head { display: block; text-align: center; margin: 0 0 0.6rem; font-size: 11pt; font-weight: 700; color: #000; }
+  .print-head a { color: #000; text-decoration: none; }
+  h1 { font-size: 18pt; margin: 0 0 0.4rem; }
+  h2 { font-size: 13pt; }
+  .schedule { grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 6px; }
+  .schedule-day { break-inside: avoid; }
+  .schedule-day__name { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .schedule-class { padding: 4px 6px; border-radius: 4px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 
 /* --------------------------------------------------------------------------
    Free-week CTA band

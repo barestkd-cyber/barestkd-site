@@ -24,7 +24,7 @@
   // Purely presentational; edit here to retitle a class or fix an age range.
   var CLASS_META = {
     "Cubs":            { name: "Cubs",           detail: "Ages 3-4" },
-    "Juniors":         { name: "Juniors",        detail: "Ages 5-12" },
+    "Juniors":         { name: "Juniors",        detail: "" },
     "Teens / Adults":  { name: "Teens / Adults", detail: "Ages 13+" },
     "Forms":           { name: "Forms",          detail: "Juniors, Teens & Adults" },
     "Leadership":      { name: "Leadership",     detail: "By invitation" },
@@ -49,6 +49,9 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    var printBtn = document.querySelector("[data-print-schedule]");
+    if (printBtn) printBtn.addEventListener("click", function () { window.print(); });
+
     var mounts = [].slice.call(document.querySelectorAll("[data-schedule-mount]"));
     if (!mounts.length) return;
 
