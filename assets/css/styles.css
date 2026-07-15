@@ -665,8 +665,11 @@ form[data-contact-form],
    -------------------------------------------------------------------------- */
 .stack > * + * { margin-top: 1rem; }
 .lede { font-size: 1.15rem; color: var(--ink-soft); max-width: 60ch; }
-/* /free-week conversion landing page */
-.free-week__form { margin-top: 1.6rem; }
+/* /free-week conversion landing page: one narrow, centred column. */
+.free-week { max-width: 640px; text-align: center; }
+.free-week .lede { margin-inline: auto; }
+/* The panel centres, but its own fields/options stay left-aligned. */
+.free-week__form { margin: 1.6rem auto 0; text-align: left; }
 .free-week__note { margin-top: 1rem; font-size: 0.95rem; color: var(--ink-soft); }
 /* Parenthetical detail dropped onto its own line under a program label
    (dropdown links and program cards). Only breaks the line — weight, size,
