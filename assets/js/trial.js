@@ -242,6 +242,9 @@
   // and setBody() below work unchanged in both modes.
   function startInline() {
     inlineHost.innerHTML = '<div class="trial-body" id="trial-body"></div>';
+    // Every step wires its handlers by querying `dialog` as the root. Inline
+    // there is no modal, so point it at the page container instead.
+    dialog = inlineHost;
     state = freshState();
     renderLoading();
     loadSchedule();
