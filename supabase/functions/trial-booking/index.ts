@@ -210,14 +210,14 @@ async function handleSchedule(cors: Record<string, string>, req: Request) {
     // for a free trial; the public schedule shows every class either way.
     const { data: rows, error } = await adminClient()
       .from("schedule_template")
-      .select("day, time_h, time_m, label, prog_css, trial_open");
+      .select("day, time_h, time_m, label, belt, prog_css, trial_open");
     if (error) throw error;
 
     const list = (rows || []) as any[];
     const used = new Array(list.length).fill(false);
     const mk = function (r: any, i: number) {
       used[i] = true;
-      return { dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "", trialOpen: !!r.trial_open };
+      return { dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "", belt: r.belt || "", trialOpen: !!r.trial_open };
     };
 
     const programs: any[] = MARKETING.map(function (mkt) {

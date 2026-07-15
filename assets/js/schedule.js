@@ -34,6 +34,20 @@
     "AMP'D":           { name: "AMP'D",          detail: "By invitation" }
   };
 
+  // Belt-rank abbreviations -> full names. Only hyphenated belt ranges (and
+  // "All Ranks") render as a rank; other belt values (Pre-K, 13+, All, blank)
+  // are age/all-levels notes and show no rank delineator.
+  var BELT = { WHI: "White", YEL: "Yellow", ORG: "Orange", GR: "Green", GRN: "Green", BLU: "Blue", PUR: "Purple", RED: "Red", BR: "Brown", BRN: "Brown", BLK: "Black" };
+  function beltLabel(b) {
+    b = (b || "").trim();
+    if (!b) return "";
+    if (/^all ranks$/i.test(b)) return "All Ranks";
+    if (b.indexOf("-") === -1) return "";
+    var parts = b.split("-").map(function (p) { return p.toUpperCase().trim(); });
+    if (!parts.every(function (p) { return BELT[p]; })) return ""; // e.g. "Pre-K" is not a belt range
+    return parts.map(function (p) { return BELT[p]; }).join("–");
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     var mounts = [].slice.call(document.querySelectorAll("[data-schedule-mount]"));
     if (!mounts.length) return;
@@ -56,7 +70,7 @@
       (p.classes || []).forEach(function (c) {
         var lab = c.label || p.program;
         var meta = CLASS_META[lab] || { name: lab, detail: "" };
-        out.push({ dow: c.dow, h: c.h, m: c.m, label: lab, name: meta.name, detail: meta.detail, program: p.program, trialOpen: c.trialOpen !== false });
+        out.push({ dow: c.dow, h: c.h, m: c.m, label: lab, name: meta.name, detail: meta.detail, belt: beltLabel(c.belt), program: p.program, trialOpen: c.trialOpen !== false });
       });
     });
     return out;
@@ -108,6 +122,7 @@
         if (c.program) li.setAttribute("data-p", c.program);
         li.appendChild(el("span", "schedule-class__time", fmtTime(c.h, c.m)));
         li.appendChild(el("span", "schedule-class__name", c.name));
+        if (c.belt) li.appendChild(el("span", "schedule-class__rank", c.belt));
         if (c.detail) li.appendChild(el("span", "schedule-class__detail", c.detail));
         ul.appendChild(li);
       });
@@ -137,7 +152,7 @@
       if (group[0].detail) row.appendChild(el("p", "schedule-class-row__age", group[0].detail));
       var ul = document.createElement("ul");
       ul.className = "schedule-class-row__times";
-      times.forEach(function (c) { ul.appendChild(el("li", "", SHORT[c.dow] + " " + fmtTime(c.h, c.m))); });
+      times.forEach(function (c) { ul.appendChild(el("li", "", SHORT[c.dow] + " " + fmtTime(c.h, c.m) + (c.belt ? " · " + c.belt : ""))); });
       row.appendChild(ul);
       wrap.appendChild(row);
     });
