@@ -356,9 +356,11 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   .mobile-cta-bar { transition: none; }
 }
 
-/* Reserve space so the fixed bar never covers page content (mobile only). */
+/* Reserve space so the fixed bar never covers page content (mobile only).
+   Pages without the bar (e.g. /free-week) opt out via body.no-mobile-bar. */
 @media (max-width: 899.98px) {
   body { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+  body.no-mobile-bar { padding-bottom: 0; }
 }
 
 /* --------------------------------------------------------------------------
