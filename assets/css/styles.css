@@ -441,6 +441,11 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .card__media--soon span { font-family: var(--font-display); color: var(--belt-gold); font-size: clamp(1.1rem, 3.5vw, 1.5rem); text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
 .card__media--label { display: flex; align-items: center; justify-content: center; background: var(--ink); padding: 0.6rem; }
 .card__media--label span { font-family: var(--font-display); color: var(--white); font-size: clamp(1rem, 3vw, 1.4rem); text-transform: uppercase; letter-spacing: 0.03em; text-align: center; line-height: 1.1; }
+
+/* Instructors grid (About page) */
+.instructor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-top: 1.25rem; }
+.instructor { margin: 0; }
+.instructor img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); border: 1px solid var(--line); background: var(--white); }
 .card__body { padding: 1.1rem 1.15rem 1.35rem; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
 .card__body h3 { margin: 0; }
 .card__teaser { margin: 0; color: var(--ink-soft); font-size: 0.98rem; flex: 1; }
