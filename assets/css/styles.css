@@ -485,10 +485,11 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .schedule-class__time { font-weight: 800; font-size: 0.9rem; color: var(--ink); }
 .schedule-class__name { font-weight: 600; }
 .schedule-class__detail { font-size: 0.72rem; font-weight: 600; color: var(--ink-soft); }
-.schedule-class[data-p="Taekwondo"] { background: #fbe7e7; }
-.schedule-class[data-p="Cubs"] { background: #fdecd9; }
-.schedule-class[data-p="Kickboxing"] { background: #e7f0fb; }
-.schedule-class[data-p="Jiu Jitsu"] { background: #e6f4ea; }
+.schedule-class[data-p="Taekwondo"] { background: #f6cfcf; }
+.schedule-class[data-p="Cubs"] { background: #fbd9ad; }
+.schedule-class[data-p="Kickboxing"] { background: #d2e0f6; }
+.schedule-class[data-p="Jiu Jitsu"] { background: #e2d0b6; }
+.schedule-class[data-p="AMP'D"] { background: #cfe8d5; }
 .schedule-fallback[hidden] { display: none; }
 /* Per-program class-times list (program pages). */
 .schedule-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
