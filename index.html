@@ -114,15 +114,12 @@
 </header>
 <main id="main-content">
 <section class="hero">
-  <!-- Poster photo: loads eagerly, shows instantly, and stays for reduced-motion,
-       data-saver, or anyone the video can't play for. -->
-  <img class="hero__media hero__poster" src="/assets/img/hero.jpg"
+  <!-- Photo hero: the sparring highlight reel was pulled deliberately (it read as
+       intimidating to parents of young kids). assets/video/hero-reel.mp4 is kept
+       if we ever want it back. -->
+  <img class="hero__media" src="/assets/img/hero.jpg"
        alt="A young student in uniform high-fiving an instructor at Bares Taekwondo Fitness"
        fetchpriority="high" decoding="async" width="1600" height="2400">
-  <!-- Highlight reel: JS adds the source and fades it in once it can play. Never
-       loads or plays under prefers-reduced-motion or data-saver. -->
-  <video class="hero__media hero__video" muted loop playsinline preload="auto"
-         aria-hidden="true" data-hero-video data-src="/assets/video/hero-reel.mp4"></video>
   <div class="hero__scrim"></div>
   <div class="container hero__inner">
     <h1>Martial Arts for Every Age in Tyler,&nbsp;TX</h1>

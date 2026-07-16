@@ -382,9 +382,6 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   object-position: 50% 50%; /* center: keeps the face up in frame from 360px to desktop */
   z-index: 0;
 }
-.hero__video { z-index: 0; background: var(--ink); }
-.hero__poster { z-index: 1; opacity: 1; transition: opacity 0.8s ease; } /* fades out to reveal the reel */
-.hero__poster.is-hidden { opacity: 0; }
 .hero__scrim {
   position: absolute; inset: 0;
   z-index: 2;
@@ -399,10 +396,6 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .hero__actions { display: flex; flex-wrap: wrap; gap: 0.85rem; margin-top: 1.5rem; }
 .hero .btn--secondary { color: var(--white); border-color: var(--white); }
 .hero .btn--secondary:hover { background: var(--white); color: var(--ink); }
-@media (prefers-reduced-motion: reduce) {
-  .hero__poster.is-hidden { opacity: 1; } /* photo only, never reveal the reel */
-}
-
 /* --------------------------------------------------------------------------
    Grids / cards
    -------------------------------------------------------------------------- */

@@ -18,7 +18,6 @@
     setupNavToggle();
     setupDropdowns();
     setupFaqAccordion();
-    setupHeroVideo();
     setupHeaderCtaReveal();
     setupMobileCtaBar();
     setupFadeUp();
@@ -98,18 +97,6 @@
     }, { threshold: 0 });
 
     observer.observe(hero);
-  }
-
-  /* ---- Hero video: respect reduced motion --------------------------- */
-  function setupHeroVideo() {
-    var video = document.querySelector("video.hero__media");
-    if (!video) return;
-    if (reduceMotion) {
-      // Show the poster only — no motion.
-      video.removeAttribute("autoplay");
-      video.autoplay = false;
-      try { video.pause(); } catch (e) {}
-    }
   }
 
   /* ---- Mobile nav hamburger ------------------------------------------- */
@@ -208,39 +195,4 @@
     });
   }
 
-  /* ---- hero highlight reel --------------------------------------------
-     The poster photo shows instantly on top. The muted looping reel sits behind
-     it; once the reel plays we fade the POSTER out to reveal it (fading the img
-     avoids opacity-transition quirks on <video>). We only load/play the reel
-     when motion is welcome and the connection allows. Under prefers-reduced-
-     motion, data-saver, or blocked autoplay, the poster simply stays. */
-  var hv = document.querySelector("[data-hero-video]");
-  var poster = document.querySelector(".hero__poster");
-  if (hv && poster) {
-    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    var conn = navigator.connection || {};
-    var src = hv.getAttribute("data-src");
-    // Alternate by the hour so the photo gets its turn: odd hours play the reel,
-    // even hours stay on the photo. Reduced-motion / data-saver always show the photo.
-    var reelHour = (new Date().getHours() % 2) === 1;
-    if (src && reelHour && !reduce && !conn.saveData) {
-      var source = document.createElement("source");
-      source.src = src;
-      source.type = "video/mp4";
-      hv.appendChild(source);
-      // Reveal (fade poster out) on whichever fires first: playing or play() resolving.
-      var revealed = false;
-      var reveal = function () {
-        if (revealed) return;
-        revealed = true;
-        poster.classList.add("is-hidden");
-      };
-      hv.addEventListener("playing", reveal, { once: true });
-      try { hv.load(); } catch (e) { /* ignore */ }
-      var playPromise = hv.play();
-      if (playPromise && playPromise.then) {
-        playPromise.then(reveal).catch(function () { /* autoplay blocked: poster stays */ });
-      }
-    }
-  }
 })();
