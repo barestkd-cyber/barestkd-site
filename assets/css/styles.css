@@ -366,6 +366,10 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 /* --------------------------------------------------------------------------
    Hero
    -------------------------------------------------------------------------- */
+/* Program-page hero: shorter than the homepage's. These are wide room photos, so
+   a tall (portrait) mobile hero shows the full image height and only a narrow
+   slice of its width. A shorter hero crops less width and eats less screen.
+   min-height, so it still grows if the headline needs the room. */
 .hero {
   position: relative;
   min-height: min(78vh, 640px);
@@ -375,6 +379,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   overflow: hidden;
   background: var(--ink);
 }
+.hero--page { min-height: min(56vh, 440px); } /* must follow .hero to win */
 .hero__media {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
