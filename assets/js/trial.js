@@ -138,16 +138,20 @@
 
   function midnight(dt) { return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
 
-  // Bookable classes for a program on a specific date, future only, soonest first.
+  // Bookable classes for a program on a specific date, soonest first.
+  // A class stays bookable through the end of its own day rather than vanishing
+  // at its start time: someone who walks in a few minutes late still needs to be
+  // able to sign up for the class they're standing in.
   function slotsOnDate(item, d) {
     var now = new Date();
+    var dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); // midnight after d
+    if (dayEnd.getTime() <= now.getTime()) return [];
     var classes = classesFor(item);
     var out = [];
     for (var c = 0; c < classes.length; c++) {
       var cls = classes[c];
       if (cls.dow !== d.getDay()) continue;
       var when = new Date(d.getFullYear(), d.getMonth(), d.getDate(), cls.h, cls.m);
-      if (when.getTime() <= now.getTime()) continue;
       out.push({
         iso: when.toISOString(),
         label: cls.label,
