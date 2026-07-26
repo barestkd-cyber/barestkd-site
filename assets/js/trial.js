@@ -138,12 +138,65 @@
 
   function midnight(dt) { return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
 
+  /* ---- studio time ------------------------------------------------------
+     Class times belong to the school, not to the visitor's device. Everything
+     below works in the studio's wall clock (America/Chicago, DST handled by
+     Intl) so "today" and the midnight cutoff match the front desk, whatever
+     time zone the visitor is in. If Intl is unavailable we fall back to the
+     device clock, which is the old behaviour. */
+  var STUDIO_TZ = "America/Chicago";
+
+  // The studio's wall-clock fields for a given instant.
+  function tzParts(date) {
+    var dtf = new Intl.DateTimeFormat("en-US", {
+      timeZone: STUDIO_TZ, hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+    var o = {};
+    dtf.formatToParts(date).forEach(function (p) { o[p.type] = p.value; });
+    return {
+      y: +o.year, mo: +o.month, d: +o.day,
+      h: (+o.hour === 24 ? 0 : +o.hour), mi: +o.minute, s: +o.second
+    };
+  }
+
+  function hasIntl() {
+    try { return !!(window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone !== undefined); }
+    catch (e) { return false; }
+  }
+  var STUDIO_OK = hasIntl();
+
+  // "Now" as a Date whose LOCAL fields read as the studio's wall clock, so the
+  // existing calendar math (getDay, getDate, +N days) is all in studio terms.
+  function studioNow() {
+    if (!STUDIO_OK) return new Date();
+    var p = tzParts(new Date());
+    return new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.s);
+  }
+
+  // How far ahead of UTC the studio is at this instant, in ms (negative in CST/CDT).
+  function studioOffsetMs(date) {
+    var p = tzParts(date);
+    return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) - (Math.floor(date.getTime() / 1000) * 1000);
+  }
+
+  // A studio wall-clock time -> the real instant, for the ISO we send the backend.
+  function studioToInstant(y, mo, d, h, mi) {
+    var guess = Date.UTC(y, mo, d, h, mi);
+    if (!STUDIO_OK) return new Date(y, mo, d, h, mi);
+    var inst = guess - studioOffsetMs(new Date(guess));
+    // Re-check once: near a DST switch the first offset can be the wrong side.
+    var refined = guess - studioOffsetMs(new Date(inst));
+    return new Date(refined);
+  }
+
   // Bookable classes for a program on a specific date, soonest first.
   // A class stays bookable through the end of its own day rather than vanishing
   // at its start time: someone who walks in a few minutes late still needs to be
   // able to sign up for the class they're standing in.
   function slotsOnDate(item, d) {
-    var now = new Date();
+    var now = studioNow();
     var dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); // midnight after d
     if (dayEnd.getTime() <= now.getTime()) return [];
     var classes = classesFor(item);
@@ -153,7 +206,7 @@
       if (cls.dow !== d.getDay()) continue;
       var when = new Date(d.getFullYear(), d.getMonth(), d.getDate(), cls.h, cls.m);
       out.push({
-        iso: when.toISOString(),
+        iso: studioToInstant(d.getFullYear(), d.getMonth(), d.getDate(), cls.h, cls.m).toISOString(),
         label: cls.label,
         dateText: DOW[when.getDay()] + ", " + MON[when.getMonth()] + " " + when.getDate(),
         timeText: fmtTime(cls.h, cls.m),
@@ -166,7 +219,7 @@
 
   // Does a program have any bookable slot within the paging window?
   function anyUpcoming(item) {
-    var base = midnight(new Date());
+    var base = midnight(studioNow());
     for (var i = 0; i < WEEKS_OUT * 7; i++) {
       var d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
       if (slotsOnDate(item, d).length) return true;
@@ -394,7 +447,7 @@
     var item = state.selected[i];
     if (!anyUpcoming(item)) { renderNoProgram(item.label); return; }
 
-    var base = midnight(new Date());
+    var base = midnight(studioNow());
     var w = state.weekOffset;
     var start = new Date(base.getFullYear(), base.getMonth(), base.getDate() + w * 7);
     var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
