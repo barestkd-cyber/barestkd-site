@@ -198,6 +198,34 @@ function titleFromCss(css: string): string {
     .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
 }
 
+/* GET ?view=full — every schedule_template row, read-only, for generating the
+   static public schedule page. Separate cache from the popup's payload; the
+   popup's grouped response is untouched. */
+let fullCache: { at: number; data: unknown } | null = null;
+
+async function handleFullSchedule(cors: Record<string, string>) {
+  const cacheHeaders = { ...cors, "Cache-Control": "public, max-age=300" };
+  const now = Date.now();
+  if (fullCache && now - fullCache.at < CACHE_MS) {
+    return json(fullCache.data, 200, cacheHeaders);
+  }
+  try {
+    const { data: rows, error } = await adminClient()
+      .from("schedule_template")
+      .select("day, time_h, time_m, label, prog_css")
+      .order("day", { ascending: true })
+      .order("time_h", { ascending: true })
+      .order("time_m", { ascending: true });
+    if (error) throw error;
+    const payload = { classes: rows || [] };
+    fullCache = { at: now, data: payload };
+    return json(payload, 200, cacheHeaders);
+  } catch (e) {
+    console.error("[trial-booking] full schedule read failed:", e);
+    return json({ error: "schedule unavailable" }, 500, cors);
+  }
+}
+
 async function handleSchedule(cors: Record<string, string>, req: Request) {
   const wantRaw = new URL(req.url).searchParams.get("raw") === "1";
   const cacheHeaders = { ...cors, "Cache-Control": "public, max-age=300" };
@@ -252,7 +280,12 @@ Deno.serve(async (req) => {
   const cors = corsHeaders(req.headers.get("origin"));
 
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method === "GET") return await handleSchedule(cors, req);
+  if (req.method === "GET") {
+    if (new URL(req.url).searchParams.get("view") === "full") {
+      return await handleFullSchedule(cors);
+    }
+    return await handleSchedule(cors, req);
+  }
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
 
   let body: Record<string, unknown>;

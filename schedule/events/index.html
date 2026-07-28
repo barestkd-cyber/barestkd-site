@@ -111,9 +111,134 @@
 <section class="section  fade-up">
   <div class="container">
     <h2>Weekly Schedule</h2>
-    <!-- Live schedule mount point: wire to schedule_template later. Fallback below shows until wired. -->
-    <div class="schedule-mount" data-schedule-mount data-schedule-source="schedule_template"></div>
-    <p class="schedule-fallback">Our live class schedule is loading. If it doesn't appear, call us at <a href="tel:903-561-2966">903-561-2966</a> and we'll walk you through class times, or check back shortly.</p>
+    <!-- STATIC schedule, generated from schedule_template via the trial-booking
+         GET ?view=full endpoint. To refresh after a classplan change, see
+         SYNC-SCHEDULE.md in the repo root. Renders without JavaScript. -->
+    <div class="schedule">
+      <div class="schedule-day">
+        <h3 class="schedule-day__name">Monday</h3>
+        <ul class="schedule-day__list">
+          <li class="schedule-class" data-p="AMP'D">
+            <span class="schedule-class__time">4:30 PM</span>
+            <span class="schedule-class__name">AMP'D</span>
+            <span class="schedule-class__detail">By invitation</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">5:00 PM</span>
+            <span class="schedule-class__name">Juniors</span>
+          </li>
+          <li class="schedule-class" data-p="Kickboxing">
+            <span class="schedule-class__time">5:45 PM</span>
+            <span class="schedule-class__name">Kickboxing</span>
+            <span class="schedule-class__detail">Ages 13+</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">6:45 PM</span>
+            <span class="schedule-class__name">Teens / Adults</span>
+            <span class="schedule-class__detail">Ages 13+</span>
+          </li>
+        </ul>
+      </div>
+      <div class="schedule-day">
+        <h3 class="schedule-day__name">Tuesday</h3>
+        <ul class="schedule-day__list">
+          <li class="schedule-class" data-p="Cubs">
+            <span class="schedule-class__time">4:00 PM</span>
+            <span class="schedule-class__name">Cubs</span>
+            <span class="schedule-class__detail">Ages 3-4</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">4:30 PM</span>
+            <span class="schedule-class__name">Juniors</span>
+          </li>
+          <li class="schedule-class" data-p="AMP'D">
+            <span class="schedule-class__time">5:15 PM</span>
+            <span class="schedule-class__name">AMP'D</span>
+            <span class="schedule-class__detail">By invitation</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">5:45 PM</span>
+            <span class="schedule-class__name">Leadership</span>
+            <span class="schedule-class__detail">By invitation</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">6:15 PM</span>
+            <span class="schedule-class__name">Juniors</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">7:15 PM</span>
+            <span class="schedule-class__name">Teens / Adults</span>
+            <span class="schedule-class__detail">Ages 13+</span>
+          </li>
+        </ul>
+      </div>
+      <div class="schedule-day">
+        <h3 class="schedule-day__name">Wednesday</h3>
+        <ul class="schedule-day__list">
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">4:15 PM</span>
+            <span class="schedule-class__name">Juniors</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">4:45 PM</span>
+            <span class="schedule-class__name">Juniors</span>
+          </li>
+          <li class="schedule-class" data-p="Cubs">
+            <span class="schedule-class__time">5:30 PM</span>
+            <span class="schedule-class__name">Cubs</span>
+            <span class="schedule-class__detail">Ages 3-4</span>
+          </li>
+        </ul>
+      </div>
+      <div class="schedule-day">
+        <h3 class="schedule-day__name">Thursday</h3>
+        <ul class="schedule-day__list">
+          <li class="schedule-class" data-p="Cubs">
+            <span class="schedule-class__time">4:30 PM</span>
+            <span class="schedule-class__name">Cubs</span>
+            <span class="schedule-class__detail">Ages 3-4</span>
+          </li>
+          <li class="schedule-class" data-p="AMP'D">
+            <span class="schedule-class__time">5:00 PM</span>
+            <span class="schedule-class__name">AMP'D</span>
+            <span class="schedule-class__detail">By invitation</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">5:30 PM</span>
+            <span class="schedule-class__name">Forms</span>
+            <span class="schedule-class__detail">Juniors, Teens &amp; Adults</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">6:15 PM</span>
+            <span class="schedule-class__name">Sparring</span>
+          </li>
+          <li class="schedule-class" data-p="Jiu Jitsu">
+            <span class="schedule-class__time">7:00 PM</span>
+            <span class="schedule-class__name">Jiu Jitsu</span>
+            <span class="schedule-class__detail">No-Gi BJJ &middot; 13+</span>
+          </li>
+        </ul>
+      </div>
+      <div class="schedule-day">
+        <h3 class="schedule-day__name">Saturday</h3>
+        <ul class="schedule-day__list">
+          <li class="schedule-class" data-p="Cubs">
+            <span class="schedule-class__time">9:30 AM</span>
+            <span class="schedule-class__name">Cubs</span>
+            <span class="schedule-class__detail">Ages 3-4</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">10:00 AM</span>
+            <span class="schedule-class__name">Juniors</span>
+          </li>
+          <li class="schedule-class" data-p="Taekwondo">
+            <span class="schedule-class__time">11:00 AM</span>
+            <span class="schedule-class__name">Teens / Adults</span>
+            <span class="schedule-class__detail">Ages 13+</span>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
 </section>
 <section class="section  fade-up">
@@ -202,7 +327,7 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <p>&copy; Bares Taekwondo Fitness · Tyler, TX</p>
+      <p>&copy; Bares Taekwondo Fitness · Tyler, TX · <a class="footer-legal" href="/privacy-policy">Privacy Policy</a></p>
       <a class="btn btn--primary" href="/contact-form" data-trial-open>Try 1 Week Free</a>
     </div>
   </div>
@@ -213,6 +338,5 @@
 </div>
 <script src="/assets/js/main.js" defer></script>
 <script src="/assets/js/trial.js" defer></script>
-<script src="/assets/js/schedule.js" defer></script>
 </body>
 </html>

@@ -550,6 +550,7 @@
               '<button class="btn btn--primary" type="submit">Continue</button>' +
             '</div>';
     html += '<p class="form-consent">' + esc(CONSENT) + '</p>';
+    html += '<p class="form-privacy"><a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a></p>';
     html += '<p class="form-status" role="status" aria-live="polite"></p>';
     html += '</form>';
     setBody(html);
