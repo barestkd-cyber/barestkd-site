@@ -387,6 +387,15 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   object-position: 50% 50%; /* center: keeps the face up in frame from 360px to desktop */
   z-index: 0;
 }
+/* Hero reel layers (Cubs page): the reel sits under the poster photo, and the
+   POSTER fades out to reveal it (fading the img avoids opacity-transition
+   quirks on <video> in some engines). */
+.hero__video { z-index: 0; background: var(--ink); }
+.hero__poster { z-index: 1; opacity: 1; transition: opacity 0.8s ease; }
+.hero__poster.is-hidden { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .hero__poster.is-hidden { opacity: 1; } /* photo only, never reveal the reel */
+}
 .hero__scrim {
   position: absolute; inset: 0;
   z-index: 2;

@@ -102,9 +102,14 @@
 </header>
 <main id="main-content">
 <section class="hero hero--page">
-  <img class="hero__media" src="/assets/img/cubs-hero.jpg"
+  <!-- Poster photo: shows instantly and stays for reduced-motion, data-saver,
+       or anyone the reel can't play for. -->
+  <img class="hero__media hero__poster" src="/assets/img/cubs-hero.jpg"
        alt="The Cubs class lined up on the mat under the flags at Bares Taekwondo Fitness in Tyler, TX"
        fetchpriority="high" decoding="async" width="1800" height="873">
+  <!-- Cubs class reel: main.js adds the source and fades the poster out once it plays. -->
+  <video class="hero__media hero__video" muted loop playsinline preload="auto"
+         aria-hidden="true" data-hero-video data-src="/assets/video/cubs-reel.mp4"></video>
   <div class="hero__scrim"></div>
   <div class="container hero__inner">
     <h1>Cubs: Preschool Martial Arts in Tyler,&nbsp;TX</h1>
