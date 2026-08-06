@@ -380,6 +380,14 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   background: var(--ink);
 }
 .hero--page { min-height: min(56vh, 440px); } /* must follow .hero to win */
+/* Reel heroes (Cubs): on desktop, size the hero to the video's 16:9 frame so
+   the whole reel shows instead of being cover-cropped into a short strip.
+   Mobile keeps the standard page-hero height. */
+@media (min-width: 900px) {
+  /* height: full 16:9 frame at viewport width, capped at 86vh (a hair of crop
+     on very wide/short screens beats a white gap beside the hero). */
+  .hero--reel { min-height: 0; height: min(56.25vw, 86vh); }
+}
 .hero__media {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
