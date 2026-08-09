@@ -31,6 +31,7 @@
     "Sparring":        { name: "Sparring",       detail: "" },
     "Kickboxing":      { name: "Kickboxing",     detail: "Ages 13+" },
     "Jiu-Jitsu (BJJ)": { name: "Jiu Jitsu",      detail: "No-Gi BJJ · 13+" },
+    "Jiu-Jitsu":       { name: "Jiu Jitsu",      detail: "No-Gi BJJ · 13+" },
     "AMP'D":           { name: "AMP'D",          detail: "By invitation" }
   };
 
