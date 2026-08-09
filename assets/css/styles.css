@@ -109,7 +109,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
   padding-inline: var(--gutter);
 }
 
-.section { padding-block: clamp(2.5rem, 7vw, 4.5rem); }
+.section { padding-block: clamp(1.6rem, 4.5vw, 2.5rem); }
 .section--mat { background: var(--mat-gray); }
 .section--ink { background: var(--ink); color: var(--paper); }
 .section--ink h1, .section--ink h2, .section--ink h3 { color: var(--white); }
