@@ -26,6 +26,7 @@
     "Cubs":            { name: "Cubs",           detail: "Ages 3-4" },
     "Juniors":         { name: "Juniors",        detail: "" },
     "Teens / Adults":  { name: "Teens / Adults", detail: "Ages 13+" },
+    "Juniors/Teens/Adults": { name: "Morning Taekwondo", detail: "All ages" },
     "Forms":           { name: "Forms",          detail: "Juniors, Teens & Adults" },
     "Leadership":      { name: "Leadership",     detail: "By invitation" },
     "Sparring":        { name: "Sparring",       detail: "" },
