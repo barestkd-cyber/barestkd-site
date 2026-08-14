@@ -17,8 +17,10 @@
   layout in the system — this page is the trusted wrapper around it.
 
   The ?t= token is the only gate; it grants this one invoice and nothing else.
-  Online payment lands here when Stripe ships (the pay panel below is the
-  placeholder for it).
+  Pay online sends the customer to Stripe hosted checkout via the
+  create-checkout function, which re-derives the amount from the ledger — a
+  browser can never name its own price. The webhook is what marks the invoice
+  paid; the redirect back only polls for that to land.
 -->
 <style>
   *{box-sizing:border-box}
@@ -33,6 +35,8 @@
   .paybtn{display:block;width:100%;background:#15171C;color:#fff;border:none;border-radius:10px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;text-decoration:none}
   .paybtn.off{background:#EEF1F4;color:#6A727E;cursor:default}
   .callrow{display:flex;gap:9px;margin-top:10px}
+  .payerr{color:#c8102e;font-size:12.5px;font-weight:600;margin-top:9px;min-height:1px}
+  .paid-note{background:#E4F5EE;border:1px solid #BFE6D6;color:#18A974;border-radius:12px;padding:14px;text-align:center;font-weight:700;font-size:14px;margin-bottom:14px}
   .callrow a{flex:1;text-align:center;border:1.5px solid #E2E6EB;border-radius:10px;padding:12px;font-size:14px;font-weight:700;color:#1A1D23;text-decoration:none}
   .foot{text-align:center;font-size:11.5px;color:#98A0AB;line-height:1.7;margin-top:18px}
 </style>
@@ -77,15 +81,59 @@
       try { st = JSON.parse(el.textContent); } catch (e) {}
       if (!st) return;
       document.title = (st.status === 'paid' ? 'Receipt ' : 'Invoice ') + st.short_id + ' | Bares Taekwondo Fitness';
-      if (st.status === 'paid' || st.status === 'closed' || !st.balance_cents) return;
+      var justPaid = new URLSearchParams(location.search).get('paid') === '1';
+      if (st.status === 'paid' || st.status === 'closed' || !st.balance_cents) {
+        if (justPaid) payBox.innerHTML = '<div class="paid-note">Payment received — thank you!</div>';
+        return;
+      }
+      if (justPaid) {
+        // Back from Stripe but the webhook has not landed yet. Do NOT offer
+        // to pay again — poll briefly, then tell the truth either way.
+        payBox.innerHTML = '<div class="paid-note">Payment submitted — updating this invoice…</div>';
+        var tries = 0;
+        var poll = setInterval(function () {
+          if (++tries > 10) { clearInterval(poll); payBox.innerHTML = '<div class="paid-note">Payment submitted. If this invoice still shows a balance in a few minutes, call the studio.</div>'; return; }
+          fetch(FN + '?t=' + encodeURIComponent(token) + '&f=frag', { cache: 'no-store' })
+            .then(function (r) { return r.text(); })
+            .then(function (h2) {
+              root.innerHTML = h2;
+              var s2 = null; try { s2 = JSON.parse(document.getElementById('iv-state').textContent); } catch (e) {}
+              if (s2 && (s2.status === 'paid' || !s2.balance_cents)) {
+                clearInterval(poll);
+                payBox.innerHTML = '<div class="paid-note">Payment received — thank you!</div>';
+              }
+            }).catch(function () {});
+        }, 2000);
+        return;
+      }
 
       var due = '$' + (st.balance_cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       payBox.innerHTML =
         '<div class="pay"><h2>Pay this invoice</h2>' +
-        '<p>Online payment is being set up right now. Until it’s live, call the studio or pay at the front desk — this page will show it as paid as soon as it’s recorded.</p>' +
-        '<span class="paybtn off">Pay ' + due + ' online — coming soon</span>' +
+        '<p>Pay securely by card. Your card details go straight to Stripe — we never see or store them.</p>' +
+        '<button class="paybtn" id="paybtn">Pay ' + due + '</button>' +
+        '<div class="payerr" id="payerr"></div>' +
         '<div class="callrow"><a href="tel:+19035612966">Call the studio</a>' +
         '<a href="mailto:race@barestkd.fit">Email us</a></div></div>';
+
+      document.getElementById('paybtn').addEventListener('click', function () {
+        var btn = this, err = document.getElementById('payerr');
+        btn.disabled = true; btn.textContent = 'Opening secure checkout…'; err.textContent = '';
+        fetch(FN.replace('receipt-view', 'create-checkout'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ t: token })
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) {
+            if (!res.ok || !res.j.url) throw new Error(res.j.error || 'Could not start checkout.');
+            location.href = res.j.url;   // Stripe's hosted page
+          })
+          .catch(function (e) {
+            btn.disabled = false; btn.textContent = 'Pay ' + due;
+            err.textContent = (e && e.message) || 'Could not start checkout. Please try again or call the studio.';
+          });
+      });
     })
     .catch(function (e) {
       if (e && e.message === 'notfound') {
