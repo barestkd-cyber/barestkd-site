@@ -38,6 +38,9 @@
   .payerr{color:#c8102e;font-size:12.5px;font-weight:600;margin-top:9px;min-height:1px}
   .paid-note{background:#E4F5EE;border:1px solid #BFE6D6;color:#18A974;border-radius:12px;padding:14px;text-align:center;font-weight:700;font-size:14px;margin-bottom:14px}
   .callrow a{flex:1;text-align:center;border:1.5px solid #E2E6EB;border-radius:10px;padding:12px;font-size:14px;font-weight:700;color:#1A1D23;text-decoration:none}
+  .printrow{text-align:center;margin-top:6px}
+  .printrow button{background:none;border:1.5px solid #E2E6EB;border-radius:10px;padding:10px 18px;font-size:13.5px;font-weight:700;color:#1A1D23;cursor:pointer;font-family:inherit}
+  @media print{ #pay,.printrow,.foot{display:none!important} body{background:#fff} }
   .foot{text-align:center;font-size:11.5px;color:#98A0AB;line-height:1.7;margin-top:18px}
 </style>
 </head>
@@ -57,6 +60,16 @@
   var token = (new URLSearchParams(location.search).get('t') || '').trim();
   var root = document.getElementById('root');
   var payBox = document.getElementById('pay');
+
+  // Customers print from the browser; this just makes it obvious they can.
+  function addPrint() {
+    if (document.getElementById("printrow")) return;
+    var d = document.createElement("div");
+    d.className = "printrow"; d.id = "printrow";
+    d.innerHTML = "<button type=\"button\">Print or save as PDF</button>";
+    d.querySelector("button").addEventListener("click", function () { window.print(); });
+    root.parentNode.insertBefore(d, root.nextSibling);
+  }
 
   function fail(title, msg) {
     root.innerHTML = '<div class="err"><b>' + title + '</b>' + msg + '</div>';
@@ -81,6 +94,7 @@
       try { st = JSON.parse(el.textContent); } catch (e) {}
       if (!st) return;
       document.title = (st.status === 'paid' ? 'Receipt ' : 'Invoice ') + st.short_id + ' | Bares Taekwondo Fitness';
+      addPrint();
       var justPaid = new URLSearchParams(location.search).get('paid') === '1';
       if (st.status === 'paid' || st.status === 'closed' || !st.balance_cents) {
         if (justPaid) payBox.innerHTML = '<div class="paid-note">Payment received — thank you!</div>';
