@@ -147,6 +147,39 @@ function json(obj: unknown, status: number, cors: Record<string, string>) {
 }
 const str = (v: unknown) => (v == null ? "" : String(v)).trim();
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Stripe REST, form-encoded. No SDK: one less dependency to pin. */
+async function stripe(path: string, key: string, form?: URLSearchParams, method = "POST") {
+  const res = await fetch("https://api.stripe.com/v1/" + path, {
+    method,
+    headers: { "Authorization": "Bearer " + key, "Content-Type": "application/x-www-form-urlencoded" },
+    body: method === "POST" ? (form ?? new URLSearchParams()) : undefined,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.error?.message || ("Stripe " + res.status));
+  return body;
+}
+
+/** Fire the receipt server-to-server, exactly as the webhook does. Never
+ *  throws into the payment path: the money is already taken. */
+async function sendReceipt(saleId: string): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const r = await fetch(`${url}/functions/v1/send-receipt`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        "Origin": "https://crm.barestkd.fit",
+      },
+      body: JSON.stringify({ sale_id: saleId, notify_owner: true }),
+    });
+    if (!r.ok) console.error("receipt send failed", r.status, await r.text().catch(() => ""));
+  } catch (e) {
+    console.error("receipt send threw", e);
+  }
+}
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const money = (c: number) => "$" + (c / 100).toFixed(2);
 const todayCT = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
@@ -269,6 +302,10 @@ Deno.serve(async (req) => {
       return json({
         enrollment_open: ENROLLMENT_OPEN,
         opens_text: SESSION.opensText,
+        // Publishable keys are meant to be public; this is how the page boots
+        // Stripe.js without a key hardcoded in HTML, so test/live follow the
+        // secrets and there is nothing to forget on go-live.
+        publishable_key: Deno.env.get("STRIPE_PUBLISHABLE_KEY") ?? null,
         session: SESSION,
         price_cents: sessionCents,
         tshirt_cents: shirtCents,
@@ -284,6 +321,45 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     reqBody = body;
     if (str(body.hp)) return json({ ok: true }, 200, cors); // honeypot: swallow silently
+    const secretKey = Deno.env.get("STRIPE_SECRET_KEY");
+
+    // ── finalize: the card cleared in the browser, so verify with STRIPE and
+    //    only then record the money. Never takes the client's word for it.
+    if (str(body.action) === "finalize") {
+      if (!secretKey) return json({ error: "Payments are not configured." }, 503, cors);
+      const fSale = str(body.sale_id).toLowerCase();
+      const piId = str(body.payment_intent_id);
+      if (!UUID_RE.test(fSale) || !piId.startsWith("pi_")) return json({ error: "Bad payment reference." }, 400, cors);
+
+      const pi = await stripe("payment_intents/" + encodeURIComponent(piId), secretKey, undefined, "GET");
+      if (pi.status !== "succeeded") return json({ error: "That payment did not complete." }, 409, cors);
+      if (str(pi.metadata?.sale_id).toLowerCase() !== fSale) return json({ error: "That payment is for a different enrollment." }, 409, cors);
+      const amt = Number(pi.amount_received ?? pi.amount ?? 0);
+      if (amt <= 0) return json({ error: "No amount on that payment." }, 409, cors);
+
+      // Same dedupe key the webhook uses, so a duplicate is a no-op.
+      const seen = await admin.from("pos_payments")
+        .select("id").eq("sale_id", fSale).eq("stripe_object_id", pi.id).maybeSingle();
+      if (!seen.data) {
+        const ins = await admin.from("pos_payments").insert({
+          sale_id: fSale, kind: "charge", amount_cents: amt, method: "card",
+          stripe_object_id: pi.id, note: "Card payment (online enrollment)",
+        });
+        if (ins.error) throw ins.error;
+      }
+      const sale = await admin.from("pos_sales").select("total_cents,status,view_token").eq("id", fSale).single();
+      if (sale.error || !sale.data) return json({ error: "Enrollment not found." }, 404, cors);
+      const pays = await admin.from("pos_payments").select("amount_cents").eq("sale_id", fSale);
+      const net = (pays.data ?? []).reduce((a: number, p: { amount_cents: number }) => a + p.amount_cents, 0);
+      if (net >= sale.data.total_cents && sale.data.status !== "paid") {
+        const upd = await admin.from("pos_sales").update({
+          status: "paid", tender_method: "card",
+          confirmed_at: new Date().toISOString(), stripe_payment_intent: pi.id,
+        }).eq("id", fSale);
+        if (!upd.error) await sendReceipt(fSale);
+      }
+      return json({ ok: true, paid: true, receipt_url: `${SITE}/invoice/?t=${sale.data.view_token}` }, 200, cors);
+    }
 
 
     // ── validate the enrollment ─────────────────────────────────────────────
@@ -317,9 +393,20 @@ Deno.serve(async (req) => {
     }
 
     // ── idempotency: a resubmit returns the same invoice ───────────────────
-    const existing = await admin.from("pos_sales").select("id,view_token").eq("id", saleId).maybeSingle();
+    const existing = await admin.from("pos_sales").select("id,view_token,status,total_cents,stripe_payment_intent").eq("id", saleId).maybeSingle();
     if (existing.data) {
-      return json({ ok: true, invoice_url: `${SITE}/invoice/?t=${existing.data.view_token}` }, 200, cors);
+      // Already enrolled (a double submit, or a retry after a declined card).
+      // Reuse the SAME PaymentIntent so a retry cannot double-charge.
+      if (existing.data.status === "paid") {
+        return json({ ok: true, paid: true, receipt_url: `${SITE}/invoice/?t=${existing.data.view_token}` }, 200, cors);
+      }
+      if (secretKey && existing.data.stripe_payment_intent) {
+        const pi0 = await stripe("payment_intents/" + encodeURIComponent(existing.data.stripe_payment_intent), secretKey, undefined, "GET");
+        if (pi0.status !== "succeeded" && pi0.status !== "canceled") {
+          return json({ ok: true, client_secret: pi0.client_secret, payment_intent_id: pi0.id, sale_id: saleId, total_cents: existing.data.total_cents }, 200, cors);
+        }
+      }
+      return json({ ok: true, receipt_url: `${SITE}/invoice/?t=${existing.data.view_token}` }, 200, cors);
     }
 
     // ── price it OURSELVES, with the engine the POS uses ───────────────────
@@ -461,7 +548,34 @@ Deno.serve(async (req) => {
 
     if (problems.length) console.error("[lk-checkout] partial writes:", saleId, problems);
 
-    return json({ ok: true, invoice_url: `${SITE}/invoice/?t=${token}`, total_cents: totals.totalCents }, 200, cors);
+    // 8. The payment, taken ON THIS PAGE. Sending them to an invoice page to
+    //    press Pay again was a wasted click, so the card fields live in the
+    //    form and this returns the intent for the browser to confirm.
+    //    The amount comes from the totals computed above, never the client.
+    if (!secretKey) {
+      // No Stripe configured: fall back to the invoice link so the enrollment
+      // is not lost, and they can be taken payment another way.
+      return json({ ok: true, receipt_url: `${SITE}/invoice/?t=${token}`, total_cents: totals.totalCents }, 200, cors);
+    }
+    const f = new URLSearchParams();
+    f.set("amount", String(totals.totalCents));
+    f.set("currency", "usd");
+    f.set("payment_method_types[]", "card");
+    f.set("description", "Little Kickers - " + studentFirst + " " + studentLast);
+    f.set("receipt_email", email);
+    f.set("metadata[sale_id]", saleId);
+    f.set("metadata[source]", "lk-checkout");
+    const pi = await stripe("payment_intents", secretKey, f);
+    await admin.from("pos_sales").update({ stripe_payment_intent: pi.id }).eq("id", saleId);
+
+    return json({
+      ok: true,
+      client_secret: pi.client_secret,
+      payment_intent_id: pi.id,
+      sale_id: saleId,
+      total_cents: totals.totalCents,
+      receipt_url: `${SITE}/invoice/?t=${token}`,
+    }, 200, cors);
   } catch (e) {
     // A parent must never see a database error, but a silent 500 is
     // undiagnosable from the outside. `debug:true` (staff only, sent by hand)

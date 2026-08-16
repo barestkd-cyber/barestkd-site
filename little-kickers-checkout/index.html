@@ -72,6 +72,15 @@
 #lkc-pay[disabled]{opacity:.55;cursor:not-allowed}
 .lkc-status{min-height:22px}
 
+/* Card field and the confirmation that replaces the form. */
+.lkc-cardbox{border:2px solid var(--line);border-radius:10px;padding:14px 13px;background:#fff;min-height:50px}
+.lkc-cardbox.StripeElement--focus{border-color:#111}
+.lkc-cardload{color:#5b6570;font-size:13.5px}
+.lkc-carderr{display:none;color:var(--belt-red);font-size:13.5px;margin-top:8px;font-weight:600}
+.lkc-testnote{margin-top:10px;font-size:12.5px;color:#5b6570;background:#F4F6F8;border-radius:8px;padding:9px 11px}
+.lkc-done{border-color:#18A974;background:#F6FFFA}
+.lkc-done h2{font-size:1.4rem;margin-bottom:8px}
+
 /* Footer: match the form column so it reads as centred with the page. */
 .lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
 </style>
@@ -116,6 +125,18 @@
 <hr class="belt-divider" aria-hidden="true">
 <section class="section fade-up" aria-label="Enrollment">
   <div class="container lkc-col">
+
+    <!-- Replaces the form once the card clears. No redirect: they stay put
+         and see the classes they just bought. -->
+    <div class="lkc-step lkc-done" id="lkc-done" hidden>
+      <h2 id="lkc-done-h">You're enrolled</h2>
+      <p id="lkc-done-p"></p>
+      <ul class="lkc-dates" id="lkc-done-dates"></ul>
+      <p style="margin-top:14px"><a class="btn btn--primary" id="lkc-done-cal" href="#" target="_blank" rel="noopener">Add these classes to Google Calendar</a></p>
+      <p class="step-sub" style="margin-top:12px">A receipt is on its way to <b id="lkc-done-email"></b>.
+        Questions? Call <a href="tel:903-561-2966">903-561-2966</a>.</p>
+      <p><a id="lkc-done-receipt" href="#">View your receipt</a></p>
+    </div>
 
     <form id="lkc-form" novalidate>
 
@@ -236,12 +257,22 @@
         </label>
       </div>
 
+      <!-- 5 - payment, right here. No hop to an invoice page to press Pay
+           again; the card never touches this site, only Stripe's iframe. -->
+      <div class="lkc-step">
+        <h2>Payment</h2>
+        <p class="step-sub">Card details go straight to Stripe. We never see or store the number.</p>
+        <div id="lkc-cardbox" class="lkc-cardbox"><div class="lkc-cardload">Loading secure card field…</div></div>
+        <div id="lkc-carderr" class="lkc-carderr"></div>
+        <div id="lkc-testnote"></div>
+      </div>
+
       <div class="hp-field" aria-hidden="true">
         <label for="lkc-hp">Leave this field empty</label>
         <input id="lkc-hp" type="text" tabindex="-1" autocomplete="off">
       </div>
 
-      <button class="btn btn--primary btn--lg" type="submit" id="lkc-pay">Continue to Payment</button>
+      <button class="btn btn--primary btn--lg" type="submit" id="lkc-pay">Pay and Enroll</button>
       <p class="form-consent">Payment is handled on a secure Stripe checkout page. By providing your number you consent to receive notification messages from Bares Taekwondo Fitness; reply STOP to opt out.</p>
       <p class="form-privacy"><a href="/privacy-policy">Privacy Policy</a></p>
       <p class="form-status lkc-status" id="lkc-status" role="status" aria-live="polite"></p>
@@ -283,6 +314,7 @@
 
       $("lkc-when").textContent = cfg.session.label;
       renderDates();
+      mountCard();
       if (cfg.tshirt_available) {
         $("lkc-shirt-block").hidden = false;
         $("lkc-shirt-price").textContent = money(cfg.tshirt_cents);
@@ -399,6 +431,47 @@
   });
   $("lkc-shirt").addEventListener("change", renderPrice);
 
+  // ── the card field ───────────────────────────────────────────────────────
+  // Stripe.js is loaded on demand and the number is typed into Stripe's own
+  // iframe, so no card data ever touches this page or our servers.
+  var STRIPE = null, CARD = null;
+  function cardErr(msg) {
+    var el = $("lkc-carderr");
+    el.textContent = msg || "";
+    el.style.display = msg ? "block" : "none";
+  }
+  function loadStripeJs() {
+    if (window.Stripe) return Promise.resolve(true);
+    return new Promise(function (res) {
+      var s = document.createElement("script");
+      s.src = "https://js.stripe.com/v3/";
+      s.onload = function () { res(true); };
+      s.onerror = function () { res(false); };
+      document.head.appendChild(s);
+    });
+  }
+  function mountCard() {
+    var box = $("lkc-cardbox");
+    if (!CFG.publishable_key) {
+      box.innerHTML = '<div class="lkc-cardload" style="color:#B00">Card payments are not set up yet. Call 903-561-2966 and we will enroll you over the phone.</div>';
+      $("lkc-pay").disabled = true;
+      return;
+    }
+    loadStripeJs().then(function (ok) {
+      if (!ok) { box.innerHTML = '<div class="lkc-cardload" style="color:#B00">Could not reach Stripe. Check your connection and reload.</div>'; return; }
+      STRIPE = window.Stripe(CFG.publishable_key);
+      CARD = STRIPE.elements().create("card", {
+        style: { base: { fontSize: "16px", color: "#15171C", "::placeholder": { color: "#9AA4AF" } } }
+      });
+      box.innerHTML = "";
+      CARD.mount(box);
+      CARD.on("change", function (e) { cardErr(e.error ? e.error.message : ""); });
+      if (CFG.publishable_key.indexOf("pk_live_") !== 0) {
+        $("lkc-testnote").innerHTML = '<div class="lkc-testnote">Stripe is in test mode. Use 4242 4242 4242 4242 with any future expiry and CVC. A real card will be declined.</div>';
+      }
+    });
+  }
+
   // ── signature pad ────────────────────────────────────────────────────────
   var pad = $("lkc-pad"), ctx = null, drawing = false, dirty = false;
   function padSetup() {
@@ -422,6 +495,21 @@
     dirty = false; padSetup(); $("lkc-sig-hint").style.display = "flex";
   });
 
+  /* Replace the form with a confirmation. They stay on the page and see the
+     six classes they just bought, with the calendar link right there. */
+function showDone(receiptUrl) {
+    $("lkc-form").hidden = true;
+    $("lkc-done").hidden = false;
+    var who = ($("lkc-sfirst").value || "").trim();
+    $("lkc-done-h").textContent = who ? who + " is enrolled" : "You are enrolled";
+    $("lkc-done-p").textContent = "Little Kickers, " + CFG.session.label + ". First class " + fmtMDY(CFG.session.start) + ".";
+    renderDates("lkc-done-dates");
+    $("lkc-done-email").textContent = ($("lkc-email").value || "").trim();
+    if (receiptUrl) $("lkc-done-receipt").href = receiptUrl; else $("lkc-done-receipt").style.display = "none";
+    if (CFG.calendar_url) $("lkc-done-cal").href = CFG.calendar_url; else $("lkc-done-cal").style.display = "none";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   // ── submit ───────────────────────────────────────────────────────────────
   function status(state, msg) {
     var el = $("lkc-status"); el.textContent = msg;
@@ -443,8 +531,9 @@
     if ($("lkc-shirt").checked && !$("lkc-size").value) { status("error", "Pick a t-shirt size."); $("lkc-size").focus(); return; }
     if (!$("lkc-agree").checked) { status("error", "Please read the agreement and tick the box."); return; }
     if (!dirty) { status("error", "Please sign in the signature box."); return; }
+    if (!CARD) { status("error", "The card field has not loaded yet. Give it a moment or reload the page."); return; }
 
-    var btn = $("lkc-pay"); btn.disabled = true; status("", "Setting up your enrollment…");
+    var btn = $("lkc-pay"); btn.disabled = true; btn.textContent = "Working…"; status("", "Setting up your enrollment…");
     fetch(FN, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY },
@@ -464,15 +553,37 @@
     })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
-        if (!res.ok || !res.j.invoice_url) throw new Error(res.j && res.j.error || "failed");
-        status("success", "Enrollment saved. Taking you to payment…");
-        location.href = res.j.invoice_url;
+        if (!res.ok) throw new Error((res.j && res.j.error) || "failed");
+        if (res.j.paid) return { paid: true, receipt: res.j.receipt_url };
+        if (!res.j.client_secret) { location.href = res.j.receipt_url; return { redirected: true }; }
+        status("", "Charging your card…");
+        return STRIPE.confirmCardPayment(res.j.client_secret, { payment_method: { card: CARD } })
+          .then(function (r2) {
+            if (r2.error) throw new Error(r2.error.message || "Your card was declined.");
+            if (!r2.paymentIntent || r2.paymentIntent.status !== "succeeded") throw new Error("The payment did not complete.");
+            status("", "Payment approved. Finishing up…");
+            // Record it server-side, where it is verified against Stripe.
+            return fetch(FN, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY },
+              body: JSON.stringify({ action: "finalize", sale_id: res.j.sale_id, payment_intent_id: r2.paymentIntent.id })
+            }).then(function (r3) { return r3.json(); }).then(function (j3) {
+              if (!j3.ok) throw new Error(j3.error || "Your card was charged but the enrollment did not finish. Please call 903-561-2966.");
+              return { paid: true, receipt: j3.receipt_url };
+            });
+          });
+      })
+      .then(function (out) {
+        if (!out || out.redirected) return;
+        showDone(out.receipt);
       })
       .catch(function (err) {
-        btn.disabled = false;
-        status("error", (err && err.message && err.message !== "failed")
+        btn.disabled = false; btn.textContent = "Pay and Enroll";
+        var msg = (err && err.message && err.message !== "failed")
           ? err.message
-          : "Something went wrong. Nothing was charged. Try again or call 903-561-2966.");
+          : "Something went wrong. Try again or call 903-561-2966.";
+        cardErr(msg);
+        status("error", msg);
       });
   });
 })();
