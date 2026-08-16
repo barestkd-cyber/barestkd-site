@@ -18,9 +18,43 @@
     Array.prototype.forEach.call(forms, initForm);
   });
 
+  /* The typed age as a whole number, or null when it is not usable. */
+  function ageVal(form) {
+    var raw = getVal(form, "student_age");
+    if (!/^\d{1,3}$/.test(raw)) return null;
+    var age = parseInt(raw, 10);
+    return (age >= 2 && age < 120) ? age : null;
+  }
+
+  /* A student under 18 must have a parent named. Over 18 the field stays
+     visible but optional — an adult can still list someone, and seeing it
+     empty tells them plainly that it is not required of them. */
+  function syncGuardian(form) {
+    var block = form.querySelector("[data-guardian-block]");
+    var hint = form.querySelector("[data-guardian-hint]");
+    if (!block) return null;
+    var age = ageVal(form);
+    var minor = age !== null && age < 18;
+    block.hidden = age === null;           // nothing to say until an age is entered
+    if (hint) hint.textContent = minor
+      ? "Required — the student is under 18."
+      : "Optional for an adult student.";
+    return minor;
+  }
+
   function initForm(form) {
     var status = form.querySelector(".form-status");
     var button = form.querySelector("button[type='submit'], input[type='submit']");
+
+    // Age drives one thing only: whether the guardian field is required.
+    // The Juniors / Teens & Adults choice belongs to the visitor — the
+    // dropdown labels carry the age ranges.
+    var ageEl = form.querySelector("[name='student_age']");
+    if (ageEl) {
+      ageEl.addEventListener("input", function () { syncGuardian(form); });
+      ageEl.addEventListener("change", function () { syncGuardian(form); });
+      syncGuardian(form);
+    }
 
     // Preselect the program dropdown from a ?program= query param
     // (e.g. /contact-form?program=little-kickers). Matches against the
@@ -38,10 +72,14 @@
         return;
       }
 
+      var minor = syncGuardian(form);
+      var age = ageVal(form);
       var data = {
         type: "contact",
         program: getVal(form, "program"),
         name: getVal(form, "name"),
+        student_age: age,
+        guardian_name: getVal(form, "guardian_name"),
         phone: getVal(form, "phone"),
         email: getVal(form, "email"),
         message: getVal(form, "message"),
@@ -50,7 +88,16 @@
 
       // Required field validation.
       if (!data.program || !data.name || !data.phone || !data.email || !data.message) {
-        setStatus(status, "error", "Please choose a program and fill in your name, phone, email, and message.");
+        setStatus(status, "error", "Please choose a program and fill in the student's name, phone, email, and message.");
+        return;
+      }
+      if (age === null) {
+        setStatus(status, "error", "Please enter the student's age.");
+        return;
+      }
+      // The server enforces this too — this check only gives a faster answer.
+      if (minor && !data.guardian_name) {
+        setStatus(status, "error", "Please enter a parent or guardian name for a student under 18.");
         return;
       }
 
