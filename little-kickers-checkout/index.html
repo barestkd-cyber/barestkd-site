@@ -13,16 +13,40 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="/assets/css/styles.css">
 <style>
-/* Page-local styles: checkout card, agreement box, signature pad. */
-.lkc-grid{display:grid;grid-template-columns:1fr;gap:28px;max-width:720px;margin:0 auto}
-.lkc-session{border:2px solid #111;border-radius:14px;padding:18px 20px;background:#fff}
-.lkc-session h3{margin:0 0 6px}
-.lkc-session .when{font-weight:700}
-.lkc-price-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:15px}
-.lkc-price-table td{padding:6px 0;border-bottom:1px solid #eee}
-.lkc-price-table td:last-child{text-align:right;font-variant-numeric:tabular-nums}
-.lkc-price-table tr.total td{border-bottom:none;font-weight:700;font-size:17px;padding-top:10px}
-.lkc-agree-box{border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc;max-height:340px;overflow-y:auto;padding:14px 16px;font-size:13.5px;line-height:1.55}
+/* Page-local styles. One narrow column on every width — this is a form, not a
+   landing page, and a 1200px-wide input row is harder to fill in, not easier. */
+.lkc-col{max-width:640px;margin-inline:auto}
+.lkc-step{border:2px solid #111;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:22px}
+.lkc-step > h2{margin:0 0 4px;font-size:1.15rem}
+.lkc-step .step-sub{margin:0 0 14px;font-size:.9rem;color:#5b6570}
+
+/* Session dates */
+.lkc-when{font-weight:700;margin:0 0 10px}
+.lkc-dates{list-style:none;margin:0 0 4px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
+@media (max-width:420px){.lkc-dates{grid-template-columns:1fr}}
+.lkc-dates li{font-size:.95rem;padding:3px 0;border-bottom:1px solid #f0f0f0}
+.lkc-dates li span{display:inline-block;min-width:1.6em;color:#8a929b;font-variant-numeric:tabular-nums}
+
+/* Price lines */
+.lkc-line{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid #eee;font-size:.97rem}
+.lkc-line:last-child{border-bottom:none}
+.lkc-line .amt{font-variant-numeric:tabular-nums;white-space:nowrap}
+.lkc-total{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
+  margin-top:6px;padding:14px 16px;border-radius:12px;background:#111;color:#fff}
+.lkc-total .lbl{font-weight:700;letter-spacing:.02em}
+.lkc-total .amt{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}
+.lkc-total .sub{display:block;font-size:.78rem;font-weight:400;opacity:.75;letter-spacing:0}
+
+/* T-shirt add-on — its own row, NOT a .form-field (that is a column flex and
+   squashed this into a narrow stack on desktop). */
+.lkc-shirt{margin:14px 0 4px;padding:14px;border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc}
+.lkc-shirt-q{display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;font-size:.97rem;font-weight:600;margin:0}
+.lkc-shirt-q input[type=checkbox]{width:20px;height:20px;flex:0 0 auto;margin:0}
+.lkc-shirt-q .grow{flex:1 1 auto;min-width:0}
+.lkc-shirt select{margin-top:10px;width:100%;max-width:180px;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
+
+/* Agreement + signature */
+.lkc-agree-box{border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc;max-height:320px;overflow-y:auto;padding:14px 16px;font-size:13.5px;line-height:1.55}
 .lkc-agree-box h4{margin:14px 0 4px;font-size:13.5px;letter-spacing:.02em}
 .lkc-agree-box .ttl{font-weight:700;text-align:center;font-size:15px;margin:2px 0 10px}
 .lkc-agree-box .ent{text-align:center;margin:0;font-size:12.5px;color:#444}
@@ -31,12 +55,14 @@
 .lkc-sig-wrap canvas{display:block;width:100%;height:150px;touch-action:none;border-radius:10px}
 .lkc-sig-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#b6bec7;font-size:14px;pointer-events:none}
 .lkc-sig-clear{margin-top:6px;background:none;border:none;color:#555;font-size:13px;text-decoration:underline;cursor:pointer;padding:4px}
-.lkc-shirt-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.lkc-shirt-row select{max-width:130px}
-.lkc-check{display:flex;gap:10px;align-items:flex-start;font-size:14px;margin:14px 0}
-.lkc-check input{margin-top:3px;width:18px;height:18px}
-.lkc-status{min-height:22px}
+.lkc-check{display:flex;flex-direction:row;gap:10px;align-items:flex-start;font-size:14px;margin:14px 0}
+.lkc-check input{margin-top:3px;width:18px;height:18px;flex:0 0 auto}
+#lkc-pay{width:100%}
 #lkc-pay[disabled]{opacity:.55;cursor:not-allowed}
+.lkc-status{min-height:22px}
+
+/* Footer: match the form column so it reads as centred with the page. */
+.lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
 </style>
 </head>
 <body>
@@ -66,31 +92,56 @@
 </header>
 <main id="main-content">
 <section class="section fade-up">
-  <div class="container">
+  <div class="container lkc-col">
     <p class="eyebrow">Parent &amp; Me · Ages 2-3</p>
     <h1>Little Kickers Enrollment</h1>
-    <p class="lede">Six weeks of parent-and-me martial arts. You're on the mat with your kiddo the whole time — balance, listening, first kicks, and a belt they'll sleep in. Belt &amp; first stripe included.</p>
+    <p class="lede">Six weeks of parent-and-me martial arts. You're on the mat with your kiddo the whole time — balance, listening, first kicks, and a belt they'll sleep in.</p>
   </div>
 </section>
 <hr class="belt-divider" aria-hidden="true">
 <section class="section fade-up" aria-label="Enrollment">
-  <div class="container">
-    <div class="lkc-grid">
+  <div class="container lkc-col">
+    <form id="lkc-form" novalidate>
 
-      <div class="lkc-session">
-        <h3>The Session</h3>
-        <p class="when" id="lkc-when">Loading session details…</p>
-        <table class="lkc-price-table" aria-label="Price">
-          <tr><td>Little Kickers — 6-week session</td><td id="lkc-p-session">—</td></tr>
-          <tr id="lkc-r-shirt" hidden><td>Little Kickers t-shirt</td><td id="lkc-p-shirt">—</td></tr>
-          <tr id="lkc-r-tax" hidden><td>Sales tax</td><td id="lkc-p-tax">—</td></tr>
-          <tr><td>Card processing</td><td id="lkc-p-fee">—</td></tr>
-          <tr class="total"><td>Total due today</td><td id="lkc-p-total">—</td></tr>
-        </table>
+      <!-- 1 ─ the session: when it meets, every date, what it costs, the
+           t-shirt question, and only THEN the total (asking after showing a
+           total would make the number change under the reader). -->
+      <div class="lkc-step">
+        <h2>The Session</h2>
+        <p class="lkc-when" id="lkc-when">Loading session details…</p>
+        <ul class="lkc-dates" id="lkc-dates"></ul>
+
+        <div id="lkc-prices" style="margin-top:14px">
+          <div class="lkc-line"><span>Little Kickers — 6-week session</span><span class="amt" id="lkc-p-session">—</span></div>
+          <div class="lkc-line" id="lkc-r-shirt" hidden><span>Little Kickers t-shirt</span><span class="amt" id="lkc-p-shirt">—</span></div>
+          <div class="lkc-line" id="lkc-r-tax" hidden><span>Sales tax</span><span class="amt" id="lkc-p-tax">—</span></div>
+          <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">—</span></div>
+        </div>
+
+        <div class="lkc-shirt" id="lkc-shirt-block" hidden>
+          <label class="lkc-shirt-q" for="lkc-shirt">
+            <input id="lkc-shirt" type="checkbox">
+            <span class="grow">Add a Little Kickers t-shirt? <b id="lkc-shirt-price">$25</b> + tax</span>
+          </label>
+          <select id="lkc-size" aria-label="T-shirt size" hidden>
+            <option value="" disabled selected>Pick a size</option>
+            <option>2T</option><option>3T</option><option>4T</option>
+            <option>Youth XS</option><option>Youth S</option>
+          </select>
+        </div>
+
+        <div class="lkc-total">
+          <span class="lbl">Total due today
+            <span class="sub">Belt &amp; first stripe included</span>
+          </span>
+          <span class="amt" id="lkc-p-total">—</span>
+        </div>
       </div>
 
-      <form id="lkc-form" novalidate>
+      <!-- 2 ─ the student -->
+      <div class="lkc-step">
         <h2>Your Little Kicker</h2>
+        <p class="step-sub">Who's training with you.</p>
         <div class="form-field">
           <label for="lkc-sfirst">Student's first name</label>
           <input id="lkc-sfirst" type="text" autocomplete="off" required>
@@ -99,12 +150,16 @@
           <label for="lkc-slast">Student's last name</label>
           <input id="lkc-slast" type="text" autocomplete="off" required>
         </div>
-        <div class="form-field">
+        <div class="form-field" style="margin-bottom:0">
           <label for="lkc-dob">Student's date of birth</label>
           <input id="lkc-dob" type="date" required>
         </div>
+      </div>
 
+      <!-- 3 ─ the grown-up -->
+      <div class="lkc-step">
         <h2>Parent / Guardian</h2>
+        <p class="step-sub">You're on the mat too — and the receipt comes to you.</p>
         <div class="form-field">
           <label for="lkc-pfirst">Your first name</label>
           <input id="lkc-pfirst" type="text" autocomplete="given-name" required>
@@ -114,27 +169,19 @@
           <input id="lkc-plast" type="text" autocomplete="family-name" required>
         </div>
         <div class="form-field">
-          <label for="lkc-email">Email (receipt goes here)</label>
+          <label for="lkc-email">Email</label>
           <input id="lkc-email" type="email" autocomplete="email" required>
         </div>
-        <div class="form-field">
+        <div class="form-field" style="margin-bottom:0">
           <label for="lkc-phone">Phone</label>
           <input id="lkc-phone" type="tel" autocomplete="tel" required>
         </div>
+      </div>
 
-        <div class="form-field lkc-shirt-row" id="lkc-shirt-block" hidden>
-          <label style="display:flex;align-items:center;gap:8px;margin:0">
-            <input id="lkc-shirt" type="checkbox"> Add the Little Kickers t-shirt (<span id="lkc-shirt-price">$25</span> + tax)
-          </label>
-          <select id="lkc-size" aria-label="T-shirt size" hidden>
-            <option value="" disabled selected>Size</option>
-            <option>2T</option><option>3T</option><option>4T</option>
-            <option>Youth XS</option><option>Youth S</option>
-          </select>
-        </div>
-
+      <!-- 4 ─ the agreement -->
+      <div class="lkc-step">
         <h2>Enrollment Agreement</h2>
-        <p style="font-size:14px;margin:4px 0 10px">This is the actual agreement for the session — please read it. Your student's name and today's numbers fill in as you type.</p>
+        <p class="step-sub">The real agreement for this session — please read it. Your details fill in as you type.</p>
         <div class="lkc-agree-box" id="lkc-agree-doc" tabindex="0">Loading the agreement…</div>
 
         <div class="form-field" style="margin-top:14px">
@@ -157,29 +204,28 @@
           <input id="lkc-agree" type="checkbox">
           <span>I have read and agree to the Little Kickers Membership Agreement above, including the waiver. I understand the session is paid in full today and is non-refundable except as the agreement provides.</span>
         </label>
+      </div>
 
-        <div class="hp-field" aria-hidden="true">
-          <label for="lkc-hp">Leave this field empty</label>
-          <input id="lkc-hp" type="text" tabindex="-1" autocomplete="off">
-        </div>
+      <div class="hp-field" aria-hidden="true">
+        <label for="lkc-hp">Leave this field empty</label>
+        <input id="lkc-hp" type="text" tabindex="-1" autocomplete="off">
+      </div>
 
-        <button class="btn btn--primary btn--lg" type="submit" id="lkc-pay">Continue to Payment</button>
-        <p class="form-consent">Payment is handled on a secure Stripe checkout page. By providing your number you consent to receive notification messages from Bares Taekwondo Fitness; reply STOP to opt out.</p>
-        <p class="form-privacy"><a href="/privacy-policy">Privacy Policy</a></p>
-        <p class="form-status lkc-status" id="lkc-status" role="status" aria-live="polite"></p>
-      </form>
-
-    </div>
+      <button class="btn btn--primary btn--lg" type="submit" id="lkc-pay">Continue to Payment</button>
+      <p class="form-consent">Payment is handled on a secure Stripe checkout page. By providing your number you consent to receive notification messages from Bares Taekwondo Fitness; reply STOP to opt out.</p>
+      <p class="form-privacy"><a href="/privacy-policy">Privacy Policy</a></p>
+      <p class="form-status lkc-status" id="lkc-status" role="status" aria-live="polite"></p>
+    </form>
   </div>
 </section>
 </main>
 <footer class="site-footer">
   <div class="container">
-    <p style="text-align:center;font-size:14px">
-      Bares Taekwondo Fitness · 1901 Deerbrook Dr, Tyler, TX 75703 ·
-      <a href="tel:903-561-2966">903-561-2966</a> ·
-      <a href="mailto:race@barestkd.fit">race@barestkd.fit</a>
-    </p>
+    <div class="lkc-foot">
+      <strong>Bares Taekwondo Fitness</strong><br>
+      1901 Deerbrook Dr, Tyler, TX 75703<br>
+      <a href="tel:903-561-2966">903-561-2966</a> · <a href="mailto:race@barestkd.fit">race@barestkd.fit</a>
+    </div>
   </div>
 </footer>
 
@@ -200,12 +246,12 @@
 
   if (window.crypto && crypto.randomUUID) SALE_ID = crypto.randomUUID();
 
-  // ── config: prices and session dates come from the server, never the page ─
   fetch(FN, { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } })
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (cfg) {
       CFG = cfg;
-      $("lkc-when").textContent = cfg.session.blurb + " · " + cfg.session.label;
+      $("lkc-when").textContent = cfg.session.label;
+      renderDates();
       if (cfg.tshirt_available) {
         $("lkc-shirt-block").hidden = false;
         $("lkc-shirt-price").textContent = money(cfg.tshirt_cents);
@@ -217,10 +263,30 @@
       $("lkc-pay").disabled = true;
     });
 
-  function fmtMDY(ymd) { var p = String(ymd || "").split("-"); return p.length === 3 ? p[1] + "-" + p[2] + "-" + p[0] : ""; }
+  /* yyyy-mm-dd → parts, without new Date(str) (that parses as UTC and reads a
+     day early in Central — enough to print the wrong class date). */
+  function ymdParts(ymd) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
+    return m ? [+m[1], +m[2], +m[3]] : null;
+  }
+  function fmtMDY(ymd) { var p = ymdParts(ymd); return p ? (String(p[1]).padStart(2, "0") + "-" + String(p[2]).padStart(2, "0") + "-" + p[0]) : ""; }
 
-  /* Same arithmetic the server runs; the server's answer is the one that
-     reaches the ledger, this one just keeps the page honest. */
+  /* Every class date, derived from the start — next cohort only needs the
+     start date changed in the function. */
+  function renderDates() {
+    var p = ymdParts(CFG.session.start); if (!p) return;
+    var d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    var out = "";
+    for (var i = 0; i < 6; i++) {
+      var label = d.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
+      out += "<li><span>" + (i + 1) + ".</span> " + label + "</li>";
+      d.setUTCDate(d.getUTCDate() + 7);
+    }
+    $("lkc-dates").innerHTML = out;
+  }
+
+  /* Same arithmetic the server runs; the server's answer is what reaches the
+     ledger, this one just keeps the page honest. */
   function priceParts() {
     var shirt = $("lkc-shirt").checked && CFG.tshirt_available;
     var base = CFG.price_cents + (shirt ? CFG.tshirt_cents : 0);
@@ -331,7 +397,7 @@
     for (var i = 0; i < need.length; i++) {
       if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
     }
-    if ($("lkc-shirt").checked && !$("lkc-size").value) { status("error", "Pick a t-shirt size."); return; }
+    if ($("lkc-shirt").checked && !$("lkc-size").value) { status("error", "Pick a t-shirt size."); $("lkc-size").focus(); return; }
     if (!$("lkc-agree").checked) { status("error", "Please read the agreement and tick the box."); return; }
     if (!dirty) { status("error", "Please sign in the signature box."); return; }
 
