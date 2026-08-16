@@ -72,6 +72,13 @@
 #lkc-pay[disabled]{opacity:.55;cursor:not-allowed}
 .lkc-status{min-height:22px}
 
+/* The "not open yet" panel that stands in for the form. */
+.lkc-closed{border-color:var(--belt-red)}
+.lkc-closed h2{font-size:1.35rem}
+.lkc-closed p{margin:6px 0}
+.lkc-closed-sub{font-size:.92rem;color:#5b6570}
+.lkc-closed .lkc-dates{margin-top:12px}
+
 /* Footer: match the form column so it reads as centred with the page. */
 .lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
 </style>
@@ -116,7 +123,19 @@
 <hr class="belt-divider" aria-hidden="true">
 <section class="section fade-up" aria-label="Enrollment">
   <div class="container lkc-col">
-    <form id="lkc-form" novalidate>
+
+    <!-- Shown instead of the form until enrollment opens. The server decides;
+         this block is only the presentation of that answer. -->
+    <div class="lkc-step lkc-closed" id="lkc-closed" hidden>
+      <h2 id="lkc-closed-h">Enrollment opens soon</h2>
+      <p id="lkc-closed-p">Little Kickers sign-ups aren't open just yet. Check back shortly.</p>
+      <p class="lkc-closed-sub">Want us to save you a spot in the meantime? Call
+        <a href="tel:903-561-2966">903-561-2966</a> or
+        <a href="/contact-form?program=little-kickers">send us a message</a> and we'll hold one for you.</p>
+      <div id="lkc-closed-dates"></div>
+    </div>
+
+    <form id="lkc-form" novalidate hidden>
 
       <!-- 1 ─ the session: when it meets, every date, what it costs, the
            t-shirt question, and only THEN the total (asking after showing a
@@ -270,6 +289,7 @@
 
   var CFG = null;                       // GET config from the function
   var SALE_ID = null;                   // minted once; makes a retry idempotent
+  var PREVIEW = false;                  // ?preview=1 lets staff test before opening                   // minted once; makes a retry idempotent
   var $ = function (id) { return document.getElementById(id); };
   var money = function (c) { return "$" + (c / 100).toFixed(2); };
 
@@ -279,6 +299,24 @@
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (cfg) {
       CFG = cfg;
+
+      // The gate. Staff can work past it with ?preview=1; the function still
+      // has the final say on whether an enrollment may be created.
+      PREVIEW = /(^|[?&])preview=1(&|$)/.test(location.search);
+      if (!cfg.enrollment_open && !PREVIEW) {
+        $("lkc-form").hidden = true;
+        $("lkc-closed").hidden = false;
+        $("lkc-closed-h").textContent = "Enrollment opens " + (cfg.opens_text || "soon");
+        $("lkc-closed-p").textContent =
+          "Little Kickers sign-ups open " + (cfg.opens_text || "soon") +
+          ". The session itself runs " + cfg.session.label + ", starting " + fmtMDY(cfg.session.start) + ".";
+        renderDates("lkc-closed-dates");
+        return;
+      }
+      $("lkc-form").hidden = false;
+      if (!cfg.enrollment_open) {
+        status("", "Preview mode: enrollment is not open to the public yet.");
+      }
       $("lkc-when").textContent = cfg.session.label;
       renderDates();
       if (cfg.tshirt_available) {
@@ -302,7 +340,7 @@
 
   /* Every class date, derived from the start - next cohort only needs the
      start date changed in the function. */
-  function renderDates() {
+  function renderDates(targetId) {
     var p = ymdParts(CFG.session.start); if (!p) return;
     var d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
     var out = "";
@@ -311,7 +349,7 @@
       out += "<li><span>" + (i + 1) + ".</span> " + label + "</li>";
       d.setUTCDate(d.getUTCDate() + 7);
     }
-    $("lkc-dates").innerHTML = out;
+    $(targetId || "lkc-dates").innerHTML = out;
   }
 
   /* Same arithmetic the server runs; the server's answer is what reaches the
@@ -457,7 +495,8 @@
         signer_name: $("lkc-signer").value.trim(), signer_relationship: $("lkc-rel").value.trim(),
         signature_png: pad.toDataURL("image/png"),
         agreed: $("lkc-agree").checked === true,
-        hp: $("lkc-hp").value
+        hp: $("lkc-hp").value,
+        preview: PREVIEW
       })
     })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })

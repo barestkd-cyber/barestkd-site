@@ -1,12 +1,12 @@
 /* ==========================================================================
-   Bares Taekwondo Fitness — trial.js  (v3)
+   Bares Taekwondo Fitness - trial.js  (v3)
    The on-site "Try 1 Week Free" popup. Every [data-trial-open] button opens a
    multi-step modal and submits to the Supabase Edge Function.
 
    Flow:
      1. Program select  (six programs; the three 13+ programs multi-select,
                          Little Kickers/Cubs/Juniors each solo. Little Kickers
-                         is coming-soon and routes to the interest list.)
+                         has no trial and routes to its enrollment page.)
      2. Scheduler       (a one-week calendar strip per chosen program, pageable
                          up to six weeks out, "Class X of N", live classes from
                          the GET; days with no class show empty.)
@@ -29,7 +29,7 @@
   "use strict";
 
   var ENDPOINT = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/trial-booking";
-  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // publishable (public) key — safe to ship
+  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // publishable (public) key - safe to ship
 
   var CONSENT = "By providing your number you consent to receive marketing/promotional/notification messages from Bares Taekwondo Fitness, to opt-out, reply STOP at any moment. Msg & Data rates may apply";
   // Liability Waiver and Release, verbatim; do not edit. Must match the copy in the Edge Function.
@@ -43,7 +43,10 @@
   // an optional class-label filter. `tag` is the stored program name (tags +
   // trial_bookings.program). solo programs clear all other selections.
   var PROGRAM_MENU = [
-    { key: "lk",      label: "Little Kickers",         desc: "Ages 2-3 · Parent & Me · Coming Soon", solo: true,  comingSoon: true },
+    // Little Kickers has NO free trial: it is a paid six-week session, so the
+    // trial flow hands these visitors to the enrollment page instead of the
+    // scheduler. (Owner, 2026-08-16: "this is a paid program only.")
+    { key: "lk",      label: "Little Kickers",         desc: "Ages 2-3 · Grown-Up & Me · Enrollment only", solo: true,  noTrial: true },
     { key: "cubs",    label: "Cubs",                   desc: "Ages 3-4",  solo: true,  tag: "Cubs",         get: "Cubs",      re: null },
     { key: "juniors", label: "Juniors",                desc: "Ages 5-12", solo: true,  tag: "Juniors",      get: "Taekwondo", re: /juniors|forms/i },
     { key: "tkd",     label: "Teens/Adults Taekwondo", desc: "Ages 13+",  solo: false, tag: "Teens/Adults Taekwondo", get: "Taekwondo", re: /teens|adult|forms/i },
@@ -399,21 +402,22 @@
   function proceedFromPrograms() {
     var picks = state.picked.map(menuByKey);
     if (!picks.length) return;
-    // Little Kickers is solo + coming soon.
-    if (picks.length === 1 && picks[0].comingSoon) { renderLittleKickers(); return; }
-    state.selected = picks.filter(function (m) { return !m.comingSoon; });
+    // Little Kickers is solo and has no trial: send them to enrollment.
+    if (picks.length === 1 && picks[0].noTrial) { renderLittleKickers(); return; }
+    state.selected = picks.filter(function (m) { return !m.noTrial; });
     if (!state.selected.length) { renderLittleKickers(); return; }
     startScheduler();
   }
 
   function renderLittleKickers() {
     setBody(
-      head("Little Kickers is coming soon") +
-      '<p class="trial-note">Our parent-and-me class for ages 2 to 3 is launching soon. Join the interest list and we\'ll tell you the moment it opens.</p>' +
+      head("Little Kickers enrolls by the session") +
+      '<p class="trial-note">There\'s no free trial week for Little Kickers. It runs as a six-week session for ages 2 to 3, and a grown-up is on the mat for every class. Sign up on the enrollment page and you\'re set for all six weeks.</p>' +
       '<div class="trial-actions">' +
         '<button class="btn btn--secondary trial-back" type="button">Back</button>' +
-        '<a class="btn btn--primary" href="/contact-form?program=little-kickers">Join the interest list</a>' +
-      '</div>'
+        '<a class="btn btn--primary" href="/little-kickers-checkout">See enrollment details</a>' +
+      '</div>' +
+      '<p class="trial-note" style="margin-top:10px">Questions first? Call <a href="tel:' + PHONE + '">' + PHONE + '</a> or <a href="/contact-form?program=little-kickers">send us a message</a>.</p>'
     );
     dialog.querySelector(".trial-back").addEventListener("click", renderPrograms);
     focusFirst();

@@ -31,6 +31,21 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import BTKDPricing from "../_shared/pricing_esm.js";
 import LK_TEMPLATE from "../_shared/lk_agreement.js";
 
+// ── THE ENROLLMENT GATE ────────────────────────────────────────────────────
+// Stripe is still in TEST mode, so a real parent reaching checkout would have
+// their card declined or, worse, believe they had enrolled. Until the live
+// keys are in, the page shows a "opens on ..." notice and this function
+// REFUSES to create an enrollment. Server-side on purpose: a flag in the page
+// JS could be edited away in a browser console.
+//
+// TO OPEN: set open to true and redeploy. Do that only AFTER the live Stripe
+// secret and the live webhook signing secret are both set.
+// Staff can still test while closed by loading the page with ?preview=1.
+const ENROLLMENT = {
+  open: false,
+  opensText: "Monday, August 17",
+};
+
 // ── the current cohort - the ONE block edited between sessions ─────────────
 const SESSION = {
   start: "2026-09-16",            // first class (a Wednesday)
@@ -150,6 +165,8 @@ Deno.serve(async (req) => {
   try {
     if (req.method === "GET") {
       return json({
+        enrollment_open: ENROLLMENT.open,
+        opens_text: ENROLLMENT.opensText,
         session: SESSION,
         price_cents: sessionCents,
         tshirt_cents: shirtCents,
@@ -164,6 +181,13 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     if (str(body.hp)) return json({ ok: true }, 200, cors); // honeypot: swallow silently
+
+    // The gate. `preview` lets staff run a full test while Stripe is still in
+    // test mode; it is deliberately harmless, because a test-mode checkout
+    // cannot move real money either way.
+    if (!ENROLLMENT.open && body.preview !== true) {
+      return json({ error: "Enrollment opens " + ENROLLMENT.opensText + ". Please check back then." }, 503, cors);
+    }
 
     // ── validate the enrollment ─────────────────────────────────────────────
     const saleId = str(body.sale_id).toLowerCase();
