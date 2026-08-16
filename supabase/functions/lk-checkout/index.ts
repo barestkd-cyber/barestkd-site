@@ -73,6 +73,54 @@ function weekdayOf(ymd: string): string {
   const p = ymd.split("-").map(Number);
   return DAYS[new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay()];
 }
+/** "Wed, Sep 16" for a dated list. */
+function shortDate(ymd: string): string {
+  const p = ymd.split("-").map(Number);
+  const d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+  return DAYS[d.getUTCDay()].slice(0, 3) + ", " + MONTHS[p[1] - 1].slice(0, 3) + " " + p[2];
+}
+
+/** "9:30-10:10 AM" → { start: "0930", end: "1010" } in 24h, or null if the
+ *  class_time is written some way this cannot read (which just means no
+ *  calendar button, never a wrong one).
+ *
+ *  The meridiem is written once and belongs to the END time. The start
+ *  usually shares it, but not always: "11:30-12:10 PM" starts in the morning.
+ *  So convert the end first, then pull the start back a half-day if sharing
+ *  the meridiem would put it after the end. */
+function parseClassTime(t: string): { start: string; end: string } | null {
+  const m = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(t).trim());
+  if (!m) return null;
+  const sMin = +m[2], eMin = +m[4];
+  if (+m[1] > 12 || +m[3] > 12 || sMin > 59 || eMin > 59) return null;
+  const pm = m[5].toUpperCase() === "PM";
+  const to24 = (h: number) => (pm ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h));
+  const eh = to24(+m[3]);
+  let sh = to24(+m[1]);
+  if (sh * 60 + sMin >= eh * 60 + eMin) sh -= 12;           // e.g. 11:30-12:10 PM
+  if (sh < 0) return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { start: pad(sh) + pad(sMin), end: pad(eh) + pad(eMin) };
+}
+
+/** A Google Calendar "add event" link for the WHOLE session: one recurring
+ *  entry (weekly, COUNT = weeks) rather than six separate links. */
+function googleCalUrl(opts: {
+  title: string; startYMD: string; time: { start: string; end: string };
+  weeks: number; location: string; details: string;
+}): string {
+  const d = opts.startYMD.replace(/-/g, "");
+  const p = new URLSearchParams({
+    action: "TEMPLATE",
+    text: opts.title,
+    dates: `${d}T${opts.time.start}00/${d}T${opts.time.end}00`,
+    ctz: "America/Chicago",
+    recur: `RRULE:FREQ=WEEKLY;COUNT=${opts.weeks}`,
+    location: opts.location,
+    details: opts.details,
+  });
+  return "https://calendar.google.com/calendar/render?" + p.toString();
+}
 
 const PLAN_CODE = "little_kickers_session";
 const TSHIRT_NAME = "Little Kickers T-Shirt";
@@ -188,6 +236,11 @@ Deno.serve(async (req) => {
     opensText: row.enrollment_opens_on ? prettyDate(String(row.enrollment_opens_on)) : "soon",
   };
   const ENROLLMENT_OPEN = SESSION.status === "open";
+  // Every class date, derived once: the receipt lists them and the calendar
+  // link repeats weekly from the first.
+  const classDates: string[] = [];
+  for (let i = 0; i < weeks; i++) classDates.push(addDays(startYMD, i * 7));
+  const classTime = parseClassTime(String(row.class_time));
 
   // ── shared catalog reads: both verbs price from the same rows ───────────
   const planRes = await admin.from("pricing_plans")
@@ -210,6 +263,7 @@ Deno.serve(async (req) => {
   const sessionCents = Number(plan.pif_cents) || 0;
   const shirtCents = shirt ? Number(shirt.price_cents) || 0 : 0;
 
+  let reqBody: Record<string, unknown> = {};
   try {
     if (req.method === "GET") {
       return json({
@@ -228,6 +282,7 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
 
     const body = await req.json().catch(() => ({}));
+    reqBody = body;
     if (str(body.hp)) return json({ ok: true }, 200, cors); // honeypot: swallow silently
 
 
@@ -303,7 +358,46 @@ Deno.serve(async (req) => {
     });
     if (gIns.error) problems.push("guardian row: " + gIns.error.message);
 
-    // 3. The membership - frozen snapshot, session dates baked in. The term
+    // 3. The sale header FIRST. The membership carries sale_id, so the sale
+    //    row has to exist before it or the foreign key has nothing to point
+    //    at. (This is the order posTender uses in the CRM; getting it
+    //    backwards here failed every enrollment with a sale_id FK violation.)
+    //    Unpaid: the money arrives through create-checkout → stripe-webhook,
+    //    which marks it paid and emails the receipt.
+    const saleIns = await admin.from("pos_sales").insert({
+      id: saleId, buyer_contact_id: studentId, sale_date: today,
+      staff_email: "lk-checkout@website", brand: "btkd",
+      tender_method: null, status: "unpaid",
+      subtotal_cents: totals.subtotalCents, discount_cents: 0,
+      admin_fee_cents: fee, tax_cents: totals.taxCents,
+      total_cents: totals.totalCents,
+      // What the PARENT reads on their receipt. Without this the only email
+      // they get says "$112.46 PAID" and never mentions September 16.
+      calendar_url: classTime
+        ? googleCalUrl({
+            title: "Little Kickers at Bares Taekwondo Fitness",
+            startYMD: SESSION.start, time: classTime, weeks: SESSION.weeks,
+            location: "1901 Deerbrook Dr, Tyler, TX 75703",
+            details: "Little Kickers, ages 2-3. A grown-up trains on the mat with your child every class. Wear comfortable clothes; no uniform needed.",
+          })
+        : null,
+      customer_note:
+        "You're enrolled in Little Kickers.\n\n"
+        + "All " + SESSION.weeks + " classes, " + String(row.class_time) + ":\n"
+        + classDates.map((d, i) => "  " + (i + 1) + ". " + shortDate(d)).join("\n") + "\n\n"
+        + "1901 Deerbrook Dr, Tyler\n\n"
+        + "A grown-up is on the mat for every class. It doesn't have to be a parent, "
+        + "but it does have to be an adult your child knows. Little Kickers is not a drop-off class.\n\n"
+        + "Wear comfortable clothes you can move in. No uniform needed, and the belt is included.\n"
+        + (wantShirt ? "\nT-shirt: " + shirtDesign + " design, size " + shirtSize + ", white. We'll have it for you at the first class.\n" : "")
+        + "\nQuestions? Call 903-561-2966 or just reply to this email.",
+      notes: "Little Kickers online enrollment, " + SESSION.blurb
+        + (wantShirt ? `, t-shirt: ${shirtDesign} design, size ${shirtSize} (white)` : ""),
+    }).select("view_token").single();
+    if (saleIns.error) throw saleIns.error;
+    const token = saleIns.data.view_token as string;
+
+    // 4. The membership - frozen snapshot, session dates baked in. The term
     //    runs with the COHORT (Sept 16 start), not the purchase date.
     const snap = BTKDPricing.buildMembershipSnapshot({
       calc, contactId: studentId, program: "Little Kickers",
@@ -314,21 +408,6 @@ Deno.serve(async (req) => {
     const memIns = await admin.from("memberships").insert(snap).select("id").single();
     if (memIns.error) throw memIns.error;
     const membershipId = memIns.data.id as string;
-
-    // 4. The sale header. Unpaid: the money arrives through create-checkout →
-    //    stripe-webhook, which marks it paid and emails the receipt.
-    const saleIns = await admin.from("pos_sales").insert({
-      id: saleId, buyer_contact_id: studentId, sale_date: today,
-      staff_email: "lk-checkout@website", brand: "btkd",
-      tender_method: null, status: "unpaid",
-      subtotal_cents: totals.subtotalCents, discount_cents: 0,
-      admin_fee_cents: fee, tax_cents: totals.taxCents,
-      total_cents: totals.totalCents,
-      notes: "Little Kickers online enrollment, " + SESSION.blurb
-        + (wantShirt ? `, t-shirt: ${shirtDesign} design, size ${shirtSize} (white)` : ""),
-    }).select("view_token").single();
-    if (saleIns.error) throw saleIns.error;
-    const token = saleIns.data.view_token as string;
 
     // 5. The signed agreement, frozen. What we store is OUR render of OUR
     //    template with OUR numbers - never markup posted by the page.
@@ -384,7 +463,15 @@ Deno.serve(async (req) => {
 
     return json({ ok: true, invoice_url: `${SITE}/invoice/?t=${token}`, total_cents: totals.totalCents }, 200, cors);
   } catch (e) {
+    // A parent must never see a database error, but a silent 500 is
+    // undiagnosable from the outside. `debug:true` (staff only, sent by hand)
+    // returns the real message; the public path keeps the friendly one.
     console.error("[lk-checkout] failed:", e);
-    return json({ error: "Could not complete enrollment. Please try again or call us." }, 500, cors);
+    const detail = (e as { message?: string })?.message || String(e);
+    const debug = reqBody.debug === true;
+    return json({
+      error: "Could not complete enrollment. Please try again or call us.",
+      ...(debug ? { detail } : {}),
+    }, 500, cors);
   }
 });
