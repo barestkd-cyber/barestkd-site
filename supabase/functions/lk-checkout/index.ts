@@ -172,6 +172,10 @@ Deno.serve(async (req) => {
     const parentFirst = str(body.parent_first), parentLast = str(body.parent_last);
     const email = str(body.email).toLowerCase(), phone = str(body.phone);
     const wantShirt = body.tshirt === true, shirtSize = str(body.tshirt_size);
+    // White shirt; the artwork is the choice. Constrained to the two designs
+    // that exist so the packing slip can't say something unprintable.
+    const shirtDesign = str(body.tshirt_design);
+    const DESIGNS = ["Girl", "Boy"];
     const signerName = str(body.signer_name);
     const signerRel = str(body.signer_relationship) || "Parent";
     const signature = str(body.signature_png);
@@ -184,6 +188,7 @@ Deno.serve(async (req) => {
     if (!phone || phone.length > 40) return json({ error: "Enter a phone number." }, 400, cors);
     if (wantShirt && !shirt) return json({ error: "The t-shirt isn't available right now — uncheck it." }, 400, cors);
     if (wantShirt && !shirtSize) return json({ error: "Pick a t-shirt size." }, 400, cors);
+    if (wantShirt && !DESIGNS.includes(shirtDesign)) return json({ error: "Pick the girl or boy shirt design." }, 400, cors);
     if (!signerName) return json({ error: "Type the parent/guardian name as the signature name." }, 400, cors);
     if (body.agreed !== true) return json({ error: "Please read and agree to the enrollment agreement." }, 400, cors);
     if (!signature.startsWith("data:image/png;base64,") || signature.length > 300_000) {
@@ -254,7 +259,7 @@ Deno.serve(async (req) => {
       admin_fee_cents: fee, tax_cents: totals.taxCents,
       total_cents: totals.totalCents,
       notes: "Little Kickers online enrollment — " + SESSION.blurb
-        + (wantShirt ? ` — t-shirt size ${shirtSize}` : ""),
+        + (wantShirt ? ` — t-shirt: ${shirtDesign} design, size ${shirtSize} (white)` : ""),
     }).select("view_token").single();
     if (saleIns.error) throw saleIns.error;
     const token = saleIns.data.view_token as string;
@@ -295,7 +300,7 @@ Deno.serve(async (req) => {
     }];
     if (wantShirt && shirt) {
       lineRows.push({
-        sale_id: saleId, kind: "prod", label: shirt.name + " (" + shirtSize + ")", qty: 1,
+        sale_id: saleId, kind: "prod", label: shirt.name + " — " + shirtDesign + ", " + shirtSize + " (white)", qty: 1,
         unit_cents: shirtCents, discount_cents: 0, taxable: true, line_total_cents: shirtCents,
         student_contact_id: null, product_id: shirt.id, membership_row: null, membership_id: null,
       });

@@ -44,6 +44,17 @@
 .lkc-shirt-q input[type=checkbox]{width:20px;height:20px;flex:0 0 auto;margin:0}
 .lkc-shirt-q .grow{flex:1 1 auto;min-width:0}
 .lkc-shirt select{margin-top:10px;width:100%;max-width:180px;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
+/* Shirt design picker — white shirt, choose the girl or boy artwork. */
+.lkc-pick{margin:14px 0 8px;font-weight:700;font-size:.95rem}
+.lkc-tees{display:flex;flex-direction:row;gap:12px;flex-wrap:wrap}
+.lkc-tee{flex:1 1 150px;min-width:140px;background:#fff;border:2px solid var(--line);border-radius:12px;
+  padding:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;font:inherit}
+.lkc-tee img{width:100%;height:auto;max-width:190px;display:block}
+.lkc-tee-name{font-weight:700;font-size:.9rem}
+.lkc-tee[aria-checked="true"]{border-color:var(--belt-red);box-shadow:0 0 0 3px rgba(227,30,36,.15)}
+.lkc-tee:focus-visible{outline:2px solid var(--belt-red);outline-offset:2px}
+/* The "grown-up must be on the mat" rule — a requirement, not a nicety. */
+.lkc-note{border-left:4px solid var(--belt-red);background:#FFF6F6;padding:12px 14px;border-radius:0 10px 10px 0;font-size:.95rem;line-height:1.6;margin-top:12px}
 
 /* Agreement + signature */
 .lkc-agree-box{border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc;max-height:320px;overflow-y:auto;padding:14px 16px;font-size:13.5px;line-height:1.55}
@@ -93,9 +104,13 @@
 <main id="main-content">
 <section class="section fade-up">
   <div class="container lkc-col">
-    <p class="eyebrow">Parent &amp; Me · Ages 2-3</p>
+    <p class="eyebrow">Grown-Up &amp; Me · Ages 2-3</p>
     <h1>Little Kickers Enrollment</h1>
-    <p class="lede">Six weeks of parent-and-me martial arts. You're on the mat with your kiddo the whole time — balance, listening, first kicks, and a belt they'll sleep in.</p>
+    <p class="lede">Six weeks of martial arts for your two- and three-year-old — balance, listening, first kicks, and a belt they'll sleep in.</p>
+    <div class="lkc-note">
+      <strong>A grown-up is on the mat for every class.</strong>
+      It doesn't have to be Mom or Dad. A grandparent, nanny, aunt, uncle, or trusted family friend is welcome to be the one training with them — it just has to be an adult the child knows and who is responsible for them that day. Little Kickers is not a drop-off class.
+    </div>
   </div>
 </section>
 <hr class="belt-divider" aria-hidden="true">
@@ -123,11 +138,25 @@
             <input id="lkc-shirt" type="checkbox">
             <span class="grow">Add a Little Kickers t-shirt? <b id="lkc-shirt-price">$25</b> + tax</span>
           </label>
-          <select id="lkc-size" aria-label="T-shirt size" hidden>
-            <option value="" disabled selected>Pick a size</option>
-            <option>2T</option><option>3T</option><option>4T</option>
-            <option>Youth XS</option><option>Youth S</option>
-          </select>
+
+          <div id="lkc-shirt-opts" hidden>
+            <p class="lkc-pick">Pick a design — white shirt</p>
+            <div class="lkc-tees" role="radiogroup" aria-label="T-shirt design">
+              <button type="button" class="lkc-tee" data-design="Girl" role="radio" aria-checked="false">
+                <img src="/assets/img/lk-logo-girl.png" alt="Little Kickers shirt design with a girl in a uniform" width="240" height="240" loading="lazy">
+                <span class="lkc-tee-name">Girl</span>
+              </button>
+              <button type="button" class="lkc-tee" data-design="Boy" role="radio" aria-checked="false">
+                <img src="/assets/img/lk-logo-boy.png" alt="Little Kickers shirt design with a boy in a uniform" width="240" height="240" loading="lazy">
+                <span class="lkc-tee-name">Boy</span>
+              </button>
+            </div>
+            <select id="lkc-size" aria-label="T-shirt size">
+              <option value="" disabled selected>Pick a size</option>
+              <option>2T</option><option>3T</option><option>4T</option>
+              <option>Youth XS</option><option>Youth S</option>
+            </select>
+          </div>
         </div>
 
         <div class="lkc-total">
@@ -303,8 +332,19 @@
     if (p.shirt) { $("lkc-p-shirt").textContent = money(CFG.tshirt_cents); $("lkc-p-tax").textContent = money(p.tax); }
     $("lkc-p-fee").textContent = money(p.fee);
     $("lkc-p-total").textContent = money(p.total);
-    $("lkc-size").hidden = !$("lkc-shirt").checked;
+    $("lkc-shirt-opts").hidden = !$("lkc-shirt").checked;
   }
+
+  // Which artwork goes on the (white) shirt.
+  var shirtDesign = "";
+  Array.prototype.forEach.call(document.querySelectorAll(".lkc-tee"), function (b) {
+    b.addEventListener("click", function () {
+      shirtDesign = b.getAttribute("data-design");
+      Array.prototype.forEach.call(document.querySelectorAll(".lkc-tee"), function (o) {
+        o.setAttribute("aria-checked", String(o === b));
+      });
+    });
+  });
 
   // ── the agreement, rendered live from the CRM's template ─────────────────
   function renderDoc() {
@@ -397,6 +437,7 @@
     for (var i = 0; i < need.length; i++) {
       if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
     }
+    if ($("lkc-shirt").checked && !shirtDesign) { status("error", "Pick the girl or boy shirt design."); return; }
     if ($("lkc-shirt").checked && !$("lkc-size").value) { status("error", "Pick a t-shirt size."); $("lkc-size").focus(); return; }
     if (!$("lkc-agree").checked) { status("error", "Please read the agreement and tick the box."); return; }
     if (!dirty) { status("error", "Please sign in the signature box."); return; }
@@ -412,6 +453,7 @@
         parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
         email: $("lkc-email").value.trim(), phone: $("lkc-phone").value.trim(),
         tshirt: $("lkc-shirt").checked, tshirt_size: $("lkc-size").value || "",
+        tshirt_design: shirtDesign,
         signer_name: $("lkc-signer").value.trim(), signer_relationship: $("lkc-rel").value.trim(),
         signature_png: pad.toDataURL("image/png"),
         agreed: $("lkc-agree").checked === true,
