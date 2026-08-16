@@ -1,5 +1,5 @@
 // ===========================================================================
-// Supabase Edge Function: lk-checkout — public Little Kickers enrollment
+// Supabase Edge Function: lk-checkout - public Little Kickers enrollment
 // ---------------------------------------------------------------------------
 // The self-serve counterpart of the POS membership sale, for the one program
 // that fits a one-time checkout: a 6-week session paid in full, no recurring
@@ -7,22 +7,22 @@
 //
 // GET  → the page's config: live price/t-shirt/fee/tax numbers straight from
 //        pricing_plans/products/pricing_settings, plus the current session's
-//        dates (SESSION below — the one thing edited per cohort).
+//        dates (SESSION below - the one thing edited per cohort).
 // POST → creates student contact + guardian + membership (frozen snapshot) +
 //        SIGNED agreement + ledger sale + lines + roster enrollment, then
 //        returns the existing invoice pay URL. Payment itself runs through
-//        the SAME create-checkout/webhook/receipt rail every invoice uses —
+//        the SAME create-checkout/webhook/receipt rail every invoice uses -
 //        this function never touches Stripe.
 //
 // HARD RULES (mirrors pos-sale):
 //   * Every price is re-derived HERE from the catalog via the vendored
 //     pricing engine. The client sends choices, never amounts.
-//   * The agreement text is frozen server-side from the vendored template —
+//   * The agreement text is frozen server-side from the vendored template -
 //     what the page displayed is NOT trusted as what was signed.
 //   * sale_id is client-minted and is the idempotency key: a resubmit
 //     returns the same invoice URL instead of enrolling twice.
 //
-// Deploy, from the barestkd-site repo root (public — the page calls it):
+// Deploy, from the barestkd-site repo root (public - the page calls it):
 //   supabase functions deploy lk-checkout --no-verify-jwt
 // After attorney revisions or engine changes: node tools/vendor-lk.js first.
 // ===========================================================================
@@ -31,12 +31,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import BTKDPricing from "../_shared/pricing_esm.js";
 import LK_TEMPLATE from "../_shared/lk_agreement.js";
 
-// ── the current cohort — the ONE block edited between sessions ─────────────
+// ── the current cohort - the ONE block edited between sessions ─────────────
 const SESSION = {
   start: "2026-09-16",            // first class (a Wednesday)
   end: "2026-10-21",              // sixth and last class
-  label: "Wednesdays 9:30–10:20 AM",
-  blurb: "Six Wednesdays, September 16 – October 21",
+  label: "Wednesdays 9:30-10:20 AM",
+  blurb: "Six Wednesdays, September 16 to October 21",
 };
 
 const PLAN_CODE = "little_kickers_session";
@@ -76,7 +76,7 @@ function adminFeeCents(baseCents: number, bps: number, flat: number): number {
   return Math.round(baseCents * bps / 10000) + flat;
 }
 
-/* Freeze the agreement into plain text — the document of record stored with
+/* Freeze the agreement into plain text - the document of record stored with
  * the signature. Same shape the CRM's agrDocText produces: title block,
  * filled fields, FEES with the real amount, then the attorney's sections. */
 function buildBodyText(tpl: typeof LK_TEMPLATE, ctx: {
@@ -180,13 +180,13 @@ Deno.serve(async (req) => {
     const signerRel = str(body.signer_relationship) || "Parent";
     const signature = str(body.signature_png);
 
-    if (!UUID_RE.test(saleId)) return json({ error: "Bad enrollment id — reload the page." }, 400, cors);
+    if (!UUID_RE.test(saleId)) return json({ error: "Bad enrollment id. Reload the page." }, 400, cors);
     if (!studentFirst || !studentLast) return json({ error: "Enter the student's name." }, 400, cors);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return json({ error: "Enter the student's date of birth." }, 400, cors);
     if (!parentFirst || !parentLast) return json({ error: "Enter the parent or guardian's name." }, 400, cors);
     if (!EMAIL_RE.test(email) || email.length > 200) return json({ error: "Enter a valid email." }, 400, cors);
     if (!phone || phone.length > 40) return json({ error: "Enter a phone number." }, 400, cors);
-    if (wantShirt && !shirt) return json({ error: "The t-shirt isn't available right now — uncheck it." }, 400, cors);
+    if (wantShirt && !shirt) return json({ error: "The t-shirt isn't available right now. Uncheck it." }, 400, cors);
     if (wantShirt && !shirtSize) return json({ error: "Pick a t-shirt size." }, 400, cors);
     if (wantShirt && !DESIGNS.includes(shirtDesign)) return json({ error: "Pick the girl or boy shirt design." }, 400, cors);
     if (!signerName) return json({ error: "Type the parent/guardian name as the signature name." }, 400, cors);
@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
     const problems: string[] = [];
 
     // ── writes, dependency order (mirrors pos-sale) ────────────────────────
-    // 1. The student. Email/phone are the PARENT's — for a toddler program
+    // 1. The student. Email/phone are the PARENT's - for a toddler program
     //    the guardian IS the contact channel, same as the trial funnel.
     const contactIns = await admin.from("contacts").insert({
       first_name: studentFirst, last_name: studentLast,
@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
     });
     if (gIns.error) problems.push("guardian row: " + gIns.error.message);
 
-    // 3. The membership — frozen snapshot, session dates baked in. The term
+    // 3. The membership - frozen snapshot, session dates baked in. The term
     //    runs with the COHORT (Sept 16 start), not the purchase date.
     const snap = BTKDPricing.buildMembershipSnapshot({
       calc, contactId: studentId, program: "Little Kickers",
@@ -258,14 +258,14 @@ Deno.serve(async (req) => {
       subtotal_cents: totals.subtotalCents, discount_cents: 0,
       admin_fee_cents: fee, tax_cents: totals.taxCents,
       total_cents: totals.totalCents,
-      notes: "Little Kickers online enrollment — " + SESSION.blurb
-        + (wantShirt ? ` — t-shirt: ${shirtDesign} design, size ${shirtSize} (white)` : ""),
+      notes: "Little Kickers online enrollment, " + SESSION.blurb
+        + (wantShirt ? `, t-shirt: ${shirtDesign} design, size ${shirtSize} (white)` : ""),
     }).select("view_token").single();
     if (saleIns.error) throw saleIns.error;
     const token = saleIns.data.view_token as string;
 
     // 5. The signed agreement, frozen. What we store is OUR render of OUR
-    //    template with OUR numbers — never markup posted by the page.
+    //    template with OUR numbers - never markup posted by the page.
     const bodyText = buildBodyText(LK_TEMPLATE, {
       participant: studentFirst + " " + studentLast, dob: fmtMDY(dob),
       guardian: guardianName, today: fmtMDY(today),
@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
     }];
     if (wantShirt && shirt) {
       lineRows.push({
-        sale_id: saleId, kind: "prod", label: shirt.name + " — " + shirtDesign + ", " + shirtSize + " (white)", qty: 1,
+        sale_id: saleId, kind: "prod", label: shirt.name + " (" + shirtDesign + ", " + shirtSize + ", white)", qty: 1,
         unit_cents: shirtCents, discount_cents: 0, taxable: true, line_total_cents: shirtCents,
         student_contact_id: null, product_id: shirt.id, membership_row: null, membership_id: null,
       });

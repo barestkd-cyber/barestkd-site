@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Bares Taekwondo Fitness — form.js
+   Bares Taekwondo Fitness - form.js
    Contact form handler. Posts JSON to a Supabase Edge Function.
    Vanilla JS only.
    ========================================================================== */
@@ -8,7 +8,7 @@
 
   // Same Supabase Edge Function the trial popup uses (type:"contact").
   var ENDPOINT = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/trial-booking";
-  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // publishable (public) key — safe to ship
+  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // publishable (public) key - safe to ship
 
   var SUCCESS_MSG = "Thank you for contacting us. We will get back to you as soon as possible.";
   var ERROR_MSG = "Oops, there was an error sending your message. Please try again later.";
@@ -27,7 +27,7 @@
   }
 
   /* A student under 18 must have a parent named. Over 18 the field stays
-     visible but optional — an adult can still list someone, and seeing it
+     visible but optional - an adult can still list someone, and seeing it
      empty tells them plainly that it is not required of them. */
   function syncGuardian(form) {
     var block = form.querySelector("[data-guardian-block]");
@@ -37,7 +37,7 @@
     var minor = age !== null && age < 18;
     block.hidden = age === null;           // nothing to say until an age is entered
     if (hint) hint.textContent = minor
-      ? "Required — the student is under 18."
+      ? "Required. The student is under 18."
       : "Optional for an adult student.";
     return minor;
   }
@@ -47,7 +47,7 @@
     var button = form.querySelector("button[type='submit'], input[type='submit']");
 
     // Age drives one thing only: whether the guardian field is required.
-    // The Juniors / Teens & Adults choice belongs to the visitor — the
+    // The Juniors / Teens & Adults choice belongs to the visitor - the
     // dropdown labels carry the age ranges.
     var ageEl = form.querySelector("[name='student_age']");
     if (ageEl) {
@@ -65,7 +65,7 @@
       e.preventDefault();
 
       // Honeypot: if the hidden "hp" field is filled, silently abort.
-      // (Must NOT be named "company"/"organization" etc. — browsers autofill
+      // (Must NOT be named "company"/"organization" etc. - browsers autofill
       //  those, which would silently kill every real submission.)
       var honey = form.querySelector('input[name="hp"]');
       if (honey && honey.value.trim() !== "") {
@@ -95,7 +95,7 @@
         setStatus(status, "error", "Please enter the student's age.");
         return;
       }
-      // The server enforces this too — this check only gives a faster answer.
+      // The server enforces this too - this check only gives a faster answer.
       if (minor && !data.guardian_name) {
         setStatus(status, "error", "Please enter a parent or guardian name for a student under 18.");
         return;

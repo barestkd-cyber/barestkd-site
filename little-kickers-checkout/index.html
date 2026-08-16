@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="/assets/css/styles.css">
 <style>
-/* Page-local styles. One narrow column on every width — this is a form, not a
+/* Page-local styles. One narrow column on every width - this is a form, not a
    landing page, and a 1200px-wide input row is harder to fill in, not easier. */
 .lkc-col{max-width:640px;margin-inline:auto}
 .lkc-step{border:2px solid #111;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:22px}
@@ -37,14 +37,14 @@
 .lkc-total .amt{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}
 .lkc-total .sub{display:block;font-size:.78rem;font-weight:400;opacity:.75;letter-spacing:0}
 
-/* T-shirt add-on — its own row, NOT a .form-field (that is a column flex and
+/* T-shirt add-on - its own row, NOT a .form-field (that is a column flex and
    squashed this into a narrow stack on desktop). */
 .lkc-shirt{margin:14px 0 4px;padding:14px;border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc}
 .lkc-shirt-q{display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;font-size:.97rem;font-weight:600;margin:0}
 .lkc-shirt-q input[type=checkbox]{width:20px;height:20px;flex:0 0 auto;margin:0}
 .lkc-shirt-q .grow{flex:1 1 auto;min-width:0}
 .lkc-shirt select{margin-top:10px;width:100%;max-width:180px;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
-/* Shirt design picker — white shirt, choose the girl or boy artwork. */
+/* Shirt design picker - white shirt, choose the girl or boy artwork. */
 .lkc-pick{margin:14px 0 8px;font-weight:700;font-size:.95rem}
 .lkc-tees{display:flex;flex-direction:row;gap:12px;flex-wrap:wrap}
 .lkc-tee{flex:1 1 150px;min-width:140px;background:#fff;border:2px solid var(--line);border-radius:12px;
@@ -53,7 +53,7 @@
 .lkc-tee-name{font-weight:700;font-size:.9rem}
 .lkc-tee[aria-checked="true"]{border-color:var(--belt-red);box-shadow:0 0 0 3px rgba(227,30,36,.15)}
 .lkc-tee:focus-visible{outline:2px solid var(--belt-red);outline-offset:2px}
-/* The "grown-up must be on the mat" rule — a requirement, not a nicety. */
+/* The "grown-up must be on the mat" rule - a requirement, not a nicety. */
 .lkc-note{border-left:4px solid var(--belt-red);background:#FFF6F6;padding:12px 14px;border-radius:0 10px 10px 0;font-size:.95rem;line-height:1.6;margin-top:12px}
 
 /* Agreement + signature */
@@ -106,10 +106,10 @@
   <div class="container lkc-col">
     <p class="eyebrow">Grown-Up &amp; Me · Ages 2-3</p>
     <h1>Little Kickers Enrollment</h1>
-    <p class="lede">Six weeks of martial arts for your two- and three-year-old — balance, listening, first kicks, and a belt they'll sleep in.</p>
+    <p class="lede">Six weeks of martial arts for your two- and three-year-old: balance, listening, first kicks, and a belt they'll sleep in.</p>
     <div class="lkc-note">
       <strong>A grown-up is on the mat for every class.</strong>
-      It doesn't have to be Mom or Dad. A grandparent, nanny, aunt, uncle, or trusted family friend is welcome to be the one training with them — it just has to be an adult the child knows and who is responsible for them that day. Little Kickers is not a drop-off class.
+      It doesn't have to be Mom or Dad. A grandparent, nanny, aunt, uncle, or trusted family friend is welcome to be the one training with them. It just has to be an adult the child knows and who is responsible for them that day. Little Kickers is not a drop-off class.
     </div>
   </div>
 </section>
@@ -127,10 +127,10 @@
         <ul class="lkc-dates" id="lkc-dates"></ul>
 
         <div id="lkc-prices" style="margin-top:14px">
-          <div class="lkc-line"><span>Little Kickers — 6-week session</span><span class="amt" id="lkc-p-session">—</span></div>
-          <div class="lkc-line" id="lkc-r-shirt" hidden><span>Little Kickers t-shirt</span><span class="amt" id="lkc-p-shirt">—</span></div>
-          <div class="lkc-line" id="lkc-r-tax" hidden><span>Sales tax</span><span class="amt" id="lkc-p-tax">—</span></div>
-          <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">—</span></div>
+          <div class="lkc-line"><span>Little Kickers 6-week session</span><span class="amt" id="lkc-p-session">-</span></div>
+          <div class="lkc-line" id="lkc-r-shirt" hidden><span>Little Kickers t-shirt</span><span class="amt" id="lkc-p-shirt">-</span></div>
+          <div class="lkc-line" id="lkc-r-tax" hidden><span>Sales tax</span><span class="amt" id="lkc-p-tax">-</span></div>
+          <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
         </div>
 
         <div class="lkc-shirt" id="lkc-shirt-block" hidden>
@@ -140,7 +140,7 @@
           </label>
 
           <div id="lkc-shirt-opts" hidden>
-            <p class="lkc-pick">Pick a design — white shirt</p>
+            <p class="lkc-pick">Pick a design (white shirt)</p>
             <div class="lkc-tees" role="radiogroup" aria-label="T-shirt design">
               <button type="button" class="lkc-tee" data-design="Girl" role="radio" aria-checked="false">
                 <img src="/assets/img/lk-logo-girl.png" alt="Little Kickers shirt design with a girl in a uniform" width="240" height="240" loading="lazy">
@@ -163,7 +163,7 @@
           <span class="lbl">Total due today
             <span class="sub">Belt &amp; first stripe included</span>
           </span>
-          <span class="amt" id="lkc-p-total">—</span>
+          <span class="amt" id="lkc-p-total">-</span>
         </div>
       </div>
 
@@ -188,7 +188,7 @@
       <!-- 3 ─ the grown-up -->
       <div class="lkc-step">
         <h2>Parent / Guardian</h2>
-        <p class="step-sub">You're on the mat too — and the receipt comes to you.</p>
+        <p class="step-sub">You're on the mat too, and the receipt comes to you.</p>
         <div class="form-field">
           <label for="lkc-pfirst">Your first name</label>
           <input id="lkc-pfirst" type="text" autocomplete="given-name" required>
@@ -210,7 +210,7 @@
       <!-- 4 ─ the agreement -->
       <div class="lkc-step">
         <h2>Enrollment Agreement</h2>
-        <p class="step-sub">The real agreement for this session — please read it. Your details fill in as you type.</p>
+        <p class="step-sub">The real agreement for this session. Please read it. Your details fill in as you type.</p>
         <div class="lkc-agree-box" id="lkc-agree-doc" tabindex="0">Loading the agreement…</div>
 
         <div class="form-field" style="margin-top:14px">
@@ -258,7 +258,7 @@
   </div>
 </footer>
 
-<!-- The agreement text comes from the CRM's generated templates — the same
+<!-- The agreement text comes from the CRM's generated templates - the same
      file the front desk signs from, so the web can never drift from it. -->
 <script src="https://crm.barestkd.fit/agreements.js" defer></script>
 <script src="/assets/js/main.js" defer></script>
@@ -266,7 +266,7 @@
 (function () {
   "use strict";
   var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/lk-checkout";
-  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key — safe to ship
+  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
 
   var CFG = null;                       // GET config from the function
   var SALE_ID = null;                   // minted once; makes a retry idempotent
@@ -288,19 +288,19 @@
       renderPrice(); renderDoc();
     })
     .catch(function () {
-      $("lkc-when").textContent = "Enrollment isn't open right now — call 903-561-2966.";
+      $("lkc-when").textContent = "Enrollment isn't open right now. Call 903-561-2966.";
       $("lkc-pay").disabled = true;
     });
 
   /* yyyy-mm-dd → parts, without new Date(str) (that parses as UTC and reads a
-     day early in Central — enough to print the wrong class date). */
+     day early in Central - enough to print the wrong class date). */
   function ymdParts(ymd) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
     return m ? [+m[1], +m[2], +m[3]] : null;
   }
   function fmtMDY(ymd) { var p = ymdParts(ymd); return p ? (String(p[1]).padStart(2, "0") + "-" + String(p[2]).padStart(2, "0") + "-" + p[0]) : ""; }
 
-  /* Every class date, derived from the start — next cohort only needs the
+  /* Every class date, derived from the start - next cohort only needs the
      start date changed in the function. */
   function renderDates() {
     var p = ymdParts(CFG.session.start); if (!p) return;
@@ -351,10 +351,10 @@
     var box = $("lkc-agree-doc");
     var A = window.BTKDAgreements;
     if (!CFG) return;
-    if (!A) { box.textContent = "The agreement could not load — refresh the page, or call us."; return; }
+    if (!A) { box.textContent = "The agreement could not load. Refresh the page, or call us."; return; }
     var tpl = null;
     for (var i = 0; i < A.TEMPLATES.length; i++) if (A.TEMPLATES[i].key === "little_kickers") tpl = A.TEMPLATES[i];
-    if (!tpl) { box.textContent = "The agreement could not load — call us at 903-561-2966."; return; }
+    if (!tpl) { box.textContent = "The agreement could not load. Call us at 903-561-2966."; return; }
 
     var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
     var student = (($("lkc-sfirst").value || "") + " " + ($("lkc-slast").value || "")).trim() || "____________________";
@@ -371,7 +371,7 @@
       + 'Session Start Date: <b>' + esc(fmtMDY(CFG.session.start)) + '</b><br>'
       + 'Session End Date: <b>' + esc(fmtMDY(CFG.session.end)) + '</b></p>'
       + '<h4>FEES</h4>'
-      // Composed here just like the CRM does — the docx keeps a blank.
+      // Composed here just like the CRM does - the docx keeps a blank.
       + '<p>The Little Kickers six (6) week session is a single payment of <b>'
       + money(CFG.price_cents) + '</b>, due in full at enrollment.</p>';
     for (var f = 0; f < tpl.feesTail.length; f++) {
@@ -428,8 +428,8 @@
   $("lkc-form").addEventListener("submit", function (e) {
     e.preventDefault();
     if ($("lkc-hp").value.trim() !== "") return;                     // honeypot
-    if (!CFG) { status("error", "Enrollment isn't open right now — call 903-561-2966."); return; }
-    if (!SALE_ID) { status("error", "Your browser is too old for this page — please call us."); return; }
+    if (!CFG) { status("error", "Enrollment isn't open right now. Call 903-561-2966."); return; }
+    if (!SALE_ID) { status("error", "Your browser is too old for this page. Please call us."); return; }
     var need = [["lkc-sfirst", "the student's first name"], ["lkc-slast", "the student's last name"],
       ["lkc-dob", "the student's date of birth"], ["lkc-pfirst", "your first name"],
       ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"],
@@ -463,14 +463,14 @@
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (!res.ok || !res.j.invoice_url) throw new Error(res.j && res.j.error || "failed");
-        status("success", "Enrollment saved — taking you to payment…");
+        status("success", "Enrollment saved. Taking you to payment…");
         location.href = res.j.invoice_url;
       })
       .catch(function (err) {
         btn.disabled = false;
         status("error", (err && err.message && err.message !== "failed")
           ? err.message
-          : "Something went wrong — nothing was charged. Try again or call 903-561-2966.");
+          : "Something went wrong. Nothing was charged. Try again or call 903-561-2966.");
       });
   });
 })();
