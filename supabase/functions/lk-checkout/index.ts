@@ -31,28 +31,48 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import BTKDPricing from "../_shared/pricing_esm.js";
 import LK_TEMPLATE from "../_shared/lk_agreement.js";
 
-// ── THE ENROLLMENT GATE ────────────────────────────────────────────────────
-// Stripe is still in TEST mode, so a real parent reaching checkout would have
-// their card declined or, worse, believe they had enrolled. Until the live
-// keys are in, the page shows a "opens on ..." notice and this function
-// REFUSES to create an enrollment. Server-side on purpose: a flag in the page
-// JS could be edited away in a browser console.
+// ── THE COHORT AND THE GATE both live in `program_sessions` ────────────────
+// Nothing about the session is hardcoded here any more. One row in
+// program_sessions carries the start date, how many weeks, the class time and
+// the status; the class dates and the calendar entries are derived from it.
 //
-// TO OPEN: set open to true and redeploy. Do that only AFTER the live Stripe
-// secret and the live webhook signing secret are both set.
-// Staff can still test while closed by loading the page with ?preview=1.
-const ENROLLMENT = {
-  open: false,
-  opensText: "Monday, August 17",
+// The session's status ('draft' vs 'open') tells the WEBSITE BUTTONS whether
+// to advertise enrollment yet. The checkout page itself always works: it is
+// unlinked and noindex, and Race needs it live to test. Owner's call,
+// 2026-08-16: gate the button, not the page.
+const PROGRAM = "Little Kickers";
+
+type Session = {
+  id: string;
+  start: string;
+  end: string;
+  weeks: number;
+  label: string;
+  blurb: string;
+  status: string;
+  opensText: string;
 };
 
-// ── the current cohort - the ONE block edited between sessions ─────────────
-const SESSION = {
-  start: "2026-09-16",            // first class (a Wednesday)
-  end: "2026-10-21",              // sixth and last class
-  label: "Wednesdays 9:30-10:20 AM",
-  blurb: "Six Wednesdays, September 16 to October 21",
-};
+const MONTHS = ["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"];
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** Add days to a yyyy-mm-dd without new Date(str): that parses as UTC and
+ *  reads a day early in Central, which would shift every class date. */
+function addDays(ymd: string, days: number): string {
+  const p = ymd.split("-").map(Number);
+  const d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+function prettyDate(ymd: string): string {
+  const p = ymd.split("-").map(Number);
+  return MONTHS[p[1] - 1] + " " + p[2];
+}
+function weekdayOf(ymd: string): string {
+  const p = ymd.split("-").map(Number);
+  return DAYS[new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay()];
+}
 
 const PLAN_CODE = "little_kickers_session";
 const TSHIRT_NAME = "Little Kickers T-Shirt";
@@ -141,6 +161,34 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
+  // ── the cohort: the sellable session, else the next draft one ───────────
+  const sesRes = await admin.from("program_sessions")
+    .select("id,program,label,starts_on,weeks,class_time,status,enrollment_opens_on")
+    .eq("program", PROGRAM)
+    .in("status", ["open", "draft"])
+    .order("status", { ascending: true })   // 'draft' < 'open' alphabetically, so...
+    .order("starts_on", { ascending: true });
+  const rows = sesRes.data ?? [];
+  // ...prefer an OPEN cohort; fall back to the soonest draft one.
+  const row = rows.find((r: Record<string, unknown>) => r.status === "open") ?? rows[0];
+  if (!row) {
+    return json({ error: "No Little Kickers session is scheduled right now." }, 503, cors);
+  }
+  const weeks = Number(row.weeks) || 6;
+  const startYMD = String(row.starts_on);
+  const endYMD = addDays(startYMD, (weeks - 1) * 7);
+  const SESSION: Session = {
+    id: String(row.id),
+    start: startYMD,
+    end: endYMD,
+    weeks,
+    label: weekdayOf(startYMD) + "s " + String(row.class_time),
+    blurb: weeks + " " + weekdayOf(startYMD) + "s, " + prettyDate(startYMD) + " to " + prettyDate(endYMD),
+    status: String(row.status),
+    opensText: row.enrollment_opens_on ? prettyDate(String(row.enrollment_opens_on)) : "soon",
+  };
+  const ENROLLMENT_OPEN = SESSION.status === "open";
+
   // ── shared catalog reads: both verbs price from the same rows ───────────
   const planRes = await admin.from("pricing_plans")
     .select("id,code,name,program,billing_frequency,recurring_cents,down_cents,pif_cents,duration_weeks,active")
@@ -165,8 +213,8 @@ Deno.serve(async (req) => {
   try {
     if (req.method === "GET") {
       return json({
-        enrollment_open: ENROLLMENT.open,
-        opens_text: ENROLLMENT.opensText,
+        enrollment_open: ENROLLMENT_OPEN,
+        opens_text: SESSION.opensText,
         session: SESSION,
         price_cents: sessionCents,
         tshirt_cents: shirtCents,
@@ -182,12 +230,6 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     if (str(body.hp)) return json({ ok: true }, 200, cors); // honeypot: swallow silently
 
-    // The gate. `preview` lets staff run a full test while Stripe is still in
-    // test mode; it is deliberately harmless, because a test-mode checkout
-    // cannot move real money either way.
-    if (!ENROLLMENT.open && body.preview !== true) {
-      return json({ error: "Enrollment opens " + ENROLLMENT.opensText + ". Please check back then." }, 503, cors);
-    }
 
     // ── validate the enrollment ─────────────────────────────────────────────
     const saleId = str(body.sale_id).toLowerCase();
