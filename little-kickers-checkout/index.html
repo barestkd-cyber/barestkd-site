@@ -133,9 +133,9 @@
       <p id="lkc-done-p"></p>
       <ul class="lkc-dates" id="lkc-done-dates"></ul>
       <p style="margin-top:14px"><a class="btn btn--primary" id="lkc-done-cal" href="#" target="_blank" rel="noopener">Add these classes to Google Calendar</a></p>
-      <p class="step-sub" style="margin-top:12px">A receipt is on its way to <b id="lkc-done-email"></b>.
+      <p class="step-sub" style="margin-top:14px">Your receipt is on its way to <b id="lkc-done-email"></b>,
+        with these dates and a link to the invoice.<br>
         Questions? Call <a href="tel:903-561-2966">903-561-2966</a>.</p>
-      <p><a id="lkc-done-receipt" href="#">View your receipt</a></p>
     </div>
 
     <form id="lkc-form" novalidate>
@@ -497,7 +497,7 @@
 
   /* Replace the form with a confirmation. They stay on the page and see the
      six classes they just bought, with the calendar link right there. */
-function showDone(receiptUrl) {
+function showDone() {
     $("lkc-form").hidden = true;
     $("lkc-done").hidden = false;
     var who = ($("lkc-sfirst").value || "").trim();
@@ -505,7 +505,6 @@ function showDone(receiptUrl) {
     $("lkc-done-p").textContent = "Little Kickers, " + CFG.session.label + ". First class " + fmtMDY(CFG.session.start) + ".";
     renderDates("lkc-done-dates");
     $("lkc-done-email").textContent = ($("lkc-email").value || "").trim();
-    if (receiptUrl) $("lkc-done-receipt").href = receiptUrl; else $("lkc-done-receipt").style.display = "none";
     if (CFG.calendar_url) $("lkc-done-cal").href = CFG.calendar_url; else $("lkc-done-cal").style.display = "none";
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -575,7 +574,7 @@ function showDone(receiptUrl) {
       })
       .then(function (out) {
         if (!out || out.redirected) return;
-        showDone(out.receipt);
+        showDone();
       })
       .catch(function (err) {
         btn.disabled = false; btn.textContent = "Pay and Enroll";
