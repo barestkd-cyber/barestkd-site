@@ -18,6 +18,10 @@
 .pol-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
 .pol-tab{border:1.5px solid var(--line);background:#fff;color:var(--ink);font-weight:700;font-size:13px;border-radius:99px;padding:8px 15px;cursor:pointer;font-family:inherit}
 .pol-tab.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.pol-sum{background:#fff;border:2px solid #111;border-radius:14px;padding:16px 18px;margin-bottom:14px}
+.pol-sum-line{margin:0;font-size:1.02rem;font-weight:700;line-height:1.5}
+.pol-sum-pdf{margin:10px 0 0;font-size:.95rem}
+.pol-sum-pdf a{font-weight:700}
 .pol-doc{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:22px 24px;font-size:14px;line-height:1.65}
 .pol-doc .ent{text-align:center;margin:0;font-size:12.5px;color:#444}
 .pol-doc .ttl{font-weight:700;text-align:center;font-size:16px;margin:4px 0 14px}
@@ -27,6 +31,7 @@
 .pol-print{margin-top:14px;text-align:center}
 @media print{
   .site-header,.site-footer,.pol-tabs,.pol-print,.belt-divider,.pol-note{display:none!important}
+  .pol-sum{border:none;padding:0;margin-bottom:10px}
   .pol-doc{border:none;padding:0}
   body{background:#fff}
 }
@@ -66,6 +71,7 @@
       Every word in an agreement applies to that program. Prices and payment options are shown on each program's enrollment page and at the front desk.
     </div>
     <div class="pol-tabs" id="pol-tabs"></div>
+    <div id="pol-summary"></div>
     <div class="pol-doc" id="pol-doc">Loading…</div>
     <p class="pol-print"><button class="btn btn--secondary" id="pol-print-btn" type="button">Print or save as PDF</button></p>
   </div>
@@ -96,6 +102,19 @@
     jiujitsu: "Jiu Jitsu", ampd: "AMP'D", little_kickers: "Little Kickers"
   };
 
+  /* The one-breath version, above the legal text. `pdf` is an optional
+     pricing sheet; add a file to /assets/docs and a line here to publish one
+     for another program. */
+  var SUMMARY = {
+    taekwondo: { line: "Taekwondo is a 12-month program with monthly, weekly, or paid-in-full options. Cancelable with 30 days notice." },
+    cubs: { line: "Cubs is a 12-month program with monthly, weekly, or paid-in-full options. Cancelable with 30 days notice.",
+            pdf: "/assets/docs/cubs-pricing.pdf", pdfLabel: "Click here to read the full Cubs pricing list" },
+    kickboxing: { line: "Kickboxing is month to month. Cancelable any time with 30 days notice, no minimum term." },
+    jiujitsu: { line: "Jiu Jitsu is month to month. Cancelable any time with 30 days notice, no minimum term." },
+    ampd: { line: "AMP'D is month to month. Cancelable any time with 30 days notice, no minimum term." },
+    little_kickers: { line: "Little Kickers is a single 6-week session, paid in full at enrollment. It does not renew and is not refundable once the session begins." }
+  };
+
   function boot() {
     var A = window.BTKDAgreements;
     if (!A) { $("pol-doc").textContent = "The policies could not load. Refresh the page, or call 903-561-2966."; return; }
@@ -122,6 +141,20 @@
     Array.prototype.forEach.call(document.querySelectorAll(".pol-tab"), function (b) {
       b.classList.toggle("on", b.getAttribute("data-key") === key);
     });
+    // The summary and the pricing sheet go ABOVE the legal text: most people
+    // want the shape of the deal, and only some want the paragraphs.
+    var sum = SUMMARY[key];
+    var top = "";
+    if (sum) {
+      top = '<div class="pol-sum"><p class="pol-sum-line">' + esc(sum.line) + '</p>'
+        + (sum.pdf
+            ? '<p class="pol-sum-pdf"><a href="' + esc(sum.pdf) + '" target="_blank" rel="noopener">'
+              + esc(sum.pdfLabel || "Click here to read more") + '</a></p>'
+            : '')
+        + '</div>';
+    }
+    $("pol-summary").innerHTML = top;
+
     var hh = '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
       + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
       + '<h4>FEES</h4>'
