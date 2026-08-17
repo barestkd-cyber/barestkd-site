@@ -38,6 +38,10 @@ import CUBS_TEMPLATE from "../_shared/cubs_agreement.js";
 
 const PROGRAM = "Cubs";
 const UNIFORM_NAME = "Cubs uniform";
+// The enrollment shirt offer. Half price ONLY through a checkout page, so
+// the discount is computed here and never sent by the browser.
+const TEE_NAME = "Classic gray tee";
+const TEE_DISCOUNT_BPS = 5000;   // 50% off
 const TAX_RATE = 0.0825;          // memberships are untaxed; kept for shape
 const SITE = "https://www.barestkd.fit";
 
@@ -191,6 +195,13 @@ Deno.serve(async (req) => {
   const options = (plansRes.data ?? []) as (PlanRow & { sellable: boolean; active: boolean; display_order: number })[];
   if (!options.length) return json({ error: "Cubs enrollment isn't open right now. Call 903-561-2966." }, 503, cors);
 
+  const teeRes = await admin.from("products")
+    .select("id,name,price_cents,taxable,active")
+    .eq("name", TEE_NAME).eq("active", true).maybeSingle();
+  const tee = teeRes.data ?? null;
+  const teeFull = tee ? tee.price_cents : 0;
+  const teeNow = Math.round(teeFull * (10000 - TEE_DISCOUNT_BPS) / 10000);
+
   const uniRes = await admin.from("products")
     .select("id,name,price_cents,taxable,active")
     .eq("name", UNIFORM_NAME).eq("active", true).maybeSingle();
@@ -220,6 +231,10 @@ Deno.serve(async (req) => {
         })),
         uniform_available: !!uniform,
         uniform_cents: uniform ? uniform.price_cents : 0,
+        tee_available: !!tee,
+        tee_full_cents: teeFull,
+        tee_cents: teeNow,
+        tee_sizes: ["Youth XS", "Youth S", "Youth M", "Youth L", "Adult S", "Adult M", "Adult L", "Adult XL", "Adult 2XL"],
         admin_fee_bps: feeBps,
         admin_fee_flat_cents: feeFlat,
         tax_rate: TAX_RATE,
@@ -326,9 +341,20 @@ Deno.serve(async (req) => {
       return json({ error: "The uniform is not available right now. Uncheck it to continue." }, 409, cors);
     }
     const uniformCents = wantUniform ? uniform.price_cents : 0;
+
+    // The half-price enrollment shirt. Size is required when they take it.
+    const wantTee = body.tee === true && !!tee;
+    const teeSize = str(body.tee_size);
+    if (body.tee === true && !tee) {
+      return json({ error: "The shirt is not available right now. Uncheck it to continue." }, 409, cors);
+    }
+    if (wantTee && !teeSize) return json({ error: "Pick a shirt size." }, 400, cors);
+    const teeCents = wantTee ? teeNow : 0;
+
     const lines = [{ cents: due, taxable: false }];
     if (wantUniform) lines.push({ cents: uniformCents, taxable: true });
-    const fee = adminFeeCents(due + uniformCents, feeBps, feeFlat);   // card-only online, fee always rides
+    if (wantTee) lines.push({ cents: teeCents, taxable: true });
+    const fee = adminFeeCents(due + uniformCents + teeCents, feeBps, feeFlat);   // card-only online, fee always rides
     const totals = BTKDPricing.invoiceTotals({
       lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
     });
@@ -377,9 +403,11 @@ Deno.serve(async (req) => {
         + (wantUniform
             ? "Your Cubs uniform is paid for. We'll have it ready at the first class.\n"
             : "Wear comfortable clothes for the first class. Uniforms are available at the front desk.\n")
+        + (wantTee ? "Your classic gray shirt (" + teeSize + ") is paid for and will be ready at the first class.\n" : "")
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
       notes: "Cubs online enrollment, " + chosen.name
         + (wantUniform ? ", UNIFORM PURCHASED - have one ready" : "")
+        + (wantTee ? ", SHIRT: classic gray " + teeSize + " (enrollment half price)" : "")
         + " (" + (chosen.billing_frequency === "one_time"
             ? money(chosen.pif_cents || 0) + " paid in full"
             : money(chosen.down_cents || 0) + " down + " + money(chosen.recurring_cents || 0)
@@ -441,6 +469,16 @@ Deno.serve(async (req) => {
         sale_id: saleId, kind: "prod", label: uniform.name, qty: 1,
         unit_cents: uniformCents, discount_cents: 0, taxable: true, line_total_cents: uniformCents,
         student_contact_id: null, product_id: uniform.id, membership_row: null, membership_id: null,
+      });
+    }
+    if (wantTee) {
+      // Recorded honestly: full price with the discount alongside it, so the
+      // ledger shows what was given away rather than a mystery $12.50 shirt.
+      lineRows.push({
+        sale_id: saleId, kind: "prod", label: tee.name + " (" + teeSize + ")", qty: 1,
+        unit_cents: teeFull, discount_cents: teeFull - teeCents, taxable: true,
+        line_total_cents: teeCents,
+        student_contact_id: null, product_id: tee.id, membership_row: null, membership_id: null,
       });
     }
     const lIns = await admin.from("pos_sale_lines").insert(lineRows);

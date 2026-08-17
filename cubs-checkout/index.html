@@ -98,6 +98,15 @@
 .cbc-opt .nm{font-weight:700;font-size:.98rem}
 .cbc-opt .tm{color:#5b6570;font-size:.85rem;margin-top:2px}
 .cbc-opt .due{margin-left:auto;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cbc-tee{margin:14px 0 4px;border:2px solid #18A974;border-radius:12px;background:#F6FFFA;overflow:hidden}
+.cbc-tee-flag{background:#18A974;color:#fff;font-weight:800;font-size:.82rem;letter-spacing:.04em;padding:6px 12px;text-transform:uppercase}
+.cbc-tee-flag b{font-size:.95rem}
+.cbc-tee-body{display:flex;flex-direction:row;gap:14px;align-items:flex-start;padding:13px 14px}
+.cbc-tee-svg{width:86px;height:auto;flex:0 0 auto}
+.cbc-tee-copy{flex:1 1 auto;min-width:0}
+.cbc-tee-note{margin:7px 0 0;font-size:.85rem;color:#5b6570;line-height:1.5}
+.cbc-tee-now{color:#18A974}
+.cbc-tee select{margin-top:10px;width:100%;max-width:190px;font:inherit;padding:.55rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
 .cbc-policy{margin:0 0 6px;font-size:.94rem;font-weight:700;line-height:1.5}
 .cbc-policy-link{margin:0 0 14px;font-size:.9rem}
 @media (max-width:520px){
@@ -192,11 +201,35 @@
           </label>
         </div>
 
+        <!-- Enrollment-only shirt offer. The tee is drawn rather than
+             photographed so the gray stays true and the logo stays crisp. -->
+        <div class="cbc-tee" id="cbc-tee-block" hidden>
+          <div class="cbc-tee-flag">Enrollment special <b>50% off</b></div>
+          <div class="cbc-tee-body">
+            <svg class="cbc-tee-svg" viewBox="0 0 100 104" aria-hidden="true">
+              <path d="M30,10 L19,17 L10,31 L21,39 L26,32 L26,96 L74,96 L74,32 L79,39 L90,31 L81,17 L70,10 C70,10 66,19 50,19 C34,19 30,10 30,10 Z"
+                    fill="#B4B6B9" stroke="#9A9C9F" stroke-width="0.8"/>
+              <path d="M30,10 C30,10 34,19 50,19 C66,19 70,10 70,10 L67,13 C67,13 62,21 50,21 C38,21 33,13 33,13 Z" fill="#A5A7AA"/>
+              <image href="/assets/img/logo.png" x="31" y="31" width="19" height="10" preserveAspectRatio="xMidYMid meet"/>
+            </svg>
+            <div class="cbc-tee-copy">
+              <label class="lkc-shirt-q" for="cbc-tee">
+                <input id="cbc-tee" type="checkbox">
+                <span class="grow">Add the classic gray shirt?
+                  <b><s id="cbc-tee-was">$25.00</s> <span class="cbc-tee-now" id="cbc-tee-now">$12.50</span></b> + tax</span>
+              </label>
+              <p class="cbc-tee-note">Half price today because you're enrolling. Regular price at the front desk.</p>
+              <select id="cbc-tee-size" aria-label="Shirt size" hidden></select>
+            </div>
+          </div>
+        </div>
+
         <div id="lkc-prices" style="margin-top:14px">
           <div class="lkc-line" id="cbc-r-pick"><span>Pick an option above</span><span class="amt">-</span></div>
           <div class="lkc-line" id="cbc-r-down" hidden><span>Down payment</span><span class="amt" id="cbc-p-down">-</span></div>
           <div class="lkc-line" id="cbc-r-rec" hidden><span id="cbc-l-rec">Monthly payment</span><span class="amt" id="cbc-p-rec">-</span></div>
           <div class="lkc-line" id="cbc-r-uni" hidden><span>Cubs uniform</span><span class="amt" id="cbc-p-uni">-</span></div>
+          <div class="lkc-line" id="cbc-r-tee" hidden><span>Classic gray shirt <small style="color:#18A974;font-weight:700">50% off</small></span><span class="amt" id="cbc-p-tee">-</span></div>
           <div class="lkc-line" id="cbc-r-tax" hidden><span>Sales tax</span><span class="amt" id="cbc-p-tax">-</span></div>
           <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
         </div>
@@ -336,6 +369,13 @@
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (cfg) {
       CFG = cfg;
+      if (cfg.tee_available) {
+        $("cbc-tee-block").hidden = false;
+        $("cbc-tee-was").textContent = money(cfg.tee_full_cents);
+        $("cbc-tee-now").textContent = money(cfg.tee_cents);
+        $("cbc-tee-size").innerHTML = '<option value="" disabled selected>Pick a size</option>'
+          + (cfg.tee_sizes || []).map(function (s) { return '<option>' + esc(s) + '</option>'; }).join("");
+      }
       if (cfg.uniform_available) {
         $("cbc-uniform-block").hidden = false;
         $("cbc-uniform-price").textContent = money(cfg.uniform_cents);
@@ -391,17 +431,18 @@
     if (!CHOSEN) return null;
     var due = CHOSEN.due_today_cents;
     var uni = ($("cbc-uniform").checked && CFG.uniform_available) ? CFG.uniform_cents : 0;
-    var base = due + uni;
+    var tee = ($("cbc-tee").checked && CFG.tee_available) ? CFG.tee_cents : 0;
+    var base = due + uni + tee;
     var fee = base > 0 ? Math.round(base * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents : 0;
-    var tax = Math.floor(uni * CFG.tax_rate + 0.5);   // the uniform is taxable, tuition is not
-    return { due: due, uni: uni, fee: fee, tax: tax, total: base + fee + tax };
+    var tax = Math.floor((uni + tee) * CFG.tax_rate + 0.5);   // goods are taxable, tuition is not
+    return { due: due, uni: uni, tee: tee, fee: fee, tax: tax, total: base + fee + tax };
   }
   function renderPrice() {
     var pp = priceParts();
     var show = function (id, on) { $(id).hidden = !on; };
     if (!pp) {
       show("cbc-r-pick", true); show("cbc-r-down", false); show("cbc-r-rec", false);
-      show("cbc-r-uni", false); show("cbc-r-tax", false);
+      show("cbc-r-uni", false); show("cbc-r-tee", false); show("cbc-r-tax", false);
       $("lkc-p-fee").textContent = "-"; $("lkc-p-total").textContent = "-";
       $("cbc-after").textContent = "";
       return;
@@ -414,8 +455,13 @@
     $("cbc-p-down").textContent = money(pif ? CHOSEN.pif_cents : CHOSEN.down_cents);
     $("cbc-l-rec").textContent = CHOSEN.billing_frequency === "weekly" ? "Weekly payment" : "Monthly payment";
     $("cbc-p-rec").textContent = money(pif ? 0 : CHOSEN.recurring_cents);
-    show("cbc-r-uni", pp.uni > 0); show("cbc-r-tax", pp.uni > 0);
-    if (pp.uni > 0) { $("cbc-p-uni").textContent = money(pp.uni); $("cbc-p-tax").textContent = money(pp.tax); }
+    show("cbc-r-uni", pp.uni > 0);
+    if (pp.uni > 0) $("cbc-p-uni").textContent = money(pp.uni);
+    show("cbc-r-tee", pp.tee > 0);
+    if (pp.tee > 0) $("cbc-p-tee").textContent = money(pp.tee);
+    show("cbc-r-tax", pp.uni + pp.tee > 0);
+    if (pp.uni + pp.tee > 0) $("cbc-p-tax").textContent = money(pp.tax);
+    $("cbc-tee-size").hidden = !$("cbc-tee").checked;
     $("lkc-p-fee").textContent = money(pp.fee);
     $("lkc-p-total").textContent = money(pp.total);
     $("cbc-after").textContent = CHOSEN.billing_frequency === "one_time"
@@ -485,6 +531,7 @@
   });
   var signerTouched = false;
   $("cbc-uniform").addEventListener("change", renderPrice);
+  $("cbc-tee").addEventListener("change", renderPrice);
   $("lkc-signer").addEventListener("input", function () { signerTouched = true; });
   ["lkc-pfirst", "lkc-plast"].forEach(function (id) {
     $(id).addEventListener("input", function () {
@@ -598,6 +645,7 @@
     for (var i = 0; i < need.length; i++) {
       if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
     }
+    if ($("cbc-tee").checked && !$("cbc-tee-size").value) { status("error", "Pick a shirt size."); $("cbc-tee-size").focus(); return; }
     if (!$("lkc-agree").checked) { status("error", "Please read the agreement and tick the box."); return; }
     if (!dirty) { status("error", "Please sign in the signature box."); return; }
     if (!CARD) { status("error", "The card field did not load. Refresh and try again."); return; }
@@ -610,6 +658,8 @@
         sale_id: SALE_ID,
         plan_code: CHOSEN.code,
         uniform: $("cbc-uniform").checked === true,
+        tee: $("cbc-tee").checked === true,
+        tee_size: $("cbc-tee-size").value || "",
         student_first: $("lkc-sfirst").value.trim(), student_last: $("lkc-slast").value.trim(),
         student_dob: $("lkc-dob").value,
         parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
