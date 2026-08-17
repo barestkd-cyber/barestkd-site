@@ -29,6 +29,7 @@
 
 /* Price lines */
 .lkc-line{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid #eee;font-size:.97rem}
+.lkc-line[hidden]{display:none}
 .lkc-line:last-child{border-bottom:none}
 .lkc-line .amt{font-variant-numeric:tabular-nums;white-space:nowrap}
 .lkc-total{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
@@ -97,6 +98,14 @@
 .cbc-opt .nm{font-weight:700;font-size:.98rem}
 .cbc-opt .tm{color:#5b6570;font-size:.85rem;margin-top:2px}
 .cbc-opt .due{margin-left:auto;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cbc-policy{margin:0 0 6px;font-size:.94rem;font-weight:700;line-height:1.5}
+.cbc-policy-link{margin:0 0 14px;font-size:.9rem}
+@media (max-width:520px){
+  .cbc-opt{flex-wrap:wrap;align-items:flex-start}
+  .cbc-opt .radio{margin-top:3px}
+  .cbc-opt .due{margin-left:30px;margin-top:8px;text-align:left;white-space:normal}
+  .cbc-opt .due small{display:inline}
+}
 .cbc-opt .due small{display:block;font-weight:400;color:#5b6570;font-size:.75rem}
 
 /* Footer: match the form column so it reads as centred with the page. */
@@ -134,7 +143,6 @@
     <p class="eyebrow">Cubs · Ages 3-4</p>
     <h1>Cubs Enrollment</h1>
     <p class="lede">Preschool martial arts for ages 3 and 4: focus, listening, coordination, and confidence, in classes built for little attention spans.</p>
-    <p style="font-size:.92rem"><a href="/assets/docs/cubs-pricing.pdf" target="_blank" rel="noopener">Cubs pricing and policies (PDF)</a></p>
     
   </div>
 </section>
@@ -168,14 +176,14 @@
            can never charge a number it invented. -->
       <div class="lkc-step">
         <h2>Your Membership</h2>
-        <p class="step-sub">Cubs is a 12-month membership. Pick how you want to pay.</p>
+        <p class="cbc-policy">Cubs is a 12-month program. Monthly/weekly payments may be canceled with 30 days notice given.</p>
+        <p class="cbc-policy-link"><a href="/assets/docs/cubs-pricing.pdf" target="_blank" rel="noopener">View all policies (PDF)</a></p>
         <div id="cbc-options" role="radiogroup" aria-label="Payment option">Loading options…</div>
 
         <div id="lkc-prices" style="margin-top:14px">
           <div class="lkc-line" id="cbc-r-pick"><span>Pick an option above</span><span class="amt">-</span></div>
           <div class="lkc-line" id="cbc-r-down" hidden><span>Down payment</span><span class="amt" id="cbc-p-down">-</span></div>
-          <div class="lkc-line" id="cbc-r-first" hidden><span id="cbc-l-first">First month</span><span class="amt" id="cbc-p-first">-</span></div>
-          <div class="lkc-line" id="cbc-r-pif" hidden><span>Paid in full</span><span class="amt" id="cbc-p-pif">-</span></div>
+          <div class="lkc-line" id="cbc-r-rec" hidden><span id="cbc-l-rec">Monthly payment</span><span class="amt" id="cbc-p-rec">-</span></div>
           <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
         </div>
 
@@ -371,23 +379,19 @@
     var pp = priceParts();
     var show = function (id, on) { $(id).hidden = !on; };
     if (!pp) {
-      show("cbc-r-pick", true); show("cbc-r-down", false); show("cbc-r-first", false); show("cbc-r-pif", false);
+      show("cbc-r-pick", true); show("cbc-r-down", false); show("cbc-r-rec", false);
       $("lkc-p-fee").textContent = "-"; $("lkc-p-total").textContent = "-";
       $("cbc-after").textContent = "";
       return;
     }
-    show("cbc-r-pick", false);
-    if (CHOSEN.billing_frequency === "one_time") {
-      show("cbc-r-down", false); show("cbc-r-first", false); show("cbc-r-pif", true);
-      $("cbc-p-pif").textContent = money(CHOSEN.pif_cents);
-    } else {
-      show("cbc-r-pif", false);
-      show("cbc-r-down", CHOSEN.down_cents > 0);
-      if (CHOSEN.down_cents > 0) $("cbc-p-down").textContent = money(CHOSEN.down_cents);
-      show("cbc-r-first", true);
-      $("cbc-l-first").textContent = "First " + (CHOSEN.billing_frequency === "weekly" ? "week" : "month");
-      $("cbc-p-first").textContent = money(CHOSEN.recurring_cents);
-    }
+    // Same two rows for every option, so nothing appears or vanishes as you
+    // click around. Paid in full is simply the whole amount down and nothing
+    // recurring.
+    show("cbc-r-pick", false); show("cbc-r-down", true); show("cbc-r-rec", true);
+    var pif = CHOSEN.billing_frequency === "one_time";
+    $("cbc-p-down").textContent = money(pif ? CHOSEN.pif_cents : CHOSEN.down_cents);
+    $("cbc-l-rec").textContent = CHOSEN.billing_frequency === "weekly" ? "Weekly payment" : "Monthly payment";
+    $("cbc-p-rec").textContent = money(pif ? 0 : CHOSEN.recurring_cents);
     $("lkc-p-fee").textContent = money(pp.fee);
     $("lkc-p-total").textContent = money(pp.total);
     $("cbc-after").textContent = CHOSEN.billing_frequency === "one_time"
