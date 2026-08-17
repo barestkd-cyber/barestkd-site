@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Membership Policies | Bares Taekwondo Fitness | Tyler, TX</title>
+<meta name="description" content="The membership agreements and policies for every Bares Taekwondo Fitness program, in full, before you enroll.">
+<link rel="canonical" href="https://www.barestkd.fit/membership-policies">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/assets/css/styles.css">
+<style>
+/* One narrow reading column; this page is a document, not a pitch. */
+.pol-col{max-width:720px;margin-inline:auto}
+.pol-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
+.pol-tab{border:1.5px solid var(--line);background:#fff;color:var(--ink);font-weight:700;font-size:13px;border-radius:99px;padding:8px 15px;cursor:pointer;font-family:inherit}
+.pol-tab.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.pol-doc{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:22px 24px;font-size:14px;line-height:1.65}
+.pol-doc .ent{text-align:center;margin:0;font-size:12.5px;color:#444}
+.pol-doc .ttl{font-weight:700;text-align:center;font-size:16px;margin:4px 0 14px}
+.pol-doc h4{margin:16px 0 5px;font-size:14px;letter-spacing:.02em}
+.pol-doc p{margin:7px 0}
+.pol-note{border-left:4px solid var(--belt-red);background:#FFF6F6;padding:12px 14px;border-radius:0 10px 10px 0;font-size:.93rem;line-height:1.6;margin:0 0 16px}
+.pol-print{margin-top:14px;text-align:center}
+@media print{
+  .site-header,.site-footer,.pol-tabs,.pol-print,.belt-divider,.pol-note{display:none!important}
+  .pol-doc{border:none;padding:0}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href="/">
+      <img src="/assets/img/logo.png" alt="Bares Taekwondo Fitness" width="101" height="54">
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/schedule/events">Schedule/Events</a></li>
+        <li><a href="/contact-form">Contact</a></li>
+      </ul>
+    </nav>
+    <a class="call-link" href="tel:903-561-2966" aria-label="Call Bares Taekwondo Fitness at 903-561-2966">
+      <svg class="call-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24 11.36 11.36 0 0 0 3.57.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02l-2.2 2.2z"/></svg>
+      <span class="call-link__num">903-561-2966</span>
+    </a>
+  </div>
+</header>
+<main id="main-content">
+<section class="section fade-up">
+  <div class="container pol-col">
+    <p class="eyebrow">Before You Enroll</p>
+    <h1>Membership Policies</h1>
+    <p class="lede">These are the actual agreements you sign at enrollment, in full. No summaries, no fine print you meet later. Pick your program and read everything that applies.</p>
+    <div class="pol-note">
+      Every word in an agreement applies to that program. Prices and payment options are shown on each program's enrollment page and at the front desk.
+    </div>
+    <div class="pol-tabs" id="pol-tabs"></div>
+    <div class="pol-doc" id="pol-doc">Loading…</div>
+    <p class="pol-print"><button class="btn btn--secondary" id="pol-print-btn" type="button">Print or save as PDF</button></p>
+  </div>
+</section>
+</main>
+<footer class="site-footer">
+  <div class="container" style="max-width:720px;text-align:center;font-size:.9rem;line-height:1.7">
+    <strong>Bares Taekwondo Fitness</strong><br>
+    1901 Deerbrook Dr, Tyler, TX 75703<br>
+    <a href="tel:903-561-2966">903-561-2966</a> · <a href="mailto:race@barestkd.fit">race@barestkd.fit</a>
+  </div>
+</footer>
+
+<!-- The same generated templates the enrollment pages and the front desk sign
+     from. One source of truth: when the attorney revises an agreement, this
+     page updates with it. -->
+<script src="https://crm.barestkd.fit/agreements.js" defer></script>
+<script src="/assets/js/main.js" defer></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+  var CUR = null;
+
+  var PRETTY = {
+    taekwondo: "Taekwondo", cubs: "Cubs", kickboxing: "Kickboxing",
+    jiujitsu: "Jiu Jitsu", ampd: "AMP'D", little_kickers: "Little Kickers"
+  };
+
+  function boot() {
+    var A = window.BTKDAgreements;
+    if (!A) { $("pol-doc").textContent = "The policies could not load. Refresh the page, or call 903-561-2966."; return; }
+    var tabs = "";
+    A.TEMPLATES.forEach(function (t, i) {
+      tabs += '<button class="pol-tab" data-key="' + esc(t.key) + '">' + esc(PRETTY[t.key] || t.title) + '</button>';
+    });
+    $("pol-tabs").innerHTML = tabs;
+    Array.prototype.forEach.call(document.querySelectorAll(".pol-tab"), function (b) {
+      b.addEventListener("click", function () { show(b.getAttribute("data-key")); });
+    });
+    // Deep-linkable: /membership-policies?p=cubs opens on Cubs.
+    var want = new URLSearchParams(location.search).get("p") || "";
+    var first = A.TEMPLATES[0] ? A.TEMPLATES[0].key : null;
+    show(A.TEMPLATES.some(function (t) { return t.key === want; }) ? want : first);
+  }
+
+  function show(key) {
+    var A = window.BTKDAgreements;
+    var tpl = null;
+    for (var i = 0; i < A.TEMPLATES.length; i++) if (A.TEMPLATES[i].key === key) tpl = A.TEMPLATES[i];
+    if (!tpl) return;
+    CUR = key;
+    Array.prototype.forEach.call(document.querySelectorAll(".pol-tab"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-key") === key);
+    });
+    var hh = '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
+      + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
+      + '<h4>FEES</h4>'
+      + '<p>Payment options and current prices for this program are shown on its enrollment page and at the front desk. The amounts you choose are written into your agreement when you sign.</p>';
+    for (var f = 0; f < tpl.feesTail.length; f++) hh += '<p>' + esc(tpl.feesTail[f]) + '</p>';
+    for (var s = 0; s < tpl.sections.length; s++) {
+      hh += '<h4>' + esc(tpl.sections[s].h) + '</h4>';
+      for (var q = 0; q < tpl.sections[s].p.length; q++) hh += '<p>' + esc(tpl.sections[s].p[q]) + '</p>';
+    }
+    hh += '<p><i>' + esc(tpl.signNote) + '</i></p>';
+    $("pol-doc").innerHTML = hh;
+  }
+
+  $("pol-print-btn").addEventListener("click", function () { window.print(); });
+
+  // agreements.js loads deferred; wait for it briefly.
+  var tries = 0;
+  var t = setInterval(function () {
+    if (window.BTKDAgreements || ++tries > 40) { clearInterval(t); boot(); }
+  }, 100);
+})();
+</script>
+</body>
+</html>

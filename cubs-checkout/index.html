@@ -134,6 +134,7 @@
     <p class="eyebrow">Cubs · Ages 3-4</p>
     <h1>Cubs Enrollment</h1>
     <p class="lede">Preschool martial arts for ages 3 and 4: focus, listening, coordination, and confidence, in classes built for little attention spans.</p>
+    <p style="font-size:.92rem"><a href="/membership-policies?p=cubs">Want to read the policies first? See the full agreement here.</a></p>
     
   </div>
 </section>
@@ -171,7 +172,10 @@
         <div id="cbc-options" role="radiogroup" aria-label="Payment option">Loading options…</div>
 
         <div id="lkc-prices" style="margin-top:14px">
-          <div class="lkc-line"><span id="cbc-l-today">Due today</span><span class="amt" id="lkc-p-session">-</span></div>
+          <div class="lkc-line" id="cbc-r-pick"><span>Pick an option above</span><span class="amt">-</span></div>
+          <div class="lkc-line" id="cbc-r-down" hidden><span>Down payment</span><span class="amt" id="cbc-p-down">-</span></div>
+          <div class="lkc-line" id="cbc-r-first" hidden><span id="cbc-l-first">First month</span><span class="amt" id="cbc-p-first">-</span></div>
+          <div class="lkc-line" id="cbc-r-pif" hidden><span>Paid in full</span><span class="amt" id="cbc-p-pif">-</span></div>
           <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
         </div>
 
@@ -319,9 +323,18 @@
     });
 
   function optTerms(o) {
-    if (o.billing_frequency === "one_time") return "One payment, 12-month membership";
-    if (o.billing_frequency === "weekly") return money(o.recurring_cents) + " per week after today";
-    return money(o.recurring_cents) + " per month after today";
+    if (o.billing_frequency === "one_time") return "One payment of " + money(o.pif_cents) + ", 12-month membership";
+    if (o.billing_frequency === "weekly") {
+      return o.down_cents > 0
+        ? money(o.down_cents) + " down, then " + money(o.recurring_cents) + " per week"
+        : money(o.recurring_cents) + " per week, nothing down";
+    }
+    return money(o.down_cents) + " down, then " + money(o.recurring_cents) + " per month";
+  }
+  function dueSub(o) {
+    if (o.billing_frequency === "one_time") return "due today";
+    if (o.down_cents > 0) return "down + first " + (o.billing_frequency === "weekly" ? "week" : "month") + ", due today";
+    return "first " + (o.billing_frequency === "weekly" ? "week" : "month") + ", due today";
   }
   function renderOptions() {
     var hh = "";
@@ -330,7 +343,7 @@
         + '<span class="radio"></span>'
         + '<span><span class="nm">' + esc(o.name) + '</span>'
         + '<span class="tm" style="display:block">' + esc(optTerms(o)) + '</span></span>'
-        + '<span class="due">' + money(o.due_today_cents) + '<small>due today</small></span>'
+        + '<span class="due">' + money(o.due_today_cents) + '<small>' + esc(dueSub(o)) + '</small></span>'
         + '</button>';
     });
     $("cbc-options").innerHTML = hh;
@@ -356,16 +369,25 @@
   }
   function renderPrice() {
     var pp = priceParts();
+    var show = function (id, on) { $(id).hidden = !on; };
     if (!pp) {
-      $("cbc-l-today").textContent = "Pick an option above";
-      $("lkc-p-session").textContent = "-"; $("lkc-p-fee").textContent = "-"; $("lkc-p-total").textContent = "-";
+      show("cbc-r-pick", true); show("cbc-r-down", false); show("cbc-r-first", false); show("cbc-r-pif", false);
+      $("lkc-p-fee").textContent = "-"; $("lkc-p-total").textContent = "-";
       $("cbc-after").textContent = "";
       return;
     }
-    $("cbc-l-today").textContent = CHOSEN.billing_frequency === "one_time"
-      ? "Paid in full"
-      : "Down payment + first " + (CHOSEN.billing_frequency === "weekly" ? "week" : "month");
-    $("lkc-p-session").textContent = money(pp.due);
+    show("cbc-r-pick", false);
+    if (CHOSEN.billing_frequency === "one_time") {
+      show("cbc-r-down", false); show("cbc-r-first", false); show("cbc-r-pif", true);
+      $("cbc-p-pif").textContent = money(CHOSEN.pif_cents);
+    } else {
+      show("cbc-r-pif", false);
+      show("cbc-r-down", CHOSEN.down_cents > 0);
+      if (CHOSEN.down_cents > 0) $("cbc-p-down").textContent = money(CHOSEN.down_cents);
+      show("cbc-r-first", true);
+      $("cbc-l-first").textContent = "First " + (CHOSEN.billing_frequency === "weekly" ? "week" : "month");
+      $("cbc-p-first").textContent = money(CHOSEN.recurring_cents);
+    }
     $("lkc-p-fee").textContent = money(pp.fee);
     $("lkc-p-total").textContent = money(pp.total);
     $("cbc-after").textContent = CHOSEN.billing_frequency === "one_time"
