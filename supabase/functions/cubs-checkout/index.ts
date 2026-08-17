@@ -37,6 +37,7 @@ import BTKDPricing from "../_shared/pricing_esm.js";
 import CUBS_TEMPLATE from "../_shared/cubs_agreement.js";
 
 const PROGRAM = "Cubs";
+const UNIFORM_NAME = "Cubs uniform";
 const TAX_RATE = 0.0825;          // memberships are untaxed; kept for shape
 const SITE = "https://www.barestkd.fit";
 
@@ -190,6 +191,11 @@ Deno.serve(async (req) => {
   const options = (plansRes.data ?? []) as (PlanRow & { sellable: boolean; active: boolean; display_order: number })[];
   if (!options.length) return json({ error: "Cubs enrollment isn't open right now. Call 903-561-2966." }, 503, cors);
 
+  const uniRes = await admin.from("products")
+    .select("id,name,price_cents,taxable,active")
+    .eq("name", UNIFORM_NAME).eq("active", true).maybeSingle();
+  const uniform = uniRes.data ?? null;
+
   const setRes = await admin.from("pricing_settings").select("key,value_cents")
     .in("key", ["admin_fee_bps", "admin_fee_flat_cents"]);
   const settings: Record<string, number> = {};
@@ -212,8 +218,11 @@ Deno.serve(async (req) => {
           pif_cents: p.pif_cents || 0, payment_count: p.payment_count,
           due_today_cents: dueFor(p),
         })),
+        uniform_available: !!uniform,
+        uniform_cents: uniform ? uniform.price_cents : 0,
         admin_fee_bps: feeBps,
         admin_fee_flat_cents: feeFlat,
+        tax_rate: TAX_RATE,
         agreement_version: CUBS_TEMPLATE.version,
       }, 200, cors);
     }
@@ -311,9 +320,17 @@ Deno.serve(async (req) => {
     });
     if (!calc.eligible) return json({ error: "That option can't be sold right now." }, 409, cors);
     const due = BTKDPricing.dueTodayCents(calc, null);   // down + first payment; PIF = the full amount
-    const fee = adminFeeCents(due, feeBps, feeFlat);     // online is card-only; the fee always rides
+    // The uniform is a normal taxable product riding the same invoice.
+    const wantUniform = body.uniform === true && !!uniform;
+    if (body.uniform === true && !uniform) {
+      return json({ error: "The uniform is not available right now. Uncheck it to continue." }, 409, cors);
+    }
+    const uniformCents = wantUniform ? uniform.price_cents : 0;
+    const lines = [{ cents: due, taxable: false }];
+    if (wantUniform) lines.push({ cents: uniformCents, taxable: true });
+    const fee = adminFeeCents(due + uniformCents, feeBps, feeFlat);   // card-only online, fee always rides
     const totals = BTKDPricing.invoiceTotals({
-      lines: [{ cents: due, taxable: false }], discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
+      lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
     });
 
     const today = todayCT();
@@ -357,9 +374,12 @@ Deno.serve(async (req) => {
         + monthlyLine + "\n\n"
         + "Class times: barestkd.fit/schedule\n"
         + "1901 Deerbrook Dr, Tyler\n\n"
-        + "Wear comfortable clothes for the first class. Uniform details at the front desk.\n"
+        + (wantUniform
+            ? "Your Cubs uniform is paid for. We'll have it ready at the first class.\n"
+            : "Wear comfortable clothes for the first class. Uniforms are available at the front desk.\n")
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
       notes: "Cubs online enrollment, " + chosen.name
+        + (wantUniform ? ", UNIFORM PURCHASED - have one ready" : "")
         + " (" + (chosen.billing_frequency === "one_time"
             ? money(chosen.pif_cents || 0) + " paid in full"
             : money(chosen.down_cents || 0) + " down + " + money(chosen.recurring_cents || 0)
@@ -410,13 +430,21 @@ Deno.serve(async (req) => {
     if (agrIns.error) problems.push("agreement: " + agrIns.error.message);
 
     // 6. Ledger line.
-    const lIns = await admin.from("pos_sale_lines").insert({
+    const lineRows: Record<string, unknown>[] = [{
       sale_id: saleId, kind: "mem", label: chosen.name, qty: 1,
       unit_cents: due, discount_cents: 0, taxable: false, line_total_cents: due,
       student_contact_id: studentId, product_id: null,
       membership_row: snap, membership_id: membershipId,
-    });
-    if (lIns.error) problems.push("sale line: " + lIns.error.message);
+    }];
+    if (wantUniform) {
+      lineRows.push({
+        sale_id: saleId, kind: "prod", label: uniform.name, qty: 1,
+        unit_cents: uniformCents, discount_cents: 0, taxable: true, line_total_cents: uniformCents,
+        student_contact_id: null, product_id: uniform.id, membership_row: null, membership_id: null,
+      });
+    }
+    const lIns = await admin.from("pos_sale_lines").insert(lineRows);
+    if (lIns.error) problems.push("sale lines: " + lIns.error.message);
 
     // 7. Class roster.
     const eIns = await admin.from("enrollments").insert({
