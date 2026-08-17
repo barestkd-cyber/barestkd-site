@@ -81,6 +81,15 @@
 .lkc-done{border-color:#18A974;background:#F6FFFA}
 .lkc-done h2{font-size:1.4rem;margin-bottom:8px}
 
+.lkc-receipt{margin-top:16px}
+.lkc-receipt:empty{display:none}
+.lkc-printrow{text-align:center;margin-top:12px}
+@media print{
+  .site-header,.site-footer,.lkc-printrow,.lkc-note,#lkc-done-cal,.belt-divider{display:none!important}
+  .lkc-done{border:none;background:#fff}
+  body{background:#fff}
+}
+
 /* Footer: match the form column so it reads as centred with the page. */
 .lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
 </style>
@@ -133,9 +142,16 @@
       <p id="lkc-done-p"></p>
       <ul class="lkc-dates" id="lkc-done-dates"></ul>
       <p style="margin-top:14px"><a class="btn btn--primary" id="lkc-done-cal" href="#" target="_blank" rel="noopener">Add these classes to Google Calendar</a></p>
-      <p class="step-sub" style="margin-top:14px">Your receipt is on its way to <b id="lkc-done-email"></b>,
-        with these dates and a link to the invoice.<br>
+      <p class="step-sub" style="margin-top:14px">We've emailed a copy of all of this to <b id="lkc-done-email"></b>,
+        so you can close this page whenever you like.<br>
         Questions? Call <a href="tel:903-561-2966">903-561-2966</a>.</p>
+
+      <!-- The receipt itself, printable without leaving the page. Same card
+           the invoice page and the emailed link render, from receipt-view. -->
+      <div id="lkc-receipt" class="lkc-receipt"></div>
+      <p class="lkc-printrow" id="lkc-printrow" hidden>
+        <button type="button" class="btn btn--secondary" id="lkc-print">Print or save as PDF</button>
+      </p>
     </div>
 
     <form id="lkc-form" novalidate>
@@ -497,7 +513,7 @@
 
   /* Replace the form with a confirmation. They stay on the page and see the
      six classes they just bought, with the calendar link right there. */
-function showDone() {
+function showDone(receiptUrl) {
     $("lkc-form").hidden = true;
     $("lkc-done").hidden = false;
     var who = ($("lkc-sfirst").value || "").trim();
@@ -506,8 +522,22 @@ function showDone() {
     renderDates("lkc-done-dates");
     $("lkc-done-email").textContent = ($("lkc-email").value || "").trim();
     if (CFG.calendar_url) $("lkc-done-cal").href = CFG.calendar_url; else $("lkc-done-cal").style.display = "none";
+    // Pull the real receipt card in so they can print it now. If this
+    // fails they still have the email, so it never blocks the confirmation.
+    var tok = (receiptUrl || "").split("t=")[1];
+    if (tok) {
+      fetch("https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/receipt-view?t=" + encodeURIComponent(tok) + "&f=frag", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.text() : null; })
+        .then(function (frag) {
+          if (!frag) return;
+          $("lkc-receipt").innerHTML = frag;
+          $("lkc-printrow").hidden = false;
+        }).catch(function () {});
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  $("lkc-print").addEventListener("click", function () { window.print(); });
 
   // ── submit ───────────────────────────────────────────────────────────────
   function status(state, msg) {
@@ -574,7 +604,7 @@ function showDone() {
       })
       .then(function (out) {
         if (!out || out.redirected) return;
-        showDone();
+        showDone(out.receipt);
       })
       .catch(function (err) {
         btn.disabled = false; btn.textContent = "Pay and Enroll";
