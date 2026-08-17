@@ -102,7 +102,10 @@
 .cbc-tee-flag{background:#18A974;color:#fff;font-weight:800;font-size:.82rem;letter-spacing:.04em;padding:6px 12px;text-transform:uppercase}
 .cbc-tee-flag b{font-size:.95rem}
 .cbc-tee-body{display:flex;flex-direction:row;gap:14px;align-items:flex-start;padding:13px 14px}
-.cbc-tee-svg{width:86px;height:auto;flex:0 0 auto}
+.cbc-tee-flip{background:none;border:none;padding:0;cursor:pointer;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;font:inherit}
+.cbc-tee-svg{width:96px;height:auto;display:block}
+.cbc-tee-svg[hidden]{display:none}
+.cbc-tee-flipbtn{font-size:.72rem;font-weight:700;color:#18A974;text-decoration:underline;white-space:nowrap}
 .cbc-tee-copy{flex:1 1 auto;min-width:0}
 .cbc-tee-note{margin:7px 0 0;font-size:.85rem;color:#5b6570;line-height:1.5}
 .cbc-tee-now{color:#18A974}
@@ -206,19 +209,28 @@
         <div class="cbc-tee" id="cbc-tee-block" hidden>
           <div class="cbc-tee-flag">Enrollment special <b>50% off</b></div>
           <div class="cbc-tee-body">
-            <svg class="cbc-tee-svg" viewBox="0 0 100 104" aria-hidden="true">
-              <path d="M30,10 L19,17 L10,31 L21,39 L26,32 L26,96 L74,96 L74,32 L79,39 L90,31 L81,17 L70,10 C70,10 66,19 50,19 C34,19 30,10 30,10 Z"
-                    fill="#B4B6B9" stroke="#9A9C9F" stroke-width="0.8"/>
-              <path d="M30,10 C30,10 34,19 50,19 C66,19 70,10 70,10 L67,13 C67,13 62,21 50,21 C38,21 33,13 33,13 Z" fill="#A5A7AA"/>
-              <image href="/assets/img/logo.png" x="31" y="31" width="19" height="10" preserveAspectRatio="xMidYMid meet"/>
-            </svg>
+            <button type="button" class="cbc-tee-flip" id="cbc-tee-flip" aria-label="Show the back of the shirt">
+              <svg class="cbc-tee-svg" id="cbc-tee-front" viewBox="0 0 100 104" aria-hidden="true">
+                <path d="M30,10 L19,17 L10,31 L21,39 L26,32 L26,96 L74,96 L74,32 L79,39 L90,31 L81,17 L70,10 C70,10 66,19 50,19 C34,19 30,10 30,10 Z"
+                      fill="#B4B6B9" stroke="#9A9C9F" stroke-width="0.8"/>
+                <path d="M30,10 C30,10 34,19 50,19 C66,19 70,10 70,10 L67,13 C67,13 62,21 50,21 C38,21 33,13 33,13 Z" fill="#A5A7AA"/>
+                <image href="/assets/img/logo.png" x="30" y="30" width="18" height="9" preserveAspectRatio="xMidYMid meet"/>
+              </svg>
+              <svg class="cbc-tee-svg" id="cbc-tee-back" viewBox="0 0 100 104" aria-hidden="true" hidden>
+                <path d="M30,10 L19,17 L10,31 L21,39 L26,32 L26,96 L74,96 L74,32 L79,39 L90,31 L81,17 L70,10 C70,10 66,17 50,17 C34,17 30,10 30,10 Z"
+                      fill="#B4B6B9" stroke="#9A9C9F" stroke-width="0.8"/>
+                <path d="M30,10 C30,10 34,17 50,17 C66,17 70,10 70,10 L68,14 L32,14 Z" fill="#A5A7AA"/>
+                <image href="/assets/img/shirts/art-bear-patch.png" x="30" y="33" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+              </svg>
+              <span class="cbc-tee-flipbtn" id="cbc-tee-fliplbl">Tap to see the back</span>
+            </button>
             <div class="cbc-tee-copy">
               <label class="lkc-shirt-q" for="cbc-tee">
                 <input id="cbc-tee" type="checkbox">
                 <span class="grow">Add the classic gray shirt?
                   <b><s id="cbc-tee-was">$25.00</s> <span class="cbc-tee-now" id="cbc-tee-now">$12.50</span></b> + tax</span>
               </label>
-              <p class="cbc-tee-note">Half price today because you're enrolling. Regular price at the front desk.</p>
+              <p class="cbc-tee-note">Logo on the left chest, bear patch on the back. Half price today because you're enrolling, regular price at the front desk.</p>
               <select id="cbc-tee-size" aria-label="Shirt size" hidden></select>
             </div>
           </div>
@@ -532,6 +544,16 @@
   var signerTouched = false;
   $("cbc-uniform").addEventListener("change", renderPrice);
   $("cbc-tee").addEventListener("change", renderPrice);
+  // Front and back of the same shirt: the logo is on the left chest, the
+  // bear patch fills the back.
+  var teeShowingBack = false;
+  $("cbc-tee-flip").addEventListener("click", function () {
+    teeShowingBack = !teeShowingBack;
+    $("cbc-tee-front").hidden = teeShowingBack;
+    $("cbc-tee-back").hidden = !teeShowingBack;
+    $("cbc-tee-fliplbl").textContent = teeShowingBack ? "Tap to see the front" : "Tap to see the back";
+    $("cbc-tee-flip").setAttribute("aria-label", teeShowingBack ? "Show the front of the shirt" : "Show the back of the shirt");
+  });
   $("lkc-signer").addEventListener("input", function () { signerTouched = true; });
   ["lkc-pfirst", "lkc-plast"].forEach(function (id) {
     $(id).addEventListener("input", function () {
