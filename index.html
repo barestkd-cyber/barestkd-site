@@ -115,13 +115,16 @@
   </div>
 </header>
 <main id="main-content">
-<section class="hero">
-  <!-- Photo hero: the sparring highlight reel was pulled deliberately (it read as
-       intimidating to parents of young kids). assets/video/hero-reel.mp4 is kept
-       if we ever want it back. -->
-  <img class="hero__media" src="/assets/img/hero.jpg"
+<section class="hero hero--reel">
+  <!-- The old SPARRING reel (assets/video/hero-reel.mp4) was pulled for reading
+       as intimidating to parents of young kids. This is the Juniors CLASS reel:
+       kids training, not fighting. The poster paints first and covers
+       reduced-motion, data-saver, and anything that cannot play video. -->
+  <img class="hero__media hero__poster" src="/assets/img/hero.jpg"
        alt="A young student in uniform high-fiving an instructor at Bares Taekwondo Fitness"
        fetchpriority="high" decoding="async" width="1600" height="2400">
+  <video class="hero__media hero__video" muted loop playsinline preload="auto"
+         aria-hidden="true" data-hero-video data-src="/assets/video/juniors-reel.mp4"></video>
   <div class="hero__scrim"></div>
   <div class="container hero__inner">
     <h1>Martial Arts for Every Age in Tyler,&nbsp;TX</h1>
