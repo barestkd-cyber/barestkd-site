@@ -388,6 +388,19 @@ p { margin: 0 0 1rem; max-width: 66ch; }
      on very wide/short screens beats a white gap beside the hero). */
   .hero--reel { min-height: 0; height: min(56.25vw, 86vh); }
 }
+/* Uncropped reel hero: show the WHOLE 16:9 frame on phones too, with the
+   headline sitting under the video instead of over it. On mobile a tall
+   hero cover-crops a landscape reel down to about a third of its width,
+   which is what this avoids. Desktop is unchanged. */
+@media (max-width: 899px) {
+  .hero--reel-full { min-height: 0; height: auto; display: block; }
+  /* reserve the 16:9 band the absolutely-positioned layers fill */
+  .hero--reel-full::before { content: ""; display: block; padding-top: 56.25%; }
+  .hero--reel-full .hero__media { height: 56.25vw; bottom: auto; }
+  /* no scrim needed: the text sits on the hero's own dark background */
+  .hero--reel-full .hero__scrim { display: none; }
+  .hero--reel-full .hero__inner { padding-block: 1.15rem 1.5rem; }
+}
 .hero__media {
   position: absolute; inset: 0;
   width: 100%; height: 100%;

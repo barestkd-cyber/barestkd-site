@@ -49,9 +49,9 @@ function corsHeaders(origin: string | null) {
 
 const str = (v: unknown) => (v == null ? "" : String(v)).trim();
 
-/** Age from yyyy-mm-dd, or null when it is not a usable date.
- *  Deliberately not `new Date(ymd)`: a bare date string parses as UTC and
- *  reads a day early in US Central, which is enough to flip an 18th birthday. */
+/** Age from yyyy-mm-dd, or null when it is not a usable date. Deliberately
+ *  not new Date(ymd): a bare date string parses as UTC and reads a day early
+ *  in US Central, which is enough to flip an 18th birthday. */
 function ageFromDob(ymd: unknown): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str(ymd));
   if (!m) return null;
@@ -61,15 +61,6 @@ function ageFromDob(ymd: unknown): number | null {
   const mo = (now.getMonth() + 1) - bm;
   if (mo < 0 || (mo === 0 && now.getDate() < bd)) age--;
   return (age >= 0 && age < 120) ? age : null;
-}
-
-/** Whether this student needs a parent named. AGE decides it, not which
- *  program they picked. The programs carry a `kids` flag for marketing copy,
- *  but Kickboxing and Jiu Jitsu are "Ages 13+" — routing by that flag sent
- *  every 13-to-17-year-old down the adult path with no guardian recorded. */
-function isMinor(dob: unknown): boolean {
-  const age = ageFromDob(dob);
-  return age !== null && age < 18;
 }
 
 const escHtml = (v: unknown) =>
@@ -359,15 +350,15 @@ Deno.serve(async (req) => {
       // Contact channel: parent for kids, the person themselves for 18+.
       // Adults may add an optional guardian; when present it fills booked_by
       // and (via email) a student_guardians row, same as the kids path.
-      // AGE decides who the contact channel is, with the program's `kids` flag
-      // only as a fallback when no usable date of birth came through. Before
-      // this, a 13-year-old booking Kickboxing ("Ages 13+", kids:false) was
-      // treated as an adult: no parent asked for, and the waiver signed in the
-      // child's own name.
-      const studentAge = ageFromDob(body.student_dob);
-      const needsGuardian = studentAge !== null ? studentAge < 18 : isKids;
-
       let contactEmail = "", contactPhone = "", parentEmail = "", bookedBy = "", guardianPhone = "";
+      // AGE decides who the contact channel is, with the program's kids flag
+      // only as a fallback when no usable date of birth came through. Before
+      // this, a 13-year-old booking Kickboxing (Ages 13+, kids:false) was
+      // treated as an adult: no parent asked for, and the waiver signed in
+      // the child's own name.
+      const studentAgeTrial = ageFromDob(body.student_dob);
+      const needsGuardian = studentAgeTrial !== null ? studentAgeTrial < 18 : isKids;
+
       if (needsGuardian) {
         contactPhone = str(body.parent_phone);
         contactEmail = str(body.parent_email);
@@ -447,9 +438,8 @@ Deno.serve(async (req) => {
 
       // Record the parent/guardian email as a guardian row (kids always; adults
       // only when they supplied an optional guardian email).
-      // `bookedBy` is the guardian's name on the kids path, so store it: a
-      // guardian row of email-only shows on a profile as a bare address, and
-      // the membership agreement had to borrow the name off the buyer instead.
+      // bookedBy is the guardian's name on the kids path, so store it: a
+      // guardian row of email-only shows on a profile as a bare address.
       if (parentEmail || (needsGuardian && bookedBy)) {
         await admin.from("student_guardians").insert({
           student_id: contact.id,
@@ -535,23 +525,21 @@ Deno.serve(async (req) => {
       if (!name || !phone || !email || !message) {
         return json({ error: "Missing required fields" }, 400, cors);
       }
-      // `name` is the STUDENT — the form asks for it that way now. It used to
-      // ask only for "Name", so a parent enquiring for their child was created
-      // as the lead; when the child later enrolled as their own contact, the
-      // parent's lead never closed and the funnel filled with duplicates.
+      // `name` is the STUDENT. The form used to ask only for "Name", so a
+      // parent enquiring for their child was created as the lead; when the
+      // child later enrolled as their own contact, the parent's lead never
+      // closed and the funnel filled with duplicates.
       //
-      // The enquiry form sends AGE, not a birthdate — first contact does not
-      // need a full DOB (the trial form still takes one; its waiver requires
-      // it). A missing age is tolerated rather than rejected so that a stale
-      // cached copy of the old form, which sent neither, keeps working.
+      // The form sends AGE, not a birthdate: first contact does not need a
+      // full DOB. A missing age is tolerated rather than rejected so a stale
+      // cached copy of the old form keeps working.
       const ageNum = Number(body.student_age);
-      const studentAge = Number.isInteger(ageNum) && ageNum >= 2 && ageNum < 120 ? ageNum : null;
+      const enquiryAge = Number.isInteger(ageNum) && ageNum >= 2 && ageNum < 120 ? ageNum : null;
       const guardianName = str(body.guardian_name);
-      const minor = studentAge !== null ? studentAge < 18 : isMinor(body.student_dob);
-      if (minor && !guardianName) {
+      const enquiryMinor = enquiryAge !== null && enquiryAge < 18;
+      if (enquiryMinor && !guardianName) {
         return json({ error: "A parent or guardian name is required for a student under 18" }, 400, cors);
       }
-
       const parts = name.split(" ");
       const { data: lead, error: cErr } = await admin.from("contacts").insert({
         first_name: parts[0] || name,
@@ -561,33 +549,25 @@ Deno.serve(async (req) => {
         program: null, // never store the marketing label on contacts; it lives only in the email
         source: "website-contact",
         entered_on: today,
-        // No dob: the enquiry form collects age only, and a synthetic
-        // birthdate manufactured from it could later be trusted onto a
-        // membership agreement. Age travels in the notification email; the
-        // real DOB arrives with the trial booking or at signing.
-        // For a minor, email and phone are the PARENT's details — they are
-        // the contact channel, exactly as the trial funnel treats them.
         email,
         phone,
       }).select("id").single();
       if (cErr) throw cErr;
 
-      // The guardian is a row against the student, never a second lead.
+      // For a minor the enquiry contact is the CHILD and the details are the
+      // guardian's, so record who that adult is.
       if (lead && guardianName) {
-        const { error: gErr } = await admin.from("student_guardians").insert({
-          student_id: lead.id,
-          email: minor ? email : null,   // a minor's contact email belongs to the parent
-          name: guardianName,
-          label: "parent",
+        const gErr = await admin.from("student_guardians").insert({
+          student_id: lead.id, email, name: guardianName, label: "parent",
         });
-        if (gErr) console.error("[trial-booking] guardian insert failed:", gErr); // lead still saved
+        if (gErr.error) console.error("[trial-booking] enquiry guardian row:", gErr.error);
       }
 
       subject = `New website contact: ${name}`;
       lines = [
         `Program interest: ${program || "(not specified)"}`,
-        `Student: ${name}${studentAge !== null ? ` (age ${studentAge}${minor ? ", under 18" : ""})` : " (age not given)"}`,
-        guardianName ? `Parent/guardian: ${guardianName}` : `Parent/guardian: (none given — adult student)`,
+        `Student: ${name}${enquiryAge !== null ? ` (age ${enquiryAge}${enquiryMinor ? ", under 18" : ""})` : " (age not given)"}`,
+        guardianName ? `Parent/guardian: ${guardianName}` : `Parent/guardian: (none given)`,
         `Phone: ${phone}`,
         `Email: ${email}`,
         "",
