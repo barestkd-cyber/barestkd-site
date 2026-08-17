@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cubs Enrollment | Bares Taekwondo Fitness | Tyler, TX</title>
+<meta name="description" content="Enroll in the Cubs program at Bares Taekwondo Fitness in Tyler, TX. Preschool martial arts for ages 3-4.">
+<link rel="canonical" href="https://www.barestkd.fit/cubs-checkout">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/assets/css/styles.css">
+<style>
+/* Page-local styles. One narrow column on every width - this is a form, not a
+   landing page, and a 1200px-wide input row is harder to fill in, not easier. */
+.lkc-col{max-width:640px;margin-inline:auto}
+.lkc-step{border:2px solid #111;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:22px}
+.lkc-step > h2{margin:0 0 4px;font-size:1.15rem}
+.lkc-step .step-sub{margin:0 0 14px;font-size:.9rem;color:#5b6570}
+
+/* Session dates */
+.lkc-when{font-weight:700;margin:0 0 10px}
+.lkc-dates{list-style:none;margin:0 0 4px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
+@media (max-width:420px){.lkc-dates{grid-template-columns:1fr}}
+.lkc-dates li{font-size:.95rem;padding:3px 0;border-bottom:1px solid #f0f0f0}
+.lkc-dates li span{display:inline-block;min-width:1.6em;color:#8a929b;font-variant-numeric:tabular-nums}
+
+/* Price lines */
+.lkc-line{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid #eee;font-size:.97rem}
+.lkc-line:last-child{border-bottom:none}
+.lkc-line .amt{font-variant-numeric:tabular-nums;white-space:nowrap}
+.lkc-total{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
+  margin-top:6px;padding:14px 16px;border-radius:12px;background:#111;color:#fff}
+.lkc-total .lbl{font-weight:700;letter-spacing:.02em}
+.lkc-total .amt{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}
+.lkc-total .sub{display:block;font-size:.78rem;font-weight:400;opacity:.75;letter-spacing:0}
+
+/* T-shirt add-on - its own row, NOT a .form-field (that is a column flex and
+   squashed this into a narrow stack on desktop). */
+.lkc-shirt{margin:14px 0 4px;padding:14px;border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc}
+.lkc-shirt-q{display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;font-size:.97rem;font-weight:600;margin:0}
+.lkc-shirt-q input[type=checkbox]{width:20px;height:20px;flex:0 0 auto;margin:0}
+.lkc-shirt-q .grow{flex:1 1 auto;min-width:0}
+.lkc-shirt select{margin-top:10px;width:100%;max-width:180px;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
+/* Shirt design picker - white shirt, choose the girl or boy artwork. */
+.lkc-pick{margin:14px 0 8px;font-weight:700;font-size:.95rem}
+.lkc-tees{display:flex;flex-direction:row;gap:12px;flex-wrap:wrap}
+.lkc-tee{flex:1 1 150px;min-width:140px;background:#fff;border:2px solid var(--line);border-radius:12px;
+  padding:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;font:inherit}
+.lkc-tee img{width:100%;height:auto;max-width:190px;display:block}
+.lkc-tee-name{font-weight:700;font-size:.9rem}
+.lkc-tee[aria-checked="true"]{border-color:var(--belt-red);box-shadow:0 0 0 3px rgba(227,30,36,.15)}
+.lkc-tee:focus-visible{outline:2px solid var(--belt-red);outline-offset:2px}
+/* The "grown-up must be on the mat" rule - a requirement, not a nicety. */
+.lkc-note{border-left:4px solid var(--belt-red);background:#FFF6F6;padding:12px 14px;border-radius:0 10px 10px 0;font-size:.95rem;line-height:1.6;margin-top:12px}
+
+/* Agreement + signature */
+.lkc-agree-box{border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc;max-height:320px;overflow-y:auto;padding:14px 16px;font-size:13.5px;line-height:1.55}
+.lkc-agree-box h4{margin:14px 0 4px;font-size:13.5px;letter-spacing:.02em}
+.lkc-agree-box .ttl{font-weight:700;text-align:center;font-size:15px;margin:2px 0 10px}
+.lkc-agree-box .ent{text-align:center;margin:0;font-size:12.5px;color:#444}
+.lkc-agree-box p{margin:6px 0}
+.lkc-sig-wrap{border:1.5px dashed #9aa4af;border-radius:10px;background:#fff;position:relative}
+.lkc-sig-wrap canvas{display:block;width:100%;height:150px;touch-action:none;border-radius:10px}
+.lkc-sig-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#b6bec7;font-size:14px;pointer-events:none}
+.lkc-sig-clear{margin-top:6px;background:none;border:none;color:#555;font-size:13px;text-decoration:underline;cursor:pointer;padding:4px}
+.lkc-check{display:flex;flex-direction:row;gap:10px;align-items:flex-start;font-size:14px;margin:14px 0}
+.lkc-check input{margin-top:3px;width:18px;height:18px;flex:0 0 auto}
+#lkc-pay{width:100%}
+#lkc-pay[disabled]{opacity:.55;cursor:not-allowed}
+.lkc-status{min-height:22px}
+
+/* Card field and the confirmation that replaces the form. */
+.lkc-cardbox{border:2px solid var(--line);border-radius:10px;padding:14px 13px;background:#fff;min-height:50px}
+.lkc-cardbox.StripeElement--focus{border-color:#111}
+.lkc-cardload{color:#5b6570;font-size:13.5px}
+.lkc-carderr{display:none;color:var(--belt-red);font-size:13.5px;margin-top:8px;font-weight:600}
+.lkc-testnote{margin-top:10px;font-size:12.5px;color:#5b6570;background:#F4F6F8;border-radius:8px;padding:9px 11px}
+.lkc-done{border-color:#18A974;background:#F6FFFA}
+.lkc-done h2{font-size:1.4rem;margin-bottom:8px}
+
+.lkc-receipt{margin-top:16px}
+.lkc-receipt:empty{display:none}
+.lkc-printrow{text-align:center;margin-top:12px}
+@media print{
+  .site-header,.site-footer,.lkc-printrow,.lkc-note,#lkc-done-cal,.belt-divider{display:none!important}
+  .lkc-done{border:none;background:#fff}
+  body{background:#fff}
+}
+
+.cbc-opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:2px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:9px;cursor:pointer;font:inherit}
+.cbc-opt[aria-checked="true"]{border-color:var(--belt-red);box-shadow:0 0 0 3px rgba(227,30,36,.12)}
+.cbc-opt .radio{width:18px;height:18px;border-radius:50%;border:2px solid #B9BEC9;flex:0 0 auto}
+.cbc-opt[aria-checked="true"] .radio{border-color:var(--belt-red);background:radial-gradient(circle at center,var(--belt-red) 0 45%,#fff 50%)}
+.cbc-opt .nm{font-weight:700;font-size:.98rem}
+.cbc-opt .tm{color:#5b6570;font-size:.85rem;margin-top:2px}
+.cbc-opt .due{margin-left:auto;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cbc-opt .due small{display:block;font-weight:400;color:#5b6570;font-size:.75rem}
+
+/* Footer: match the form column so it reads as centred with the page. */
+.lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href="/">
+      <img src="/assets/img/logo.png" alt="Bares Taekwondo Fitness" width="101" height="54">
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/preschool-martial-arts-tyler-tx">Cubs</a></li>
+        <li><a href="/schedule/events">Schedule/Events</a></li>
+        <li><a href="/contact-form">Contact</a></li>
+      </ul>
+    </nav>
+    <a class="call-link" href="tel:903-561-2966" aria-label="Call Bares Taekwondo Fitness at 903-561-2966">
+      <svg class="call-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24 11.36 11.36 0 0 0 3.57.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02l-2.2 2.2z"/></svg>
+      <span class="call-link__num">903-561-2966</span>
+    </a>
+  </div>
+</header>
+<main id="main-content">
+<section class="section fade-up">
+  <div class="container lkc-col">
+    <p class="eyebrow">Cubs · Ages 3-4</p>
+    <h1>Cubs Enrollment</h1>
+    <p class="lede">Preschool martial arts for ages 3 and 4: focus, listening, coordination, and confidence, in classes built for little attention spans.</p>
+    
+  </div>
+</section>
+<hr class="belt-divider" aria-hidden="true">
+<section class="section fade-up" aria-label="Enrollment">
+  <div class="container lkc-col">
+
+    <!-- Replaces the form once the card clears. No redirect: they stay put
+         and see the classes they just bought. -->
+    <div class="lkc-step lkc-done" id="lkc-done" hidden>
+      <h2 id="lkc-done-h">You're enrolled</h2>
+      <p id="lkc-done-p"></p>
+      <div id="cbc-done-plan" class="lkc-line" style="border:none;font-weight:600"></div>
+      <p class="step-sub">Class times are at <a href="/schedule/events">barestkd.fit/schedule</a>. See you on the mat!</p>
+      <p class="step-sub" style="margin-top:14px">We've emailed a copy of all of this to <b id="lkc-done-email"></b>,
+        so you can close this page whenever you like.<br>
+        Questions? Call <a href="tel:903-561-2966">903-561-2966</a>.</p>
+
+      <!-- The receipt itself, printable without leaving the page. Same card
+           the invoice page and the emailed link render, from receipt-view. -->
+      <div id="lkc-receipt" class="lkc-receipt"></div>
+      <p class="lkc-printrow" id="lkc-printrow" hidden>
+        <button type="button" class="btn btn--secondary" id="lkc-print">Print or save as PDF</button>
+      </p>
+    </div>
+
+    <form id="lkc-form" novalidate>
+
+      <!-- 1 ─ the membership: pick a payment option. Options and prices come
+           from the live catalog; the server re-derives everything, so the page
+           can never charge a number it invented. -->
+      <div class="lkc-step">
+        <h2>Your Membership</h2>
+        <p class="step-sub">Cubs is a 12-month membership. Pick how you want to pay.</p>
+        <div id="cbc-options" role="radiogroup" aria-label="Payment option">Loading options…</div>
+
+        <div id="lkc-prices" style="margin-top:14px">
+          <div class="lkc-line"><span id="cbc-l-today">Due today</span><span class="amt" id="lkc-p-session">-</span></div>
+          <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
+        </div>
+
+        <div class="lkc-total">
+          <span class="lbl">Total due today
+            <span class="sub" id="cbc-after"></span>
+          </span>
+          <span class="amt" id="lkc-p-total">-</span>
+        </div>
+      </div>
+
+      <!-- 2 ─ the student -->
+      <div class="lkc-step">
+        <h2>Your Little Kicker</h2>
+        <p class="step-sub">Who's training with you.</p>
+        <div class="form-field">
+          <label for="lkc-sfirst">Student's first name</label>
+          <input id="lkc-sfirst" type="text" autocomplete="off" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-slast">Student's last name</label>
+          <input id="lkc-slast" type="text" autocomplete="off" required>
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label for="lkc-dob">Student's date of birth</label>
+          <input id="lkc-dob" type="date" required>
+        </div>
+      </div>
+
+      <!-- 3 ─ the grown-up -->
+      <div class="lkc-step">
+        <h2>Parent / Guardian</h2>
+        <p class="step-sub">You're on the mat too, and the receipt comes to you.</p>
+        <div class="form-field">
+          <label for="lkc-pfirst">Your first name</label>
+          <input id="lkc-pfirst" type="text" autocomplete="given-name" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-plast">Your last name</label>
+          <input id="lkc-plast" type="text" autocomplete="family-name" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-email">Email</label>
+          <input id="lkc-email" type="email" autocomplete="email" required>
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label for="lkc-phone">Phone</label>
+          <input id="lkc-phone" type="tel" autocomplete="tel" required>
+        </div>
+      </div>
+
+      <!-- 4 ─ the agreement -->
+      <div class="lkc-step">
+        <h2>Enrollment Agreement</h2>
+        <p class="step-sub">The real agreement for this session. Please read it. Your details fill in as you type.</p>
+        <div class="lkc-agree-box" id="lkc-agree-doc" tabindex="0">Loading the agreement…</div>
+
+        <div class="form-field" style="margin-top:14px">
+          <label for="cbc-initials">Your initials (go beside the option you picked)</label>
+          <input id="cbc-initials" type="text" maxlength="6" style="max-width:120px;text-transform:uppercase" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-signer">Signature name (parent / guardian)</label>
+          <input id="lkc-signer" type="text" autocomplete="name" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-rel">Relationship to student</label>
+          <input id="lkc-rel" type="text" value="Parent" required>
+        </div>
+        <div class="form-field">
+          <label>Sign here</label>
+          <div class="lkc-sig-wrap">
+            <canvas id="lkc-pad" height="150"></canvas>
+            <div class="lkc-sig-hint" id="lkc-sig-hint">Sign with your finger or mouse</div>
+          </div>
+          <button type="button" class="lkc-sig-clear" id="lkc-sig-clear">Clear signature</button>
+        </div>
+        <label class="lkc-check">
+          <input id="lkc-agree" type="checkbox">
+          <span>I have read and agree to the Little Kickers Membership Agreement above, including the waiver. I understand the session is paid in full today and is non-refundable except as the agreement provides.</span>
+        </label>
+      </div>
+
+      <!-- 5 - payment, right here. No hop to an invoice page to press Pay
+           again; the card never touches this site, only Stripe's iframe. -->
+      <div class="lkc-step">
+        <h2>Payment</h2>
+        <p class="step-sub">Card details go straight to Stripe. We never see or store the number.</p>
+        <div id="lkc-cardbox" class="lkc-cardbox"><div class="lkc-cardload">Loading secure card field…</div></div>
+        <div id="lkc-carderr" class="lkc-carderr"></div>
+        <div id="lkc-testnote"></div>
+      </div>
+
+      <div class="hp-field" aria-hidden="true">
+        <label for="lkc-hp">Leave this field empty</label>
+        <input id="lkc-hp" type="text" tabindex="-1" autocomplete="off">
+      </div>
+
+      <button class="btn btn--primary btn--lg" type="submit" id="lkc-pay">Pay and Enroll</button>
+      <p class="form-consent">Payment is handled on a secure Stripe checkout page. By providing your number you consent to receive notification messages from Bares Taekwondo Fitness; reply STOP to opt out.</p>
+      <p class="form-privacy"><a href="/privacy-policy">Privacy Policy</a></p>
+      <p class="form-status lkc-status" id="lkc-status" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="lkc-foot">
+      <strong>Bares Taekwondo Fitness</strong><br>
+      1901 Deerbrook Dr, Tyler, TX 75703<br>
+      <a href="tel:903-561-2966">903-561-2966</a> · <a href="mailto:race@barestkd.fit">race@barestkd.fit</a>
+    </div>
+  </div>
+</footer>
+
+<!-- The agreement text comes from the CRM's generated templates - the same
+     file the front desk signs from, so the web can never drift from it. -->
+<script src="https://crm.barestkd.fit/agreements.js" defer></script>
+<script src="/assets/js/main.js" defer></script>
+<script>
+(function () {
+  "use strict";
+  var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/cubs-checkout";
+  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
+
+  var CFG = null, CHOSEN = null, SALE_ID = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var money = function (c) { return "$" + (c / 100).toFixed(2); };
+  var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+  if (window.crypto && crypto.randomUUID) SALE_ID = crypto.randomUUID();
+
+  function fmtMDY(ymd) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || "")); return m ? (m[2] + "-" + m[3] + "-" + m[1]) : ""; }
+
+  fetch(FN, { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (cfg) {
+      CFG = cfg;
+      renderOptions();
+      renderPrice(); renderDoc();
+    })
+    .catch(function () {
+      $("cbc-options").textContent = "Enrollment isn't loading right now. Call 903-561-2966.";
+      $("lkc-pay").disabled = true;
+    });
+
+  function optTerms(o) {
+    if (o.billing_frequency === "one_time") return "One payment, 12-month membership";
+    if (o.billing_frequency === "weekly") return money(o.recurring_cents) + " per week after today";
+    return money(o.recurring_cents) + " per month after today";
+  }
+  function renderOptions() {
+    var hh = "";
+    CFG.options.forEach(function (o) {
+      hh += '<button type="button" class="cbc-opt" role="radio" aria-checked="false" data-code="' + esc(o.code) + '">'
+        + '<span class="radio"></span>'
+        + '<span><span class="nm">' + esc(o.name) + '</span>'
+        + '<span class="tm" style="display:block">' + esc(optTerms(o)) + '</span></span>'
+        + '<span class="due">' + money(o.due_today_cents) + '<small>due today</small></span>'
+        + '</button>';
+    });
+    $("cbc-options").innerHTML = hh;
+    Array.prototype.forEach.call(document.querySelectorAll(".cbc-opt"), function (b) {
+      b.addEventListener("click", function () {
+        CHOSEN = null;
+        for (var i = 0; i < CFG.options.length; i++) if (CFG.options[i].code === b.getAttribute("data-code")) CHOSEN = CFG.options[i];
+        Array.prototype.forEach.call(document.querySelectorAll(".cbc-opt"), function (x) {
+          x.setAttribute("aria-checked", String(x === b));
+        });
+        renderPrice(); renderDoc();
+      });
+    });
+  }
+
+  /* Same arithmetic the server runs; the server's answer reaches the ledger,
+     this one just keeps the page honest. */
+  function priceParts() {
+    if (!CHOSEN) return null;
+    var due = CHOSEN.due_today_cents;
+    var fee = due > 0 ? Math.round(due * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents : 0;
+    return { due: due, fee: fee, total: due + fee };
+  }
+  function renderPrice() {
+    var pp = priceParts();
+    if (!pp) {
+      $("cbc-l-today").textContent = "Pick an option above";
+      $("lkc-p-session").textContent = "-"; $("lkc-p-fee").textContent = "-"; $("lkc-p-total").textContent = "-";
+      $("cbc-after").textContent = "";
+      return;
+    }
+    $("cbc-l-today").textContent = CHOSEN.billing_frequency === "one_time"
+      ? "Paid in full"
+      : "Down payment + first " + (CHOSEN.billing_frequency === "weekly" ? "week" : "month");
+    $("lkc-p-session").textContent = money(pp.due);
+    $("lkc-p-fee").textContent = money(pp.fee);
+    $("lkc-p-total").textContent = money(pp.total);
+    $("cbc-after").textContent = CHOSEN.billing_frequency === "one_time"
+      ? "Nothing more to pay"
+      : "Then " + money(CHOSEN.recurring_cents) + " " + (CHOSEN.billing_frequency === "weekly" ? "weekly" : "monthly");
+  }
+
+  // The agreement, rendered live from the CRM's template so the page and the
+  // frozen server copy can never say different things.
+  function renderDoc() {
+    var box = $("lkc-agree-doc");
+    var A = window.BTKDAgreements;
+    if (!CFG) return;
+    if (!A) { box.textContent = "The agreement could not load. Refresh the page, or call us."; return; }
+    var tpl = null;
+    for (var i = 0; i < A.TEMPLATES.length; i++) if (A.TEMPLATES[i].key === "cubs") tpl = A.TEMPLATES[i];
+    if (!tpl) { box.textContent = "The agreement could not load. Call us at 903-561-2966."; return; }
+
+    var student = (($("lkc-sfirst").value || "") + " " + ($("lkc-slast").value || "")).trim() || "____________________";
+    var guardian = (($("lkc-pfirst").value || "") + " " + ($("lkc-plast").value || "")).trim() || "____________________";
+    var dob = fmtMDY($("lkc-dob").value) || "____________";
+    var today = fmtMDY(new Date().toLocaleDateString("en-CA"));
+    var initials = ($("cbc-initials").value || "").toUpperCase().trim() || "____";
+
+    var hh = '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
+      + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
+      + '<p>Participant (Student) Name: <b>' + esc(student) + '</b><br>'
+      + 'Date of Birth: <b>' + esc(dob) + '</b><br>'
+      + 'Parent / Guardian: <b>' + esc(guardian) + '</b><br>'
+      + "Today's Date: <b>" + esc(today) + '</b><br>'
+      + 'Membership Start Date: <b>' + esc(today) + '</b></p>'
+      + '<h4>FEES</h4>';
+    CFG.options.forEach(function (o) {
+      var line;
+      if (o.billing_frequency === "one_time") {
+        line = esc(o.name) + " is a single payment of <b>" + money(o.pif_cents) + "</b> for the full twelve (12) month term.";
+      } else {
+        line = esc(o.name) + " is a down payment of <b>" + money(o.down_cents) + "</b> and a "
+          + (o.billing_frequency === "weekly" ? "weekly" : "monthly") + " payment of <b>" + money(o.recurring_cents) + "</b>.";
+      }
+      var sel = CHOSEN && CHOSEN.code === o.code;
+      hh += '<p' + (sel ? ' style="background:#FFF6D9;border-radius:6px;padding:4px 6px"' : '') + '>' + line + (sel ? ' <b>&larr; selected</b>' : '') + '</p>';
+    });
+    var payDate = "";
+    if (CHOSEN) {
+      if (CHOSEN.billing_frequency === "monthly") {
+        var d = new Date(); var n = d.getDate();
+        var suf = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th";
+        payDate = "the " + n + suf + " of each month";
+      } else if (CHOSEN.billing_frequency === "weekly") {
+        payDate = "each " + ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
+      } else payDate = "none (paid in full)";
+    }
+    hh += '<p>Selected option: <b>' + (CHOSEN ? esc(CHOSEN.name) : "____________") + '</b>'
+      + '&nbsp;&nbsp;Initials: <b>' + esc(initials) + '</b>'
+      + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
+    for (var f = 0; f < tpl.feesTail.length; f++) hh += '<p>' + esc(tpl.feesTail[f]) + '</p>';
+    for (var s = 0; s < tpl.sections.length; s++) {
+      hh += '<h4>' + esc(tpl.sections[s].h) + '</h4>';
+      for (var q = 0; q < tpl.sections[s].p.length; q++) hh += '<p>' + esc(tpl.sections[s].p[q]) + '</p>';
+    }
+    hh += '<p><i>' + esc(tpl.signNote) + '</i></p>';
+    box.innerHTML = hh;
+  }
+  ["lkc-sfirst", "lkc-slast", "lkc-dob", "lkc-pfirst", "lkc-plast", "cbc-initials"].forEach(function (id) {
+    document.addEventListener("input", function (e) { if (e.target && e.target.id === id) renderDoc(); });
+  });
+  var signerTouched = false;
+  $("lkc-signer").addEventListener("input", function () { signerTouched = true; });
+  ["lkc-pfirst", "lkc-plast"].forEach(function (id) {
+    $(id).addEventListener("input", function () {
+      if (!signerTouched) $("lkc-signer").value = (($("lkc-pfirst").value || "") + " " + ($("lkc-plast").value || "")).trim();
+    });
+  });
+
+  // signature pad
+  var pad = $("lkc-pad"), ctx = null, drawing = false, dirty = false;
+  function padSetup() {
+    var r = pad.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    pad.width = Math.round(r.width * dpr); pad.height = 150 * dpr;
+    ctx = pad.getContext("2d"); ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.strokeStyle = "#111";
+  }
+  setTimeout(padSetup, 200); window.addEventListener("resize", function () { if (!dirty) padSetup(); });
+  function pt(e) { var r = pad.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  pad.addEventListener("pointerdown", function (e) {
+    e.preventDefault(); pad.setPointerCapture(e.pointerId);
+    drawing = true; dirty = true; $("lkc-sig-hint").style.display = "none";
+    var q = pt(e); ctx.beginPath(); ctx.moveTo(q[0], q[1]);
+  });
+  pad.addEventListener("pointermove", function (e) {
+    if (!drawing) return; var q = pt(e); ctx.lineTo(q[0], q[1]); ctx.stroke();
+  });
+  ["pointerup", "pointercancel"].forEach(function (ev) { pad.addEventListener(ev, function () { drawing = false; }); });
+  $("lkc-sig-clear").addEventListener("click", function () {
+    dirty = false; padSetup(); $("lkc-sig-hint").style.display = "flex";
+  });
+
+  // Stripe card field
+  var STRIPE = null, CARD = null;
+  function cardErr(msg) {
+    var el = $("lkc-carderr"); if (!el) return;
+    el.textContent = msg || ""; el.style.display = msg ? "block" : "none";
+  }
+  function loadStripeJs() {
+    if (window.Stripe) return Promise.resolve(true);
+    return new Promise(function (res) {
+      var s = document.createElement("script");
+      s.src = "https://js.stripe.com/v3/";
+      s.onload = function () { res(true); }; s.onerror = function () { res(false); };
+      document.head.appendChild(s);
+    });
+  }
+  function mountCard() {
+    loadStripeJs().then(function (ok) {
+      var box = $("lkc-cardbox");
+      if (!ok || !CFG || !CFG.publishable_key) {
+        box.innerHTML = '<div class="lkc-cardload" style="color:var(--belt-red)">Card payments are not available right now. Call 903-561-2966 to finish enrollment.</div>';
+        return;
+      }
+      STRIPE = window.Stripe(CFG.publishable_key);
+      CARD = STRIPE.elements().create("card", {
+        hidePostalCode: false,
+        style: { base: { fontSize: "16px", color: "#15171C" } }
+      });
+      box.innerHTML = "";
+      CARD.mount(box);
+      CARD.on("change", function (e) { cardErr(e.error ? e.error.message : ""); });
+      if (!/^pk_live_/.test(CFG.publishable_key)) {
+        var n = document.createElement("div");
+        n.className = "lkc-testnote";
+        n.textContent = "Stripe is in TEST mode. Use 4242 4242 4242 4242. A real card will be declined.";
+        box.parentNode.insertBefore(n, box.nextSibling);
+      }
+    });
+  }
+  var cardMountWait = setInterval(function () { if (CFG) { clearInterval(cardMountWait); mountCard(); } }, 150);
+
+  // submit: create the enrollment, confirm the card, finalize
+  function status(state, msg) {
+    var el = $("lkc-status"); el.textContent = msg;
+    if (state) el.setAttribute("data-state", state); else el.removeAttribute("data-state");
+  }
+  function showDone(receiptUrl) {
+    $("lkc-form").hidden = true;
+    var st = $("lkc-sfirst").value.trim();
+    $("lkc-done").hidden = false;
+    $("lkc-done-h").textContent = st + " is enrolled in Cubs";
+    $("lkc-done-p").textContent = "Welcome to the mat. Here's the plan you picked:";
+    $("cbc-done-plan").textContent = CHOSEN ? (CHOSEN.name + " · " + (CHOSEN.billing_frequency === "one_time"
+      ? money(CHOSEN.pif_cents) + " paid in full"
+      : money(CHOSEN.due_today_cents) + " today, then " + money(CHOSEN.recurring_cents)
+        + (CHOSEN.billing_frequency === "weekly" ? " weekly" : " monthly"))) : "";
+    $("lkc-done-email").textContent = $("lkc-email").value.trim();
+    var tok = (receiptUrl || "").split("t=")[1];
+    if (tok) {
+      fetch("https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/receipt-view?t=" + encodeURIComponent(tok) + "&f=frag", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.text() : null; })
+        .then(function (frag) {
+          if (!frag) return;
+          $("lkc-receipt").innerHTML = frag;
+          $("lkc-printrow").hidden = false;
+        }).catch(function () {});
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  $("lkc-print").addEventListener("click", function () { window.print(); });
+
+  $("lkc-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if ($("lkc-hp").value.trim() !== "") return;
+    if (!CFG) { status("error", "Enrollment isn't loading. Call 903-561-2966."); return; }
+    if (!SALE_ID) { status("error", "Your browser is too old for this page. Please call us."); return; }
+    if (!CHOSEN) { status("error", "Pick a payment option first."); return; }
+    var need = [["lkc-sfirst", "the student's first name"], ["lkc-slast", "the student's last name"],
+      ["lkc-dob", "the student's date of birth"], ["lkc-pfirst", "your first name"],
+      ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"],
+      ["cbc-initials", "your initials"], ["lkc-signer", "the signature name"], ["lkc-rel", "your relationship to the student"]];
+    for (var i = 0; i < need.length; i++) {
+      if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
+    }
+    if (!$("lkc-agree").checked) { status("error", "Please read the agreement and tick the box."); return; }
+    if (!dirty) { status("error", "Please sign in the signature box."); return; }
+    if (!CARD) { status("error", "The card field did not load. Refresh and try again."); return; }
+
+    var btn = $("lkc-pay"); btn.disabled = true; status("", "Setting up the enrollment…");
+    fetch(FN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY },
+      body: JSON.stringify({
+        sale_id: SALE_ID,
+        plan_code: CHOSEN.code,
+        student_first: $("lkc-sfirst").value.trim(), student_last: $("lkc-slast").value.trim(),
+        student_dob: $("lkc-dob").value,
+        parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
+        email: $("lkc-email").value.trim(), phone: $("lkc-phone").value.trim(),
+        initials: $("cbc-initials").value.trim().toUpperCase(),
+        signer_name: $("lkc-signer").value.trim(), signer_relationship: $("lkc-rel").value.trim(),
+        signature_png: pad.toDataURL("image/png"),
+        agreed: $("lkc-agree").checked === true,
+        hp: $("lkc-hp").value
+      })
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.j && res.j.error || "failed");
+        if (res.j.paid && res.j.receipt_url) { showDone(res.j.receipt_url); return null; }
+        if (!res.j.client_secret) {
+          if (res.j.receipt_url) { showDone(res.j.receipt_url); return null; }
+          throw new Error("failed");
+        }
+        status("", "Charging " + money(res.j.total_cents) + "…");
+        return STRIPE.confirmCardPayment(res.j.client_secret, { payment_method: { card: CARD } })
+          .then(function (out) {
+            if (out.error) throw new Error(out.error.message || "The card was declined.");
+            if (!out.paymentIntent || out.paymentIntent.status !== "succeeded") throw new Error("The payment did not complete.");
+            status("", "Finishing up…");
+            return fetch(FN, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY },
+              body: JSON.stringify({ action: "finalize", sale_id: SALE_ID, payment_intent_id: out.paymentIntent.id })
+            }).then(function (r) { return r.json(); });
+          })
+          .then(function (fin) {
+            if (!fin) return;
+            if (!fin.ok) throw new Error(fin.error || "The card was charged but recording it failed. Call us before paying again.");
+            status("success", "Payment received.");
+            showDone(fin.receipt_url);
+          });
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        var msg = (err && err.message && err.message !== "failed")
+          ? err.message
+          : "Something went wrong. Nothing was charged. Try again or call 903-561-2966.";
+        cardErr(""); status("error", msg);
+      });
+  });
+})();
+
+</script>
+</body>
+</html>

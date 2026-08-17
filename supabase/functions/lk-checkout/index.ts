@@ -557,12 +557,25 @@ Deno.serve(async (req) => {
       // is not lost, and they can be taken payment another way.
       return json({ ok: true, receipt_url: `${SITE}/invoice/?t=${token}`, total_cents: totals.totalCents }, 200, cors);
     }
+    // Card on file, same as every other rail (owner's locked model): attach
+    // a customer so this card can be charged again later by staff.
+    const cf = new URLSearchParams();
+    cf.set("name", guardianName);
+    cf.set("email", email);
+    if (phone) cf.set("phone", phone);
+    cf.set("metadata[contact_id]", studentId);
+    const cust = await stripe("customers", secretKey, cf);
+    await admin.from("contacts").update({ stripe_customer_id: cust.id }).eq("id", studentId);
+    await admin.from("pos_sales").update({ stripe_customer_id: cust.id }).eq("id", saleId);
+
     const f = new URLSearchParams();
     f.set("amount", String(totals.totalCents));
     f.set("currency", "usd");
     f.set("payment_method_types[]", "card");
     f.set("description", "Little Kickers - " + studentFirst + " " + studentLast);
     f.set("receipt_email", email);
+    f.set("customer", cust.id);
+    f.set("setup_future_usage", "off_session");
     f.set("metadata[sale_id]", saleId);
     f.set("metadata[source]", "lk-checkout");
     const pi = await stripe("payment_intents", secretKey, f);
