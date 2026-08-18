@@ -124,6 +124,12 @@ function googleCalUrl(opts: {
 
 const PLAN_CODE = "little_kickers_session";
 const TSHIRT_NAME = "Little Kickers T-Shirt";
+// The site-wide classic tee rides along at half price: the same enrollment-only
+// offer (and the same numbers) as cubs-checkout. The discount is computed HERE
+// and never sent by the browser.
+const GRAY_TEE_NAME = "Classic gray tee";
+const TEE_DISCOUNT_BPS = 5000;                // 50% off, enrollment only
+const TEE_SIZES = ["Youth XS", "Youth S", "Youth M", "Youth L", "Adult S", "Adult M", "Adult L", "Adult XL", "Adult 2XL"];
 const TAX_RATE = 0.0825;          // matches the POS (posBlank taxRate)
 const SITE = "https://www.barestkd.fit";
 
@@ -285,8 +291,10 @@ Deno.serve(async (req) => {
   const plan = planRes.data;
   const shirtRes = await admin.from("products")
     .select("id,name,price_cents,taxable,active")
-    .eq("name", TSHIRT_NAME).maybeSingle();
-  const shirt = shirtRes.data && shirtRes.data.active !== false ? shirtRes.data : null;
+    .in("name", [TSHIRT_NAME, GRAY_TEE_NAME]).eq("active", true);
+  const prodRows = shirtRes.data ?? [];
+  const shirt = prodRows.find((r: { name: string }) => r.name === TSHIRT_NAME) ?? null;
+  const grayTee = prodRows.find((r: { name: string }) => r.name === GRAY_TEE_NAME) ?? null;
   const setRes = await admin.from("pricing_settings").select("key,value_cents")
     .in("key", ["admin_fee_bps", "admin_fee_flat_cents"]);
   const settings: Record<string, number> = {};
@@ -295,6 +303,8 @@ Deno.serve(async (req) => {
   const feeFlat = settings.admin_fee_flat_cents ?? 30;
   const sessionCents = Number(plan.pif_cents) || 0;
   const shirtCents = shirt ? Number(shirt.price_cents) || 0 : 0;
+  const grayFullCents = grayTee ? Number(grayTee.price_cents) || 0 : 0;
+  const grayCents = Math.round(grayFullCents * (10000 - TEE_DISCOUNT_BPS) / 10000);
 
   let reqBody: Record<string, unknown> = {};
   try {
@@ -310,6 +320,10 @@ Deno.serve(async (req) => {
         price_cents: sessionCents,
         tshirt_cents: shirtCents,
         tshirt_available: !!shirt,
+        gray_tee_available: !!grayTee,
+        gray_tee_full_cents: grayFullCents,
+        gray_tee_cents: grayCents,
+        gray_tee_sizes: TEE_SIZES,
         admin_fee_bps: feeBps,
         admin_fee_flat_cents: feeFlat,
         tax_rate: TAX_RATE,
@@ -389,6 +403,7 @@ Deno.serve(async (req) => {
         .filter((r) => r.name && r.phone);
     const extraPeople = [...people(body.emergency, "emergency"), ...people(body.pickup, "pickup")];
     const wantShirt = body.tshirt === true, shirtSize = str(body.tshirt_size);
+    const wantGray = body.gray_tee === true, graySize = str(body.gray_tee_size);
     // White shirt; the artwork is the choice. Constrained to the two designs
     // that exist so the packing slip can't say something unprintable.
     const shirtDesign = str(body.tshirt_design);
@@ -407,6 +422,8 @@ Deno.serve(async (req) => {
     if (wantShirt && !shirt) return json({ error: "The t-shirt isn't available right now. Uncheck it." }, 400, cors);
     if (wantShirt && !shirtSize) return json({ error: "Pick a t-shirt size." }, 400, cors);
     if (wantShirt && !DESIGNS.includes(shirtDesign)) return json({ error: "Pick the girl or boy shirt design." }, 400, cors);
+    if (wantGray && !grayTee) return json({ error: "The gray tee isn't available right now. Uncheck it." }, 400, cors);
+    if (wantGray && !TEE_SIZES.includes(graySize)) return json({ error: "Pick a size for the gray tee." }, 400, cors);
     if (!signerName) return json({ error: "Type the parent/guardian name as the signature name." }, 400, cors);
     if (body.agreed !== true) return json({ error: "Please read and agree to the enrollment agreement." }, 400, cors);
     if (!signature.startsWith("data:image/png;base64,") || signature.length > 300_000) {
@@ -439,7 +456,8 @@ Deno.serve(async (req) => {
     const due = BTKDPricing.dueTodayCents(calc, null);         // one_time → the full session fee
     const lines = [{ cents: due, taxable: false }];
     if (wantShirt) lines.push({ cents: shirtCents, taxable: true });
-    const preTaxBase = due + (wantShirt ? shirtCents : 0);
+    if (wantGray) lines.push({ cents: grayCents, taxable: true });
+    const preTaxBase = due + (wantShirt ? shirtCents : 0) + (wantGray ? grayCents : 0);
     // Online checkout is card-only, and a card always carries the fee.
     const fee = adminFeeCents(preTaxBase, feeBps, feeFlat);
     const totals = BTKDPricing.invoiceTotals({ lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE });
@@ -512,9 +530,11 @@ Deno.serve(async (req) => {
         + "but it does have to be an adult your child knows. Little Kickers is not a drop-off class.\n\n"
         + "Wear comfortable clothes you can move in. No uniform needed, and the belt is included.\n"
         + (wantShirt ? "\nT-shirt: " + shirtDesign + " design, size " + shirtSize + ", white. We'll have it for you at the first class.\n" : "")
+        + (wantGray ? "\nClassic gray tee: size " + graySize + ". We'll have it for you at the first class.\n" : "")
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
       notes: "Little Kickers online enrollment, " + SESSION.blurb
-        + (wantShirt ? `, t-shirt: ${shirtDesign} design, size ${shirtSize} (white)` : ""),
+        + (wantShirt ? `, t-shirt: ${shirtDesign} design, size ${shirtSize} (white)` : "")
+        + (wantGray ? `, gray tee: size ${graySize} (half-price enrollment special)` : ""),
     }).select("view_token").single();
     if (saleIns.error) throw saleIns.error;
     const token = saleIns.data.view_token as string;
@@ -570,6 +590,16 @@ Deno.serve(async (req) => {
         sale_id: saleId, kind: "prod", label: shirt.name + " (" + shirtDesign + ", " + shirtSize + ", white)", qty: 1,
         unit_cents: shirtCents, discount_cents: 0, taxable: true, line_total_cents: shirtCents,
         student_contact_id: null, product_id: shirt.id, membership_row: null, membership_id: null,
+      });
+    }
+    if (wantGray && grayTee) {
+      // Recorded honestly, same as cubs-checkout: full price with the discount
+      // alongside it, so the ledger shows what was given away.
+      lineRows.push({
+        sale_id: saleId, kind: "prod", label: grayTee.name + " (" + graySize + ")", qty: 1,
+        unit_cents: grayFullCents, discount_cents: grayFullCents - grayCents, taxable: true,
+        line_total_cents: grayCents,
+        student_contact_id: null, product_id: grayTee.id, membership_row: null, membership_id: null,
       });
     }
     const lIns = await admin.from("pos_sale_lines").insert(lineRows);

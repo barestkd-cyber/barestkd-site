@@ -105,6 +105,29 @@ test('money: with the shirt — fee on the pre-tax base, tax on the shirt only',
   assert.strictEqual(noFee.taxCents, t.taxCents, 'adding the fee changed the tax');
 });
 
+test('money: gray tee rides at half price — tax on the discounted price', () => {
+  assert.ok(/GRAY_TEE_NAME = "Classic gray tee"/.test(fnSrc), 'gray tee const missing');
+  assert.ok(/TEE_DISCOUNT_BPS = 5000/.test(fnSrc), 'the 50% enrollment discount is missing');
+  const grayNow = Math.round(2500 * (10000 - 5000) / 10000);
+  assert.strictEqual(grayNow, 1250, 'half of $25 is $12.50');
+  const fee = adminFeeCents(10900 + 1250, 290, 30);
+  assert.strictEqual(fee, 382, 'fee: ' + fee); // round(12150*.029)=352 (+30)
+  const t = P.invoiceTotals({ lines: [{ cents: 10900, taxable: false }, { cents: 1250, taxable: true }], discountCents: 0, adminFeeCents: fee, taxRate: 0.0825 });
+  assert.strictEqual(t.taxCents, 103, 'tax: ' + t.taxCents); // 1250*.0825=103.125 → 103
+  assert.strictEqual(t.totalCents, 10900 + 1250 + 382 + 103, 'total: ' + t.totalCents);
+});
+
+test('money: both shirts — white full price, gray half, one tax rounding', () => {
+  const fee = adminFeeCents(10900 + 2500 + 1250, 290, 30);
+  assert.strictEqual(fee, 455, 'fee: ' + fee); // round(14650*.029)=425 (+30)
+  const t = P.invoiceTotals({
+    lines: [{ cents: 10900, taxable: false }, { cents: 2500, taxable: true }, { cents: 1250, taxable: true }],
+    discountCents: 0, adminFeeCents: fee, taxRate: 0.0825,
+  });
+  assert.strictEqual(t.taxCents, 309, 'tax: ' + t.taxCents); // 3750*.0825=309.375 → 309
+  assert.strictEqual(t.totalCents, 14650 + 455 + 309, 'total: ' + t.totalCents);
+});
+
 test('the frozen body_text is the whole executed document', () => {
   const txt = buildBodyText(vendored, {
     participant: 'Riley Test', dob: '05-04-2024', guardian: 'Pat Test',

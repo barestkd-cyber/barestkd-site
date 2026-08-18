@@ -180,6 +180,7 @@
         <div id="lkc-prices" style="margin-top:14px">
           <div class="lkc-line"><span>Little Kickers 6-week session</span><span class="amt" id="lkc-p-session">-</span></div>
           <div class="lkc-line" id="lkc-r-shirt" hidden><span>Little Kickers t-shirt</span><span class="amt" id="lkc-p-shirt">-</span></div>
+          <div class="lkc-line" id="lkc-r-gray" hidden><span>Classic gray tee</span><span class="amt" id="lkc-p-gray">-</span></div>
           <div class="lkc-line" id="lkc-r-tax" hidden><span>Sales tax</span><span class="amt" id="lkc-p-tax">-</span></div>
           <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
         </div>
@@ -206,6 +207,20 @@
               <option value="" disabled selected>Pick a size</option>
               <option>2T</option><option>3T</option><option>4T</option>
               <option>Youth XS</option><option>Youth S</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="lkc-shirt" id="lkc-gray-block" hidden>
+          <label class="lkc-shirt-q" for="lkc-gray">
+            <input id="lkc-gray" type="checkbox">
+            <span class="grow">Add a Classic gray tee? <s id="lkc-gray-was">$25</s> <b id="lkc-gray-price">$12.50</b> + tax. Half price with enrollment.</span>
+          </label>
+          <div id="lkc-gray-opts" hidden>
+            <select id="lkc-gray-size" aria-label="Gray tee size">
+              <option value="" disabled selected>Pick a size</option>
+              <option>Youth XS</option><option>Youth S</option><option>Youth M</option><option>Youth L</option>
+              <option>Adult S</option><option>Adult M</option><option>Adult L</option><option>Adult XL</option><option>Adult 2XL</option>
             </select>
           </div>
         </div>
@@ -380,6 +395,11 @@
         $("lkc-shirt-block").hidden = false;
         $("lkc-shirt-price").textContent = money(cfg.tshirt_cents);
       }
+      if (cfg.gray_tee_available) {
+        $("lkc-gray-block").hidden = false;
+        $("lkc-gray-was").textContent = money(cfg.gray_tee_full_cents);
+        $("lkc-gray-price").textContent = money(cfg.gray_tee_cents);
+      }
       renderPrice(); renderDoc();
     })
     .catch(function () {
@@ -413,21 +433,27 @@
      ledger, this one just keeps the page honest. */
   function priceParts() {
     var shirt = $("lkc-shirt").checked && CFG.tshirt_available;
-    var base = CFG.price_cents + (shirt ? CFG.tshirt_cents : 0);
+    var gray = $("lkc-gray").checked && CFG.gray_tee_available;
+    var taxable = (shirt ? CFG.tshirt_cents : 0) + (gray ? CFG.gray_tee_cents : 0);
+    var base = CFG.price_cents + taxable;
     var fee = base > 0 ? Math.round(base * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents : 0;
-    var tax = shirt ? Math.floor(CFG.tshirt_cents * CFG.tax_rate + 0.5) : 0;
-    return { shirt: shirt, fee: fee, tax: tax, total: base + fee + tax };
+    var tax = Math.floor(taxable * CFG.tax_rate + 0.5);
+    return { shirt: shirt, gray: gray, fee: fee, tax: tax, total: base + fee + tax };
   }
   function renderPrice() {
     if (!CFG) return;
     var p = priceParts();
     $("lkc-p-session").textContent = money(CFG.price_cents);
     $("lkc-r-shirt").hidden = !p.shirt;
-    $("lkc-r-tax").hidden = !p.shirt;
-    if (p.shirt) { $("lkc-p-shirt").textContent = money(CFG.tshirt_cents); $("lkc-p-tax").textContent = money(p.tax); }
+    $("lkc-r-gray").hidden = !p.gray;
+    $("lkc-r-tax").hidden = !(p.shirt || p.gray);
+    if (p.shirt) $("lkc-p-shirt").textContent = money(CFG.tshirt_cents);
+    if (p.gray) $("lkc-p-gray").textContent = money(CFG.gray_tee_cents);
+    if (p.shirt || p.gray) $("lkc-p-tax").textContent = money(p.tax);
     $("lkc-p-fee").textContent = money(p.fee);
     $("lkc-p-total").textContent = money(p.total);
     $("lkc-shirt-opts").hidden = !$("lkc-shirt").checked;
+    $("lkc-gray-opts").hidden = !$("lkc-gray").checked;
   }
 
   // Which artwork goes on the (white) shirt.
@@ -491,6 +517,7 @@
     });
   });
   $("lkc-shirt").addEventListener("change", renderPrice);
+  $("lkc-gray").addEventListener("change", renderPrice);
 
   // ── the card field ───────────────────────────────────────────────────────
   // Stripe.js is loaded on demand and the number is typed into Stripe's own
@@ -637,6 +664,7 @@ function showDone(receiptUrl) {
     }
     if ($("lkc-shirt").checked && !shirtDesign) { status("error", "Pick the girl or boy shirt design."); return; }
     if ($("lkc-shirt").checked && !$("lkc-size").value) { status("error", "Pick a t-shirt size."); $("lkc-size").focus(); return; }
+    if ($("lkc-gray").checked && !$("lkc-gray-size").value) { status("error", "Pick a size for the gray tee."); $("lkc-gray-size").focus(); return; }
     if (!$("lkc-agree").checked) { status("error", "Please read the agreement and tick the box."); return; }
     if (!dirty) { status("error", "Please sign in the signature box."); return; }
     if (!CARD) { status("error", "The card field has not loaded yet. Give it a moment or reload the page."); return; }
@@ -658,6 +686,7 @@ function showDone(receiptUrl) {
         pickup: collectPeople("lkc-pu-list"),
         tshirt: $("lkc-shirt").checked, tshirt_size: $("lkc-size").value || "",
         tshirt_design: shirtDesign,
+        gray_tee: $("lkc-gray").checked, gray_tee_size: $("lkc-gray-size").value || "",
         signer_name: $("lkc-signer").value.trim(), signer_relationship: $("lkc-rel").value.trim(),
         signature_png: pad.toDataURL("image/png"),
         agreed: $("lkc-agree").checked === true,
