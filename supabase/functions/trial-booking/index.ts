@@ -226,7 +226,7 @@ async function handleFullSchedule(cors: Record<string, string>) {
   try {
     const { data: rows, error } = await adminClient()
       .from("schedule_template")
-      .select("day, time_h, time_m, label, prog_css")
+      .select("day, time_h, time_m, label, prog_css, duration, starts_on, ends_on")
       .order("day", { ascending: true })
       .order("time_h", { ascending: true })
       .order("time_m", { ascending: true });
@@ -252,14 +252,25 @@ async function handleSchedule(cors: Record<string, string>, req: Request) {
     // for a free trial; the public schedule shows every class either way.
     const { data: rows, error } = await adminClient()
       .from("schedule_template")
-      .select("day, time_h, time_m, label, belt, prog_css, trial_open");
+      .select("day, time_h, time_m, label, belt, prog_css, trial_open, duration, starts_on, ends_on");
     if (error) throw error;
 
+    // A class that has not started yet cannot be booked for a trial, and one
+    // that has ended should stop being offered. The schedule source owns both
+    // dates so the website and the booker can never disagree.
+    const todayCT = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+    const running = (r: any) =>
+      (!r.starts_on || String(r.starts_on) <= todayCT) &&
+      (!r.ends_on || String(r.ends_on) >= todayCT);
     const list = (rows || []) as any[];
     const used = new Array(list.length).fill(false);
     const mk = function (r: any, i: number) {
       used[i] = true;
-      return { dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "", belt: r.belt || "", trialOpen: !!r.trial_open };
+      // startsOn lets the site print "Starts Sept 16" instead of implying the
+      // class already meets; notYet also makes it unbookable for a trial.
+      const notYet = !running(r);
+      return { dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "", belt: r.belt || "",
+               trialOpen: !!r.trial_open && !notYet, startsOn: r.starts_on || null, notYet: notYet };
     };
 
     const programs: any[] = MARKETING.map(function (mkt) {

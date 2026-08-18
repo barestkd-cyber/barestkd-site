@@ -72,7 +72,7 @@
       (p.classes || []).forEach(function (c) {
         var lab = c.label || p.program;
         var meta = CLASS_META[lab] || { name: lab, detail: "" };
-        out.push({ dow: c.dow, h: c.h, m: c.m, label: lab, name: meta.name, detail: meta.detail, belt: beltLabel(c.belt), program: p.program, trialOpen: c.trialOpen !== false });
+        out.push({ dow: c.dow, h: c.h, m: c.m, label: lab, name: meta.name, detail: meta.detail, belt: beltLabel(c.belt), program: p.program, trialOpen: c.trialOpen !== false, startsOn: c.startsOn || null });
       });
     });
     return out;
@@ -93,6 +93,14 @@
 
     var fb = mount.parentNode && mount.parentNode.querySelector(".schedule-fallback");
     if (fb) fb.hidden = true;
+  }
+
+  /* "2026-09-16" -> "Sept 16". Split the string rather than new Date(): a
+      bare date parses as UTC and reads a day early in Central. */
+  function startLabel(ymd) {
+    var M = ["Jan","Feb","Mar","Apr","May","June","July","Aug","Sept","Oct","Nov","Dec"];
+    var p = String(ymd).split("-");
+    return p.length === 3 ? M[+p[1] - 1] + " " + (+p[2]) : String(ymd);
   }
 
   function fmtTime(h, m) {
@@ -154,7 +162,11 @@
       if (group[0].detail) row.appendChild(el("p", "schedule-class-row__age", group[0].detail));
       var ul = document.createElement("ul");
       ul.className = "schedule-class-row__times";
-      times.forEach(function (c) { ul.appendChild(el("li", "", SHORT[c.dow] + " " + fmtTime(c.h, c.m) + (c.belt ? " · " + c.belt : ""))); });
+      times.forEach(function (c) {
+        var txt = SHORT[c.dow] + " " + fmtTime(c.h, c.m) + (c.belt ? " · " + c.belt : "");
+        if (c.startsOn) txt += " · starts " + startLabel(c.startsOn);
+        ul.appendChild(el("li", "", txt));
+      });
       row.appendChild(ul);
       wrap.appendChild(row);
     });
