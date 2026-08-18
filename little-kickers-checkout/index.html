@@ -90,6 +90,9 @@
   body{background:#fff}
 }
 
+.lkc-addr-row{display:grid;grid-template-columns:1fr 72px 96px;gap:10px}
+.lkc-addr-row .form-field{margin-bottom:1rem}
+
 /* Optional-people expanders */
 .lkc-addbtn{display:block;width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:10px;
   padding:11px 14px;margin-top:10px;font:inherit;font-weight:800;font-size:.92rem;cursor:pointer}
@@ -254,8 +257,16 @@
           <input id="lkc-phone" type="tel" autocomplete="tel" required>
         </div>
         <div class="form-field">
-          <label for="lkc-address">Home address</label>
-          <input id="lkc-address" type="text" autocomplete="street-address" placeholder="Street, city, zip" required>
+          <label for="lkc-street">Street address</label>
+          <input id="lkc-street" type="text" autocomplete="address-line1" required>
+        </div>
+        <div class="lkc-addr-row">
+          <div class="form-field"><label for="lkc-city">City</label>
+            <input id="lkc-city" type="text" autocomplete="address-level2" required></div>
+          <div class="form-field"><label for="lkc-state">State</label>
+            <input id="lkc-state" type="text" autocomplete="address-level1" value="TX" required></div>
+          <div class="form-field"><label for="lkc-zip">Zip</label>
+            <input id="lkc-zip" type="text" inputmode="numeric" autocomplete="postal-code" required></div>
         </div>
 
         <!-- Optional people. One guardian is required above; everything here
@@ -619,7 +630,7 @@ function showDone(receiptUrl) {
     if (!SALE_ID) { status("error", "Your browser is too old for this page. Please call us."); return; }
     var need = [["lkc-sfirst", "the student's first name"], ["lkc-slast", "the student's last name"],
       ["lkc-dob", "the student's date of birth"], ["lkc-pfirst", "your first name"],
-      ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"], ["lkc-address", "your home address"],
+      ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"], ["lkc-street", "your street address"], ["lkc-city", "your city"], ["lkc-zip", "your zip code"],
       ["lkc-signer", "the signature name"], ["lkc-rel", "your relationship to the student"]];
     for (var i = 0; i < need.length; i++) {
       if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
@@ -640,7 +651,8 @@ function showDone(receiptUrl) {
         student_dob: $("lkc-dob").value,
         parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
         email: $("lkc-email").value.trim(), phone: $("lkc-phone").value.trim(),
-        address: $("lkc-address").value.trim(),
+        address: [$("lkc-street").value.trim(), $("lkc-city").value.trim(),
+          ($("lkc-state").value.trim() + " " + $("lkc-zip").value.trim()).trim()].filter(Boolean).join(", "),
         guardian2: collectGuardian2(),
         emergency: collectPeople("lkc-em-list"),
         pickup: collectPeople("lkc-pu-list"),
