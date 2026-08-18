@@ -321,6 +321,7 @@ Deno.serve(async (req) => {
     const dob = str(body.student_dob);
     const parentFirst = str(body.parent_first), parentLast = str(body.parent_last);
     const email = str(body.email).toLowerCase(), phone = str(body.phone);
+    const address = str(body.address).slice(0, 300);
     const initials = str(body.initials).toUpperCase();
     const signerName = str(body.signer_name), signerRel = str(body.signer_relationship) || "Parent";
     const signature = str(body.signature_png);
@@ -331,6 +332,7 @@ Deno.serve(async (req) => {
     if (!parentFirst || !parentLast) return json({ error: "Enter the parent or guardian's name." }, 400, cors);
     if (!EMAIL_RE.test(email)) return json({ error: "Enter a valid email." }, 400, cors);
     if (!phone) return json({ error: "Enter a phone number." }, 400, cors);
+    if (!address) return json({ error: "Enter your home address." }, 400, cors);
     if (!/^[A-Z.]{2,6}$/.test(initials)) return json({ error: "Enter the signer's initials (2 to 4 letters)." }, 400, cors);
     if (!signerName) return json({ error: "Enter the signature name." }, 400, cors);
     if (body.agreed !== true) return json({ error: "The agreement box must be checked." }, 400, cors);
@@ -400,7 +402,7 @@ Deno.serve(async (req) => {
       first_name: studentFirst, last_name: studentLast,
       segment: "active", member_role: "student",
       source: "website-cubs-checkout", entered_on: today,
-      dob, email, phone,
+      dob, email, phone, address,
     }).select("id").single();
     if (contactIns.error) throw contactIns.error;
     const studentId = contactIns.data.id as string;

@@ -368,6 +368,7 @@ Deno.serve(async (req) => {
     const dob = str(body.student_dob);
     const parentFirst = str(body.parent_first), parentLast = str(body.parent_last);
     const email = str(body.email).toLowerCase(), phone = str(body.phone);
+    const address = str(body.address).slice(0, 300);
     const wantShirt = body.tshirt === true, shirtSize = str(body.tshirt_size);
     // White shirt; the artwork is the choice. Constrained to the two designs
     // that exist so the packing slip can't say something unprintable.
@@ -383,6 +384,7 @@ Deno.serve(async (req) => {
     if (!parentFirst || !parentLast) return json({ error: "Enter the parent or guardian's name." }, 400, cors);
     if (!EMAIL_RE.test(email) || email.length > 200) return json({ error: "Enter a valid email." }, 400, cors);
     if (!phone || phone.length > 40) return json({ error: "Enter a phone number." }, 400, cors);
+    if (!address) return json({ error: "Enter your home address." }, 400, cors);
     if (wantShirt && !shirt) return json({ error: "The t-shirt isn't available right now. Uncheck it." }, 400, cors);
     if (wantShirt && !shirtSize) return json({ error: "Pick a t-shirt size." }, 400, cors);
     if (wantShirt && !DESIGNS.includes(shirtDesign)) return json({ error: "Pick the girl or boy shirt design." }, 400, cors);
@@ -433,7 +435,7 @@ Deno.serve(async (req) => {
       first_name: studentFirst, last_name: studentLast,
       segment: "active", member_role: "student",
       source: "website-lk-checkout", entered_on: today,
-      dob, email, phone,
+      dob, email, phone, address,
     }).select("id").single();
     if (contactIns.error) throw contactIns.error;
     const studentId = contactIns.data.id as string;

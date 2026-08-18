@@ -294,9 +294,13 @@
           <label for="lkc-email">Email</label>
           <input id="lkc-email" type="email" autocomplete="email" required>
         </div>
-        <div class="form-field" style="margin-bottom:0">
+        <div class="form-field">
           <label for="lkc-phone">Phone</label>
           <input id="lkc-phone" type="tel" autocomplete="tel" required>
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label for="lkc-address">Home address</label>
+          <input id="lkc-address" type="text" autocomplete="street-address" placeholder="Street, city, zip" required>
         </div>
       </div>
 
@@ -744,7 +748,7 @@
     if (!CHOSEN) { status("error", "Pick a payment option first."); return; }
     var need = [["lkc-sfirst", "the student's first name"], ["lkc-slast", "the student's last name"],
       ["lkc-dob", "the student's date of birth"], ["lkc-pfirst", "your first name"],
-      ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"],
+      ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"], ["lkc-address", "your home address"],
       ["cbc-initials", "your initials"], ["lkc-signer", "the signature name"], ["lkc-rel", "your relationship to the student"]];
     for (var i = 0; i < need.length; i++) {
       if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
@@ -770,6 +774,7 @@
         student_dob: $("lkc-dob").value,
         parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
         email: $("lkc-email").value.trim(), phone: $("lkc-phone").value.trim(),
+        address: $("lkc-address").value.trim(),
         initials: $("cbc-initials").value.trim().toUpperCase(),
         signer_name: $("lkc-signer").value.trim(), signer_relationship: $("lkc-rel").value.trim(),
         signature_png: pad.toDataURL("image/png"),
