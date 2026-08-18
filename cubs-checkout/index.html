@@ -224,7 +224,7 @@
         <div class="lkc-shirt" id="cbc-uniform-block" hidden>
           <label class="lkc-shirt-q" for="cbc-uniform">
             <input id="cbc-uniform" type="checkbox">
-            <span class="grow">Add a Cubs uniform? <b id="cbc-uniform-price">$66.00</b> + tax</span>
+            <span class="grow" style="white-space:nowrap">Cubs uniform. <b id="cbc-uniform-price">$66</b> + tax</span>
           </label>
         </div>
 
@@ -386,7 +386,7 @@
       if ((cfg.shirts || []).length) renderShirts();
       if (cfg.uniform_available) {
         $("cbc-uniform-block").hidden = false;
-        $("cbc-uniform-price").textContent = money(cfg.uniform_cents);
+        $("cbc-uniform-price").textContent = moneyS(cfg.uniform_cents);
       }
       renderOptions();
       renderPrice(); renderDoc();
