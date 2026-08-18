@@ -514,7 +514,8 @@
     var show = function (id, on) { $(id).hidden = !on; };
     if (!pp) {
       show("cbc-r-pick", true); show("cbc-r-down", false); show("cbc-r-rec", false);
-      show("cbc-r-uni", false); show("cbc-r-tee", false); show("cbc-r-tax", false);
+      show("cbc-r-uni", false); show("cbc-r-tax", false);
+      document.querySelectorAll("[data-row]").forEach(function (r) { r.hidden = true; });
       $("lkc-p-fee").textContent = "-"; $("lkc-p-total").textContent = "-";
       $("cbc-after").textContent = "";
       return;
