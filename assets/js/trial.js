@@ -35,38 +35,6 @@
   // Liability Waiver and Release, verbatim; do not edit. Must match the copy in the Edge Function.
   var WAIVER_TEXT = "As an inducement to cause BTF to extend services to the Participant and in consideration of those services, I, the undersigned on behalf of the Participant, my heirs, assigns, and personal representatives, and the Participant's heirs, assigns, and personal representatives the Participant understands and acknowledges that the Participant is about to engage in an activity which includes strenuous exercise and body contact which involves risks, which could result in injury, harm or death to the Participant, the Participant's property, third parties, and/or third parties' property. The Participant is aware that Tae Kwon Do is a vigorous activity involving bodily contact in a unique environment and poses risk of injury. The Participant understands that Tae Kwon Do, and related activities, always involve certain risk, including but not limited to, death, serious injuries, complete or partial paralysis, brain damage, and injury to any and all bones, joints, muscles and internal organs. The risk of harm may be limited by the proper performance of instruction under the supervision of trained instructors, but never eliminated. In full awareness of the risks, both known and unknown, associated with the activities offered by BTF, the Participant hereby expressly, knowingly, and voluntarily release BTF, it's officers, agents, employees, and instructors, from all responsibility, liability, claims, demands, charges, duties, injuries, actions, causes of action, suits, companies and promises of any nature whatsoever relating to or deriving from the Participant's or the Participant's friends' and family's presence at the BTF premises or in same's participation in any activities directly or indirectly related to the activities at BTF. The Participant voluntarily agrees to assume all risk of injury, including paralysis and death, that may occur while the Participant is in the facility of BTF or participating in any event or program hosted or sponsored by BTF. The Participant's participation in these activities is purely voluntary and the Participant knowingly and voluntarily elects to participate after full consideration of risks, and the Participant further understands that he or she will be supervised during the event time only. The Participant hereby releases all of the above-mentioned parties from any and all responsibility for the Participant during non-class or function related times. The Participant further agrees that the Participant, and the Participant's estate, heirs, or assigns will not bring any claim or suit against BTF, it's instructors, employees, staff, guests, landlord or any other party on behalf of the Participant. This release shall be effective even if the loss, damage, or injury results or has resulted from negligence, wrongful acts, omissions, breach of warranty or strict tort liability of BTF. Finally, the Participant agrees to indemnify BTF, it's instructors, staff, students, guests, and any and all additional defendants for all judgments, costs, attorney fees and other expenses incurred should there be a claim against BTF, it's instructors, staff, students, or guests as a result of this member's participation in any service, activities or special event BTF offers. The Participant understands and agrees that this waiver, and covenant-not-to-sue will continue to be as broad and as inclusive as permitted by the law, as the State of Texas and the Participant agrees that if any portion is held invalid, the remainder of the waiver, and covenant-not-to-sue will continue in full legal force and effect. The Participant agrees that the jurisdiction and venue for any legal proceedings arising out of this will be Smith County, Texas. The Participant further agree that this agreement shall be interpreted under Texas law.";
   var PHONE = "903-561-2966";
-  /* Little Kickers: online enrollment is not open to the public yet, so every
-     [data-lk-soon] button explains when instead of reaching the checkout page.
-     The checkout page itself stays fully working (unlinked + noindex) so it can
-     be tested against Stripe test mode.
-     TO OPEN: delete this block and point the buttons at /little-kickers-checkout. */
-  var LK_OPENS = "Monday, August 17";
-  function lkSoon() {
-    var wrap = document.createElement("div");
-    wrap.setAttribute("role", "dialog");
-    wrap.setAttribute("aria-modal", "true");
-    wrap.setAttribute("aria-label", "Enrollment opens soon");
-    wrap.style.cssText = "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px";
-    wrap.innerHTML =
-      '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:24px;text-align:center">' +
-        '<h2 style="margin:0 0 10px;font-size:1.25rem">Enrollment opens ' + LK_OPENS + '</h2>' +
-        '<p style="margin:0 0 8px;line-height:1.6">Little Kickers starts Wednesday, September 16, 9:30 to 10:10 AM, and runs six Wednesdays through October 21.</p>' +
-        '<p style="margin:0 0 18px;line-height:1.6">Check back ' + LK_OPENS + ' to sign up online, or call us now and we will hold your spot.</p>' +
-        '<p style="margin:0 0 16px"><a href="tel:' + PHONE + '" style="font-weight:700">' + PHONE + '</a></p>' +
-        '<button type="button" data-lk-close class="btn btn--primary" style="width:100%">Got it</button>' +
-      '</div>';
-    function close() { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); document.removeEventListener("keydown", onKey); }
-    function onKey(e) { if (e.key === "Escape") close(); }
-    wrap.addEventListener("click", function (e) { if (e.target === wrap || e.target.hasAttribute("data-lk-close")) close(); });
-    document.addEventListener("keydown", onKey);
-    document.body.appendChild(wrap);
-    var b = wrap.querySelector("[data-lk-close]");
-    if (b) b.focus();
-  }
-  document.addEventListener("click", function (e) {
-    var t = e.target && e.target.closest ? e.target.closest("[data-lk-soon]") : null;
-    if (t) { e.preventDefault(); lkSoon(); }
-  });
 
   var WEEKS_OUT = 6;   // how many weeks the calendar can page forward
   var DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -448,7 +416,7 @@
       '<p class="trial-note">There\'s no free trial week for Little Kickers. It runs as a six-week session for ages 2 to 3, and a grown-up is on the mat for every class. Sign up on the enrollment page and you\'re set for all six weeks.</p>' +
       '<div class="trial-actions">' +
         '<button class="btn btn--secondary trial-back" type="button">Back</button>' +
-        '<button class="btn btn--primary" type="button" data-lk-soon>Enroll Now</button>' +
+        '<a class="btn btn--primary" href="/little-kickers-checkout/">Enroll Now</a>' +
       '</div>' +
       '<p class="trial-note" style="margin-top:10px">Questions first? Call <a href="tel:' + PHONE + '">' + PHONE + '</a> or <a href="/contact-form?program=little-kickers">send us a message</a>.</p>'
     );
