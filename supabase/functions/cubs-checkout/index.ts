@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
 
   // ── the live catalog: both verbs price from the same rows ────────────────
   const plansRes = await admin.from("pricing_plans")
-    .select("id,code,name,billing_frequency,recurring_cents,down_cents,pif_cents,payment_count,sellable,active,display_order")
+    .select("id,code,name,billing_frequency,recurring_cents,down_cents,pif_cents,payment_count,promo_label,sellable,active,display_order")
     .eq("program", PROGRAM).eq("sellable", true).eq("active", true)
     .order("display_order");
   const options = (plansRes.data ?? []) as (PlanRow & { sellable: boolean; active: boolean; display_order: number })[];
@@ -244,6 +244,7 @@ Deno.serve(async (req) => {
           down_cents: p.down_cents || 0, recurring_cents: p.recurring_cents || 0,
           pif_cents: p.pif_cents || 0, payment_count: p.payment_count,
           due_today_cents: dueFor(p),
+          promo: p.promo_label || null,
         })),
         uniform_available: !!uniform,
         uniform_cents: uniform ? uniform.price_cents : 0,
