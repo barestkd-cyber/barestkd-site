@@ -40,8 +40,21 @@ const PROGRAM = "Cubs";
 const UNIFORM_NAME = "Cubs uniform";
 // The enrollment shirt offer. Half price ONLY through a checkout page, so
 // the discount is computed here and never sent by the browser.
-const TEE_NAME = "Classic gray tee";
-const TEE_DISCOUNT_BPS = 5000;   // 50% off
+// Every shirt sellable at enrollment. The classic gray is the featured offer
+// at half price; the rest are full price behind "See other shirts". Race sells
+// more merch when it is in front of people, so the others are one tap away
+// rather than absent.
+const TEE_NAME = "Classic gray tee";          // the featured, discounted one
+const TEE_DISCOUNT_BPS = 5000;                // 50% off, enrollment only
+const SHIRT_NAMES = ["Classic gray tee", "Lego tee", "Bares logo tee"];
+const SHIRT_ART: Record<string, { front: string; back: string | null }> = {
+  "Classic gray tee": { front: "/assets/img/logo.png", back: "/assets/img/shirts/art-bear-patch.png" },
+  "Lego tee":         { front: "/assets/img/shirts/art-lego.jpg", back: null },
+  "Bares logo tee":   { front: "/assets/img/shirts/art-bares-bar.jpg", back: null },
+};
+const SHIRT_COLOR: Record<string, string> = {
+  "Classic gray tee": "#B4B6B9", "Lego tee": "#1F51A8", "Bares logo tee": "#141414",
+};
 const TAX_RATE = 0.0825;          // memberships are untaxed; kept for shape
 const SITE = "https://www.barestkd.fit";
 
@@ -197,10 +210,13 @@ Deno.serve(async (req) => {
 
   const teeRes = await admin.from("products")
     .select("id,name,price_cents,taxable,active")
-    .eq("name", TEE_NAME).eq("active", true).maybeSingle();
-  const tee = teeRes.data ?? null;
+    .in("name", SHIRT_NAMES).eq("active", true);
+  const shirtRows = teeRes.data ?? [];
+  const shirtPrice = (r: { name: string; price_cents: number }) =>
+    r.name === TEE_NAME ? Math.round(r.price_cents * (10000 - TEE_DISCOUNT_BPS) / 10000) : r.price_cents;
+  const tee = shirtRows.find((r: { name: string }) => r.name === TEE_NAME) ?? null;
   const teeFull = tee ? tee.price_cents : 0;
-  const teeNow = Math.round(teeFull * (10000 - TEE_DISCOUNT_BPS) / 10000);
+  const teeNow = tee ? shirtPrice(tee) : 0;
 
   const uniRes = await admin.from("products")
     .select("id,name,price_cents,taxable,active")
@@ -235,6 +251,15 @@ Deno.serve(async (req) => {
         tee_full_cents: teeFull,
         tee_cents: teeNow,
         tee_sizes: ["Youth XS", "Youth S", "Youth M", "Youth L", "Adult S", "Adult M", "Adult L", "Adult XL", "Adult 2XL"],
+        shirts: shirtRows.map((r: { id: string; name: string; price_cents: number }) => ({
+          name: r.name,
+          full_cents: r.price_cents,
+          cents: shirtPrice(r),
+          featured: r.name === TEE_NAME,
+          front: SHIRT_ART[r.name] ? SHIRT_ART[r.name].front : null,
+          back: SHIRT_ART[r.name] ? SHIRT_ART[r.name].back : null,
+          color: SHIRT_COLOR[r.name] || "#B4B6B9",
+        })).sort((a: { featured: boolean }, b: { featured: boolean }) => (a.featured ? -1 : 0) - (b.featured ? -1 : 0)),
         admin_fee_bps: feeBps,
         admin_fee_flat_cents: feeFlat,
         tax_rate: TAX_RATE,
@@ -342,19 +367,24 @@ Deno.serve(async (req) => {
     }
     const uniformCents = wantUniform ? uniform.price_cents : 0;
 
-    // The half-price enrollment shirt. Size is required when they take it.
-    const wantTee = body.tee === true && !!tee;
-    const teeSize = str(body.tee_size);
-    if (body.tee === true && !tee) {
-      return json({ error: "The shirt is not available right now. Uncheck it to continue." }, 409, cors);
+    // Shirts: a list of { name, size }. Prices come from the catalog here, so
+    // the discount on the featured shirt can never be claimed for the others.
+    const wantShirts: Array<{ row: { id: string; name: string; price_cents: number }; size: string; cents: number }> = [];
+    const rawShirts = Array.isArray(body.shirts) ? body.shirts : [];
+    for (const raw of rawShirts.slice(0, 6)) {
+      const nm = str((raw as { name?: unknown }).name);
+      const sz = str((raw as { size?: unknown }).size);
+      const row = shirtRows.find((r: { name: string }) => r.name === nm);
+      if (!row) return json({ error: "That shirt is not available. Remove it to continue." }, 409, cors);
+      if (!sz) return json({ error: "Pick a size for the " + row.name + "." }, 400, cors);
+      wantShirts.push({ row, size: sz, cents: shirtPrice(row) });
     }
-    if (wantTee && !teeSize) return json({ error: "Pick a shirt size." }, 400, cors);
-    const teeCents = wantTee ? teeNow : 0;
+    const shirtsCents = wantShirts.reduce((a, x) => a + x.cents, 0);
 
     const lines = [{ cents: due, taxable: false }];
     if (wantUniform) lines.push({ cents: uniformCents, taxable: true });
-    if (wantTee) lines.push({ cents: teeCents, taxable: true });
-    const fee = adminFeeCents(due + uniformCents + teeCents, feeBps, feeFlat);   // card-only online, fee always rides
+    wantShirts.forEach((x) => lines.push({ cents: x.cents, taxable: true }));
+    const fee = adminFeeCents(due + uniformCents + shirtsCents, feeBps, feeFlat);   // card-only online, fee always rides
     const totals = BTKDPricing.invoiceTotals({
       lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
     });
@@ -403,11 +433,14 @@ Deno.serve(async (req) => {
         + (wantUniform
             ? "Your Cubs uniform is paid for. We'll have it ready at the first class.\n"
             : "Wear comfortable clothes for the first class. Uniforms are available at the front desk.\n")
-        + (wantTee ? "Your classic gray shirt (" + teeSize + ") is paid for and will be ready at the first class.\n" : "")
+        + (wantShirts.length
+            ? "Shirts paid for and ready at the first class: "
+              + wantShirts.map((x) => x.row.name + " (" + x.size + ")").join(", ") + "\n"
+            : "")
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
       notes: "Cubs online enrollment, " + chosen.name
         + (wantUniform ? ", UNIFORM PURCHASED - have one ready" : "")
-        + (wantTee ? ", SHIRT: classic gray " + teeSize + " (enrollment half price)" : "")
+        + (wantShirts.length ? ", SHIRTS: " + wantShirts.map((x) => x.row.name + " " + x.size).join(", ") : "")
         + " (" + (chosen.billing_frequency === "one_time"
             ? money(chosen.pif_cents || 0) + " paid in full"
             : money(chosen.down_cents || 0) + " down + " + money(chosen.recurring_cents || 0)
@@ -471,16 +504,16 @@ Deno.serve(async (req) => {
         student_contact_id: null, product_id: uniform.id, membership_row: null, membership_id: null,
       });
     }
-    if (wantTee) {
-      // Recorded honestly: full price with the discount alongside it, so the
-      // ledger shows what was given away rather than a mystery $12.50 shirt.
+    // Recorded honestly: full price with the discount alongside it, so the
+    // ledger shows what was given away rather than a mystery cheap shirt.
+    wantShirts.forEach((x) => {
       lineRows.push({
-        sale_id: saleId, kind: "prod", label: tee.name + " (" + teeSize + ")", qty: 1,
-        unit_cents: teeFull, discount_cents: teeFull - teeCents, taxable: true,
-        line_total_cents: teeCents,
-        student_contact_id: null, product_id: tee.id, membership_row: null, membership_id: null,
+        sale_id: saleId, kind: "prod", label: x.row.name + " (" + x.size + ")", qty: 1,
+        unit_cents: x.row.price_cents, discount_cents: x.row.price_cents - x.cents, taxable: true,
+        line_total_cents: x.cents,
+        student_contact_id: null, product_id: x.row.id, membership_row: null, membership_id: null,
       });
-    }
+    });
     const lIns = await admin.from("pos_sale_lines").insert(lineRows);
     if (lIns.error) problems.push("sale lines: " + lIns.error.message);
 

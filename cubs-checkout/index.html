@@ -98,6 +98,14 @@
 .cbc-opt .nm{font-weight:700;font-size:.98rem}
 .cbc-opt .tm{color:#5b6570;font-size:.85rem;margin-top:2px}
 .cbc-opt .due{margin-left:auto;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cbc-more{margin-top:10px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
+.cbc-more > summary{cursor:pointer;padding:11px 14px;font-weight:800;font-size:.92rem;list-style:none}
+.cbc-more > summary::-webkit-details-marker{display:none}
+.cbc-more > summary::after{content:" +";color:var(--belt-red)}
+.cbc-more[open] > summary::after{content:" -"}
+.cbc-more > div{padding:0 14px 12px}
+.cbc-shirt{display:flex;flex-direction:row;gap:13px;align-items:flex-start;padding:12px 0;border-top:1px solid #eee}
+.cbc-shirt:first-child{border-top:none}
 .cbc-tee{margin:14px 0 4px;border:2px solid #18A974;border-radius:12px;background:#F6FFFA;overflow:hidden}
 .cbc-tee-flag{background:#18A974;color:#fff;font-weight:800;font-size:.82rem;letter-spacing:.04em;padding:6px 12px;text-transform:uppercase}
 .cbc-tee-flag b{font-size:.95rem}
@@ -208,26 +216,12 @@
 
         <!-- Enrollment-only shirt offer. The tee is drawn rather than
              photographed so the gray stays true and the logo stays crisp. -->
-        <div class="cbc-tee" id="cbc-tee-block" hidden>
-          <div class="cbc-tee-flag">Enrollment special <b>50% off</b></div>
-          <div class="cbc-tee-body">
-            <button type="button" class="cbc-tee-flip" id="cbc-tee-flip">
-              <img class="cbc-tee-art" id="cbc-tee-front" src="/assets/img/logo.png"
-                   alt="Front of the shirt: Bares Taekwondo Fitness logo on the left chest">
-              <img class="cbc-tee-art" id="cbc-tee-back" src="/assets/img/shirts/art-bear-patch.png"
-                   alt="Back of the shirt: the Bares Taekwondo Fitness bear patch" hidden>
-              <span class="cbc-tee-flipbtn" id="cbc-tee-fliplbl">Front &middot; tap to see the back</span>
-            </button>
-            <div class="cbc-tee-copy">
-              <label class="lkc-shirt-q" for="cbc-tee">
-                <input id="cbc-tee" type="checkbox">
-                <span class="grow">Add the classic gray shirt?
-                  <b><s id="cbc-tee-was">$25.00</s> <span class="cbc-tee-now" id="cbc-tee-now">$12.50</span></b> + tax</span>
-              </label>
-              <p class="cbc-tee-note">Logo on the left chest, bear patch on the back. Half price today because you're enrolling, regular price at the front desk.</p>
-              <select id="cbc-tee-size" aria-label="Shirt size" hidden></select>
-            </div>
-          </div>
+        <div id="cbc-shirts" hidden>
+          <div id="cbc-shirt-featured"></div>
+          <details class="cbc-more" id="cbc-more">
+            <summary>See other shirts</summary>
+            <div id="cbc-shirt-others"></div>
+          </details>
         </div>
 
         <div id="lkc-prices" style="margin-top:14px">
@@ -235,7 +229,7 @@
           <div class="lkc-line" id="cbc-r-down" hidden><span>Down payment</span><span class="amt" id="cbc-p-down">-</span></div>
           <div class="lkc-line" id="cbc-r-rec" hidden><span id="cbc-l-rec">Monthly payment</span><span class="amt" id="cbc-p-rec">-</span></div>
           <div class="lkc-line" id="cbc-r-uni" hidden><span>Cubs uniform</span><span class="amt" id="cbc-p-uni">-</span></div>
-          <div class="lkc-line" id="cbc-r-tee" hidden><span>Classic gray shirt <small style="color:#18A974;font-weight:700">50% off</small></span><span class="amt" id="cbc-p-tee">-</span></div>
+          <div id="cbc-r-shirts"></div>
           <div class="lkc-line" id="cbc-r-tax" hidden><span>Sales tax</span><span class="amt" id="cbc-p-tax">-</span></div>
           <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
         </div>
@@ -375,13 +369,7 @@
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (cfg) {
       CFG = cfg;
-      if (cfg.tee_available) {
-        $("cbc-tee-block").hidden = false;
-        $("cbc-tee-was").textContent = money(cfg.tee_full_cents);
-        $("cbc-tee-now").textContent = money(cfg.tee_cents);
-        $("cbc-tee-size").innerHTML = '<option value="" disabled selected>Pick a size</option>'
-          + (cfg.tee_sizes || []).map(function (s) { return '<option>' + esc(s) + '</option>'; }).join("");
-      }
+      if ((cfg.shirts || []).length) renderShirts();
       if (cfg.uniform_available) {
         $("cbc-uniform-block").hidden = false;
         $("cbc-uniform-price").textContent = money(cfg.uniform_cents);
@@ -393,6 +381,83 @@
       $("cbc-options").textContent = "Enrollment isn't loading right now. Call 903-561-2966.";
       $("lkc-pay").disabled = true;
     });
+
+  /* One card per shirt. The featured one sits above the fold at half price;
+     the rest live behind "See other shirts" so they are offered without
+     crowding the enrollment decision. */
+  function shirtCard(sh, i) {
+    var sizes = '<option value="" disabled selected>Pick a size</option>'
+      + (CFG.tee_sizes || []).map(function (s) { return '<option>' + esc(s) + '</option>'; }).join("");
+    var price = sh.featured
+      ? '<b><s>' + money(sh.full_cents) + '</s> <span class="cbc-tee-now">' + money(sh.cents) + '</span></b> + tax'
+      : '<b>' + money(sh.cents) + '</b> + tax';
+    return '<div class="cbc-shirt">'
+      + '<button type="button" class="cbc-tee-flip" data-flip="' + i + '" style="background:' + esc(sh.color) + '">'
+      + '<img class="cbc-tee-art" data-art="' + i + '" src="' + esc(sh.front) + '" alt="' + esc(sh.name) + '">'
+      + (sh.back ? '<span class="cbc-tee-flipbtn" data-lbl="' + i + '">Front &middot; tap for back</span>' : '')
+      + '</button>'
+      + '<div class="cbc-tee-copy">'
+      + '<label class="lkc-shirt-q"><input type="checkbox" data-shirt="' + i + '">'
+      + '<span class="grow">' + esc(sh.name) + ' ' + price + '</span></label>'
+      + (sh.featured ? '<p class="cbc-tee-note">Half price today because you are enrolling. Regular price at the front desk.</p>' : '')
+      + '<select data-size="' + i + '" aria-label="Size for ' + esc(sh.name) + '" hidden>' + sizes + '</select>'
+      + '</div></div>';
+  }
+
+  function renderShirts() {
+    $("cbc-shirts").hidden = false;
+    var feat = "", others = "";
+    CFG.shirts.forEach(function (sh, i) {
+      if (sh.featured) feat += shirtCard(sh, i); else others += shirtCard(sh, i);
+    });
+    $("cbc-shirt-featured").innerHTML = feat;
+    $("cbc-shirt-others").innerHTML = others;
+    if (!others) $("cbc-more").hidden = true;
+
+    // a price row per shirt, hidden until ticked
+    $("cbc-r-shirts").innerHTML = CFG.shirts.map(function (sh, i) {
+      return '<div class="lkc-line" data-row="' + i + '" hidden><span>' + esc(sh.name)
+        + (sh.featured ? ' <small style="color:#18A974;font-weight:700">50% off</small>' : '')
+        + '</span><span class="amt" data-amt="' + i + '">-</span></div>';
+    }).join("");
+
+    document.querySelectorAll("[data-shirt]").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var i = cb.getAttribute("data-shirt");
+        document.querySelector('[data-size="' + i + '"]').hidden = !cb.checked;
+        renderPrice();
+      });
+    });
+    document.querySelectorAll("[data-size]").forEach(function (s) {
+      s.addEventListener("change", renderPrice);
+    });
+    // flip to the back where a design has one
+    document.querySelectorAll("[data-flip]").forEach(function (b) {
+      var i = b.getAttribute("data-flip");
+      var sh = CFG.shirts[+i];
+      if (!sh.back) return;
+      var showingBack = false;
+      b.addEventListener("click", function () {
+        showingBack = !showingBack;
+        document.querySelector('[data-art="' + i + '"]').src = showingBack ? sh.back : sh.front;
+        var lbl = document.querySelector('[data-lbl="' + i + '"]');
+        if (lbl) lbl.innerHTML = showingBack ? "Back &middot; tap for front" : "Front &middot; tap for back";
+      });
+    });
+  }
+
+  /* Which shirts are ticked, with their sizes. */
+  function chosenShirts() {
+    if (!CFG || !CFG.shirts) return [];
+    var out = [];
+    CFG.shirts.forEach(function (sh, i) {
+      var cb = document.querySelector('[data-shirt="' + i + '"]');
+      if (cb && cb.checked) {
+        out.push({ i: i, name: sh.name, cents: sh.cents, size: (document.querySelector('[data-size="' + i + '"]') || {}).value || "" });
+      }
+    });
+    return out;
+  }
 
   function optTerms(o) {
     if (o.billing_frequency === "one_time") return "One payment of " + money(o.pif_cents) + ", 12-month membership";
@@ -437,7 +502,8 @@
     if (!CHOSEN) return null;
     var due = CHOSEN.due_today_cents;
     var uni = ($("cbc-uniform").checked && CFG.uniform_available) ? CFG.uniform_cents : 0;
-    var tee = ($("cbc-tee").checked && CFG.tee_available) ? CFG.tee_cents : 0;
+    var picked = chosenShirts();
+    var tee = picked.reduce(function (a, x) { return a + x.cents; }, 0);
     var base = due + uni + tee;
     var fee = base > 0 ? Math.round(base * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents : 0;
     var tax = Math.floor((uni + tee) * CFG.tax_rate + 0.5);   // goods are taxable, tuition is not
@@ -463,11 +529,15 @@
     $("cbc-p-rec").textContent = money(pif ? 0 : CHOSEN.recurring_cents);
     show("cbc-r-uni", pp.uni > 0);
     if (pp.uni > 0) $("cbc-p-uni").textContent = money(pp.uni);
-    show("cbc-r-tee", pp.tee > 0);
-    if (pp.tee > 0) $("cbc-p-tee").textContent = money(pp.tee);
+    (CFG.shirts || []).forEach(function (sh, i) {
+      var on = chosenShirts().some(function (x) { return String(x.i) === String(i); });
+      var row = document.querySelector('[data-row="' + i + '"]');
+      if (row) row.hidden = !on;
+      if (on) document.querySelector('[data-amt="' + i + '"]').textContent = money(sh.cents);
+    });
     show("cbc-r-tax", pp.uni + pp.tee > 0);
     if (pp.uni + pp.tee > 0) $("cbc-p-tax").textContent = money(pp.tax);
-    $("cbc-tee-size").hidden = !$("cbc-tee").checked;
+
     $("lkc-p-fee").textContent = money(pp.fee);
     $("lkc-p-total").textContent = money(pp.total);
     $("cbc-after").textContent = CHOSEN.billing_frequency === "one_time"
@@ -537,16 +607,7 @@
   });
   var signerTouched = false;
   $("cbc-uniform").addEventListener("change", renderPrice);
-  $("cbc-tee").addEventListener("change", renderPrice);
-  // Front and back of the same shirt: the logo is on the left chest, the
-  // bear patch fills the back.
-  var teeShowingBack = false;
-  $("cbc-tee-flip").addEventListener("click", function () {
-    teeShowingBack = !teeShowingBack;
-    $("cbc-tee-front").hidden = teeShowingBack;
-    $("cbc-tee-back").hidden = !teeShowingBack;
-    $("cbc-tee-fliplbl").innerHTML = teeShowingBack ? "Back &middot; tap to see the front" : "Front &middot; tap to see the back";
-  });
+
   $("lkc-signer").addEventListener("input", function () { signerTouched = true; });
   ["lkc-pfirst", "lkc-plast"].forEach(function (id) {
     $(id).addEventListener("input", function () {
@@ -660,7 +721,10 @@
     for (var i = 0; i < need.length; i++) {
       if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
     }
-    if ($("cbc-tee").checked && !$("cbc-tee-size").value) { status("error", "Pick a shirt size."); $("cbc-tee-size").focus(); return; }
+    var pickedShirts = chosenShirts();
+    for (var s = 0; s < pickedShirts.length; s++) {
+      if (!pickedShirts[s].size) { status("error", "Pick a size for the " + pickedShirts[s].name + "."); return; }
+    }
     if (!$("lkc-agree").checked) { status("error", "Please read the agreement and tick the box."); return; }
     if (!dirty) { status("error", "Please sign in the signature box."); return; }
     if (!CARD) { status("error", "The card field did not load. Refresh and try again."); return; }
@@ -673,8 +737,7 @@
         sale_id: SALE_ID,
         plan_code: CHOSEN.code,
         uniform: $("cbc-uniform").checked === true,
-        tee: $("cbc-tee").checked === true,
-        tee_size: $("cbc-tee-size").value || "",
+        shirts: pickedShirts.map(function (x) { return { name: x.name, size: x.size }; }),
         student_first: $("lkc-sfirst").value.trim(), student_last: $("lkc-slast").value.trim(),
         student_dob: $("lkc-dob").value,
         parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
