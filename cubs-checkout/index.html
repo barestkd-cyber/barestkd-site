@@ -483,10 +483,10 @@
     if (o.billing_frequency === "one_time") return "One payment of " + moneyS(o.pif_cents);
     if (o.billing_frequency === "weekly") {
       return o.down_cents > 0
-        ? moneyS(o.down_cents) + " down / " + moneyS(o.recurring_cents) + " a week"
-        : moneyS(o.recurring_cents) + " a week";
+        ? moneyS(o.down_cents) + " down / " + moneyS(o.recurring_cents) + " weekly"
+        : moneyS(o.recurring_cents) + " weekly";
     }
-    return moneyS(o.down_cents) + " down / " + moneyS(o.recurring_cents) + " a month";
+    return moneyS(o.down_cents) + " down / " + moneyS(o.recurring_cents) + " monthly";
   }
   function dueSub(o) {
     if (o.billing_frequency === "one_time") return "due today";
