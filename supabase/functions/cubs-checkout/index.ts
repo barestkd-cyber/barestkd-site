@@ -46,14 +46,14 @@ const UNIFORM_NAME = "Cubs uniform";
 // rather than absent.
 const TEE_NAME = "Classic gray tee";          // the featured, discounted one
 const TEE_DISCOUNT_BPS = 5000;                // 50% off, enrollment only
-const SHIRT_NAMES = ["Classic gray tee", "Lego tee", "Bares logo tee"];
+const SHIRT_NAMES = ["Classic gray tee", "Lego tee", "Alternate design tee"];
 const SHIRT_ART: Record<string, { front: string; back: string | null }> = {
   "Classic gray tee": { front: "/assets/img/logo.png", back: "/assets/img/shirts/art-bear-patch.png" },
   "Lego tee":         { front: "/assets/img/shirts/art-lego.jpg", back: null },
-  "Bares logo tee":   { front: "/assets/img/shirts/art-bares-bar.jpg", back: null },
+  "Alternate design tee":   { front: "/assets/img/shirts/art-bares-bar.jpg", back: null },
 };
 const SHIRT_COLOR: Record<string, string> = {
-  "Classic gray tee": "#B4B6B9", "Lego tee": "#1F51A8", "Bares logo tee": "#141414",
+  "Classic gray tee": "#B4B6B9", "Lego tee": "#1F51A8", "Alternate design tee": "#141414",
 };
 const TAX_RATE = 0.0825;          // memberships are untaxed; kept for shape
 const SITE = "https://www.barestkd.fit";

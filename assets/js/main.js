@@ -201,7 +201,9 @@
      when motion is welcome and the connection allows; under prefers-reduced-
      motion, data-saver, or blocked autoplay the poster simply stays. */
   var hv = document.querySelector("[data-hero-video]");
-  var poster = document.querySelector(".hero__poster");
+  // Two hero shapes: the overlay hero (.hero__poster) and the stacked one
+  // (.hstack__poster, headline above the video). Either can be present.
+  var poster = document.querySelector(".hero__poster, .hstack__poster");
   if (hv && poster) {
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     var conn = navigator.connection || {};

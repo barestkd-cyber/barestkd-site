@@ -370,6 +370,29 @@ p { margin: 0 0 1rem; max-width: 66ch; }
    a tall (portrait) mobile hero shows the full image height and only a narrow
    slice of its width. A shorter hero crops less width and eats less screen.
    min-height, so it still grows if the headline needs the room. */
+/* Team Grizzly Kickboxing badge: the program has its own mark, so the
+   kickboxing pages lead with it rather than plain text. */
+.tg-badge { display:block; width:min(150px,34vw); height:auto; margin:0 0 .7rem; border-radius:50%;
+  aspect-ratio:1; object-fit:cover; box-shadow:0 4px 18px rgba(0,0,0,.45); }
+@media (min-width:900px){ .tg-badge { width:170px; } }
+
+/* Stacked hero: headline, then the reel at its true 16:9, then the copy.
+   Nothing overlays the video, so nothing is cropped and no scrim is
+   needed to keep text readable. Owner call, 2026-08-18. */
+.hstack { padding-block: clamp(1.4rem, 4vw, 2.2rem) 0; }
+.hstack__head h1 { margin-bottom: .3rem; }
+.hstack__media { position: relative; width: 100%; aspect-ratio: 16 / 9;
+  margin-block: clamp(.9rem, 2.5vw, 1.4rem); background: var(--ink); overflow: hidden; }
+.hstack__poster, .hstack__video { position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; }
+.hstack__video { z-index: 0; }
+.hstack__poster { z-index: 1; opacity: 1; transition: opacity .8s ease; }
+.hstack__poster.is-hidden { opacity: 0; }
+.hstack__foot .lede { margin-bottom: 0; }
+@media (min-width: 900px) {
+  .hstack__media { max-width: var(--maxw); margin-inline: auto; border-radius: var(--radius); }
+}
+
 .hero {
   position: relative;
   min-height: min(78vh, 640px);
