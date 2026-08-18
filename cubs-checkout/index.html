@@ -407,13 +407,13 @@
     var sizes = '<option value="" disabled selected>Pick a size</option>'
       + (CFG.tee_sizes || []).map(function (s) { return '<option>' + esc(s) + '</option>'; }).join("");
     var price = sh.featured
-      ? '<b><s>' + money(sh.full_cents) + '</s> <span class="cbc-tee-now">' + money(sh.cents) + '</span></b> + tax'
-      : '<b>' + money(sh.cents) + '</b> + tax';
+      ? '<b><s>' + moneyS(sh.full_cents) + '</s> <span class="cbc-tee-now">' + moneyS(sh.cents) + '</span></b>'
+      : '<b>' + moneyS(sh.cents) + '</b>';
     return '<div class="cbc-shirt">'
       + '<div class="cbc-tee-copy">'
       + '<label class="lkc-shirt-q"><input type="checkbox" data-shirt="' + i + '">'
       + '<span class="grow">' + esc(sh.name) + ' ' + price + '</span></label>'
-      + (sh.featured ? '<p class="cbc-tee-note">Half price today because you are enrolling. Regular price at the front desk.</p>' : '')
+      + (sh.featured ? '<p class="cbc-tee-note">Enrollment special.</p>' : '')
       + '<select data-size="' + i + '" aria-label="Size for ' + esc(sh.name) + '" hidden>' + sizes + '</select>'
       + '</div>'
       + '<button type="button" class="cbc-tee-flip" data-flip="' + i + '" style="background:' + esc(sh.color) + '">'
