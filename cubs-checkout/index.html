@@ -102,10 +102,12 @@
 .cbc-tee-flag{background:#18A974;color:#fff;font-weight:800;font-size:.82rem;letter-spacing:.04em;padding:6px 12px;text-transform:uppercase}
 .cbc-tee-flag b{font-size:.95rem}
 .cbc-tee-body{display:flex;flex-direction:row;gap:14px;align-items:flex-start;padding:13px 14px}
-.cbc-tee-flip{background:none;border:none;padding:0;cursor:pointer;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;font:inherit}
-.cbc-tee-svg{width:96px;height:auto;display:block}
-.cbc-tee-svg[hidden]{display:none}
-.cbc-tee-flipbtn{font-size:.72rem;font-weight:700;color:#18A974;text-decoration:underline;white-space:nowrap}
+.cbc-tee-flip{background:#B4B6B9;border:2px solid #9A9C9F;border-radius:12px;padding:12px 10px 8px;cursor:pointer;
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:8px;font:inherit;width:190px}
+.cbc-tee-art{width:100%;height:auto;max-height:150px;object-fit:contain;display:block}
+.cbc-tee-art[hidden]{display:none}
+.cbc-tee-flipbtn{font-size:.72rem;font-weight:800;color:#15171C;text-transform:uppercase;letter-spacing:.03em}
+@media (max-width:520px){ .cbc-tee-body{flex-direction:column;align-items:stretch} .cbc-tee-flip{width:100%} }
 .cbc-tee-copy{flex:1 1 auto;min-width:0}
 .cbc-tee-note{margin:7px 0 0;font-size:.85rem;color:#5b6570;line-height:1.5}
 .cbc-tee-now{color:#18A974}
@@ -209,20 +211,12 @@
         <div class="cbc-tee" id="cbc-tee-block" hidden>
           <div class="cbc-tee-flag">Enrollment special <b>50% off</b></div>
           <div class="cbc-tee-body">
-            <button type="button" class="cbc-tee-flip" id="cbc-tee-flip" aria-label="Show the back of the shirt">
-              <svg class="cbc-tee-svg" id="cbc-tee-front" viewBox="0 0 100 104" aria-hidden="true">
-                <path d="M30,10 L19,17 L10,31 L21,39 L26,32 L26,96 L74,96 L74,32 L79,39 L90,31 L81,17 L70,10 C70,10 66,19 50,19 C34,19 30,10 30,10 Z"
-                      fill="#B4B6B9" stroke="#9A9C9F" stroke-width="0.8"/>
-                <path d="M30,10 C30,10 34,19 50,19 C66,19 70,10 70,10 L67,13 C67,13 62,21 50,21 C38,21 33,13 33,13 Z" fill="#A5A7AA"/>
-                <image href="/assets/img/logo.png" x="30" y="30" width="18" height="9" preserveAspectRatio="xMidYMid meet"/>
-              </svg>
-              <svg class="cbc-tee-svg" id="cbc-tee-back" viewBox="0 0 100 104" aria-hidden="true" hidden>
-                <path d="M30,10 L19,17 L10,31 L21,39 L26,32 L26,96 L74,96 L74,32 L79,39 L90,31 L81,17 L70,10 C70,10 66,17 50,17 C34,17 30,10 30,10 Z"
-                      fill="#B4B6B9" stroke="#9A9C9F" stroke-width="0.8"/>
-                <path d="M30,10 C30,10 34,17 50,17 C66,17 70,10 70,10 L68,14 L32,14 Z" fill="#A5A7AA"/>
-                <image href="/assets/img/shirts/art-bear-patch.png" x="30" y="33" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
-              </svg>
-              <span class="cbc-tee-flipbtn" id="cbc-tee-fliplbl">Tap to see the back</span>
+            <button type="button" class="cbc-tee-flip" id="cbc-tee-flip">
+              <img class="cbc-tee-art" id="cbc-tee-front" src="/assets/img/logo.png"
+                   alt="Front of the shirt: Bares Taekwondo Fitness logo on the left chest">
+              <img class="cbc-tee-art" id="cbc-tee-back" src="/assets/img/shirts/art-bear-patch.png"
+                   alt="Back of the shirt: the Bares Taekwondo Fitness bear patch" hidden>
+              <span class="cbc-tee-flipbtn" id="cbc-tee-fliplbl">Front &middot; tap to see the back</span>
             </button>
             <div class="cbc-tee-copy">
               <label class="lkc-shirt-q" for="cbc-tee">
@@ -551,8 +545,7 @@
     teeShowingBack = !teeShowingBack;
     $("cbc-tee-front").hidden = teeShowingBack;
     $("cbc-tee-back").hidden = !teeShowingBack;
-    $("cbc-tee-fliplbl").textContent = teeShowingBack ? "Tap to see the front" : "Tap to see the back";
-    $("cbc-tee-flip").setAttribute("aria-label", teeShowingBack ? "Show the front of the shirt" : "Show the back of the shirt");
+    $("cbc-tee-fliplbl").innerHTML = teeShowingBack ? "Back &middot; tap to see the front" : "Front &middot; tap to see the back";
   });
   $("lkc-signer").addEventListener("input", function () { signerTouched = true; });
   ["lkc-pfirst", "lkc-plast"].forEach(function (id) {
