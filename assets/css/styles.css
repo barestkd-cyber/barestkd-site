@@ -383,6 +383,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .hstack__head h1 { margin-bottom: .3rem; }
 .hstack__media { position: relative; width: 100%; aspect-ratio: 16 / 9;
   margin-block: clamp(.9rem, 2.5vw, 1.4rem); background: var(--ink); overflow: hidden; }
+.hstack__still { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .hstack__poster, .hstack__video { position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; }
 .hstack__video { z-index: 0; }
