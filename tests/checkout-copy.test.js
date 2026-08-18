@@ -32,7 +32,13 @@ function test(name, fn) {
  * OTHER programs. Add a row when a new checkout page ships. */
 const PAGES = [
   { dir: 'little-kickers-checkout', program: 'Little Kickers', templateKey: 'little_kickers' },
-  { dir: 'cubs-checkout', program: 'Cubs', templateKey: 'cubs' },
+  // forbidPhrases: CONCEPTS that belong to another program, not just names.
+  // Cubs shipped twice with parent-and-me wording ("Who's training with
+  // you", "You're on the mat too") because the name lint could not see it.
+  { dir: 'cubs-checkout', program: 'Cubs', templateKey: 'cubs',
+    forbidPhrases: ['training with you', 'on the mat too', 'grown-up', 'Grown-Up',
+      'parent and me', 'Parent & Me', 'parent-and-me', 'six-week', '6-week session',
+      'not a drop-off'] },
 ];
 
 const OTHER_PROGRAMS = ['Little Kickers', 'Cubs', 'Juniors', 'Teens & Adults', 'Kickboxing', 'Jiu Jitsu', "AMP'D"];
@@ -94,6 +100,12 @@ for (const page of PAGES) {
       assert.ok(/12-month|twelve/i.test(txt), 'membership program should state its term');
       assert.ok(!/the session is paid in full/i.test(txt), 'membership must not use session wording');
     }
+  });
+
+  test(page.dir + ': no borrowed concepts from another program', () => {
+    const strays = (page.forbidPhrases || []).filter((ph) => body.includes(ph));
+    assert.deepStrictEqual(strays, [],
+      'phrases from another program: ' + strays.join(' | '));
   });
 
   test(page.dir + ': no em dashes in the page', () => {

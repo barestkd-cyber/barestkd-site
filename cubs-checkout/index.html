@@ -141,6 +141,9 @@
   .cbc-opt .radio{margin-top:4px}
   .cbc-opt .due{text-align:left;margin-top:4px}
   .cbc-opt .due small{display:inline;margin-left:6px}
+  /* Terms keep their own lines; the badge drops to a line of its own instead
+     of shoving "per month" onto a second line mid-phrase. */
+  .cbc-save{display:block;width:fit-content;margin:5px 0 0}
 }
 .cbc-opt .due small{display:block;font-weight:400;color:#5b6570;font-size:.75rem}
 
@@ -259,7 +262,7 @@
       <!-- 2 ─ the student -->
       <div class="lkc-step">
         <h2>Your Cub</h2>
-        <p class="step-sub">Who's training with you.</p>
+        <p class="step-sub">Who's joining the Cubs class.</p>
         <div class="form-field">
           <label for="lkc-sfirst">Student's first name</label>
           <input id="lkc-sfirst" type="text" autocomplete="off" required>
@@ -274,10 +277,10 @@
         </div>
       </div>
 
-      <!-- 3 ─ the grown-up -->
+      <!-- 3 ─ the parent or guardian -->
       <div class="lkc-step">
         <h2>Parent / Guardian</h2>
-        <p class="step-sub">You're on the mat too, and the receipt comes to you.</p>
+        <p class="step-sub">Your contact info. The receipt and class updates come to you.</p>
         <div class="form-field">
           <label for="lkc-pfirst">Your first name</label>
           <input id="lkc-pfirst" type="text" autocomplete="given-name" required>
