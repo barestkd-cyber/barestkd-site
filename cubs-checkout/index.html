@@ -140,9 +140,9 @@
   .cbc-opt{grid-template-columns:auto 1fr;grid-template-areas:"r n" ". t" ". d";align-items:start;row-gap:4px}
   .cbc-opt .radio{margin-top:4px}
   .cbc-opt .due{text-align:left;margin-top:4px}
-  .cbc-opt .due small{display:inline;margin-left:6px}
 }
-.cbc-opt .due small{display:block;font-weight:400;color:#5b6570;font-size:.75rem}
+.cbc-opt .due small{display:inline;font-weight:400;color:#5b6570;font-size:.75rem}
+.cbc-opt .due i{display:block;font-style:normal;font-weight:400;color:#5b6570;font-size:.75rem;margin-top:1px}
 
 /* Footer: match the form column so it reads as centred with the page. */
 .lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
@@ -489,9 +489,9 @@
     return moneyS(o.down_cents) + " down / " + moneyS(o.recurring_cents) + " monthly";
   }
   function dueSub(o) {
-    if (o.billing_frequency === "one_time") return "due today";
-    if (o.down_cents > 0) return "down + first " + (o.billing_frequency === "weekly" ? "week" : "month") + ", due today";
-    return "first " + (o.billing_frequency === "weekly" ? "week" : "month") + ", due today";
+    if (o.billing_frequency === "one_time") return "";
+    var unit = o.billing_frequency === "weekly" ? "week" : "month";
+    return o.down_cents > 0 ? "down payment + first " + unit : "first " + unit;
   }
   function renderOptions() {
     var hh = "";
@@ -500,7 +500,8 @@
         + '<span class="radio"></span>'
         + '<span class="nm">' + esc(o.name)
         + (o.promo ? ' <b class="cbc-save">' + esc(o.promo) + '</b>' : '') + '</span>'
-        + '<span class="due">' + moneyS(o.due_today_cents) + '<small>' + esc(dueSub(o)) + '</small></span>'
+        + '<span class="due">' + moneyS(o.due_today_cents) + ' <small>due today</small>'
+        + (dueSub(o) ? '<i>' + esc(dueSub(o)) + '</i>' : '') + '</span>'
         + '<span class="tm">' + esc(optTerms(o)) + '</span>'
         + '</button>';
     });
