@@ -112,7 +112,7 @@
 .cbc-more > summary::after{content:" +";color:var(--belt-red)}
 .cbc-more[open] > summary::after{content:" -"}
 .cbc-more > div{padding:0 14px 12px}
-.cbc-shirt{display:flex;flex-direction:column;gap:10px;padding:12px 0;border-top:1px solid #eee}
+.cbc-shirt{display:flex;flex-direction:row;gap:14px;align-items:flex-start;padding:12px 0;border-top:1px solid #eee}
 .cbc-tee-copy{flex:1 1 auto;min-width:0}
 .cbc-shirt:first-child{border-top:none}
 .cbc-tee{margin:14px 0 4px;border:2px solid #18A974;border-radius:12px;background:#F6FFFA;overflow:hidden}
@@ -124,9 +124,11 @@
 .cbc-tee-art{width:100%;height:auto;max-height:120px;object-fit:contain;display:block}
 .cbc-tee-art[hidden]{display:none}
 .cbc-tee-flipbtn{font-size:.72rem;font-weight:800;color:#15171C;text-transform:uppercase;letter-spacing:.03em}
-.cbc-shirt .cbc-tee-flip{width:100%;max-width:260px}
+.cbc-shirt .cbc-tee-flip{flex:0 0 150px;width:150px}
 @media (max-width:560px){
   .cbc-tee-body{flex-direction:column;align-items:stretch}
+  .cbc-shirt{flex-direction:column}
+  .cbc-shirt .cbc-tee-flip{flex:none;width:100%;max-width:240px;margin-inline:auto}
   .cbc-tee-flip{width:100%;max-width:260px;margin-inline:auto}
   .cbc-tee-copy{width:100%}
 }
