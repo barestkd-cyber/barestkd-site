@@ -53,6 +53,16 @@
 .lkc-tee-name{font-weight:700;font-size:.9rem}
 .lkc-tee[aria-checked="true"]{border-color:var(--belt-red);box-shadow:0 0 0 3px rgba(227,30,36,.15)}
 .lkc-tee:focus-visible{outline:2px solid var(--belt-red);outline-offset:2px}
+/* Classic gray tee: the card IS the shirt colour, with the front art and a
+   tap-for-back flip. Same treatment as the Cubs page, so one shirt looks the
+   same wherever it is sold. */
+.lkc-gray-flip{background:#B4B6B9;border:2px solid #9A9C9F;border-radius:12px;padding:12px 10px 8px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;font:inherit;width:190px;margin-top:12px}
+.lkc-gray-art{width:100%;height:auto;max-height:120px;object-fit:contain;display:block}
+.lkc-gray-art[hidden]{display:none}
+.lkc-gray-flipbtn{font-size:.72rem;font-weight:800;color:#15171C;text-transform:uppercase;letter-spacing:.03em}
+.lkc-gray-flip:focus-visible{outline:2px solid var(--belt-red);outline-offset:2px}
+@media (max-width:560px){ .lkc-gray-flip{width:100%;max-width:260px;margin-inline:auto} }
 /* The "grown-up must be on the mat" rule - a requirement, not a nicety. */
 .lkc-note{border-left:4px solid var(--belt-red);background:#FFF6F6;padding:12px 14px;border-radius:0 10px 10px 0;font-size:.95rem;line-height:1.6;margin-top:12px}
 
@@ -216,6 +226,11 @@
             <input id="lkc-gray" type="checkbox">
             <span class="grow">Add a Classic gray tee? <s id="lkc-gray-was">$25</s> <b id="lkc-gray-price">$12.50</b> + tax. Half price with enrollment.</span>
           </label>
+          <button type="button" class="lkc-gray-flip" id="lkc-gray-flip">
+            <img class="lkc-gray-art" id="lkc-gray-front" src="/assets/img/logo.png" alt="Classic gray tee, front" width="240" height="240" loading="lazy">
+            <img class="lkc-gray-art" id="lkc-gray-back" src="/assets/img/shirts/art-bear-patch.png" alt="Classic gray tee, back" width="240" height="240" loading="lazy" hidden>
+            <span class="lkc-gray-flipbtn" id="lkc-gray-flipbtn">Front &middot; tap for back</span>
+          </button>
           <div id="lkc-gray-opts" hidden>
             <select id="lkc-gray-size" aria-label="Gray tee size">
               <option value="" disabled selected>Pick a size</option>
@@ -518,6 +533,15 @@
   });
   $("lkc-shirt").addEventListener("change", renderPrice);
   $("lkc-gray").addEventListener("change", renderPrice);
+
+  /* Flip the gray tee card front to back. Sits outside the label so tapping
+     the picture shows the artwork instead of ticking the box. */
+  $("lkc-gray-flip").addEventListener("click", function () {
+    var showBack = $("lkc-gray-back").hidden;
+    $("lkc-gray-front").hidden = showBack;
+    $("lkc-gray-back").hidden = !showBack;
+    $("lkc-gray-flipbtn").innerHTML = showBack ? "Back &middot; tap for front" : "Front &middot; tap for back";
+  });
 
   // ── the card field ───────────────────────────────────────────────────────
   // Stripe.js is loaded on demand and the number is typed into Stripe's own
