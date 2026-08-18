@@ -41,9 +41,11 @@
 /* T-shirt add-on - its own row, NOT a .form-field (that is a column flex and
    squashed this into a narrow stack on desktop). */
 .lkc-shirt{margin:14px 0 4px;padding:14px;border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc}
-.lkc-shirt-q{display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;font-size:.97rem;font-weight:600;margin:0}
+.lkc-shirt-q{display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:nowrap;font-size:.97rem;font-weight:600;margin:0}
 .lkc-shirt-q input[type=checkbox]{width:20px;height:20px;flex:0 0 auto;margin:0}
-.lkc-shirt-q .grow{flex:1 1 auto;min-width:0}
+/* flex-basis 0 so long price text wraps INSIDE the span instead of shoving
+   the whole description onto its own line under the checkbox */
+.lkc-shirt-q .grow{flex:1 1 0;min-width:0}
 .lkc-shirt select{margin-top:10px;width:100%;max-width:180px;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
 /* Shirt design picker - white shirt, choose the girl or boy artwork. */
 .lkc-pick{margin:14px 0 8px;font-weight:700;font-size:.95rem}
