@@ -228,7 +228,9 @@
           </label>
           <button type="button" class="lkc-gray-flip" id="lkc-gray-flip">
             <img class="lkc-gray-art" id="lkc-gray-front" src="/assets/img/logo.png" alt="Classic gray tee, front" width="240" height="240" loading="lazy">
-            <img class="lkc-gray-art" id="lkc-gray-back" src="/assets/img/shirts/art-bear-patch.png" alt="Classic gray tee, back" width="240" height="240" loading="lazy" hidden>
+            <!-- Not lazy: a hidden lazy image never fetches, so the first flip
+                 would show a blank card while the artwork downloaded. -->
+            <img class="lkc-gray-art" id="lkc-gray-back" src="/assets/img/shirts/art-bear-patch.png" alt="Classic gray tee, back" width="240" height="240" hidden>
             <span class="lkc-gray-flipbtn" id="lkc-gray-flipbtn">Front &middot; tap for back</span>
           </button>
           <div id="lkc-gray-opts" hidden>
