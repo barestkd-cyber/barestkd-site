@@ -141,9 +141,6 @@
   .cbc-opt .radio{margin-top:4px}
   .cbc-opt .due{text-align:left;margin-top:4px}
   .cbc-opt .due small{display:inline;margin-left:6px}
-  /* Terms keep their own lines; the badge drops to a line of its own instead
-     of shoving "per month" onto a second line mid-phrase. */
-  .cbc-save{display:block;width:fit-content;margin:5px 0 0}
 }
 .cbc-opt .due small{display:block;font-weight:400;color:#5b6570;font-size:.75rem}
 
@@ -347,7 +344,7 @@
       </div>
 
       <button class="btn btn--primary btn--lg" type="submit" id="lkc-pay">Pay and Enroll</button>
-      <p class="form-consent">Payment is handled on a secure Stripe checkout page. By providing your number you consent to receive notification messages from Bares Taekwondo Fitness; reply STOP to opt out.</p>
+      <p class="form-consent">Your card is processed securely by Stripe. By providing your number you consent to receive notification messages from Bares Taekwondo Fitness; reply STOP to opt out.</p>
       <p class="form-privacy"><a href="/privacy-policy">Privacy Policy</a></p>
       <p class="form-status lkc-status" id="lkc-status" role="status" aria-live="polite"></p>
     </form>
@@ -476,14 +473,20 @@
     return out;
   }
 
+  /* Whole dollars unless there are real cents: $1192, $99, but $27.95. The
+     12-month term is stated once at the top of the card and in the policies,
+     not repeated on every option line. */
+  function moneyS(c) {
+    return c % 100 === 0 ? "$" + (c / 100) : "$" + (c / 100).toFixed(2);
+  }
   function optTerms(o) {
-    if (o.billing_frequency === "one_time") return "One payment of " + money(o.pif_cents) + ", 12-month membership";
+    if (o.billing_frequency === "one_time") return "One payment of " + moneyS(o.pif_cents);
     if (o.billing_frequency === "weekly") {
       return o.down_cents > 0
-        ? money(o.down_cents) + " down, then " + money(o.recurring_cents) + " per week"
-        : money(o.recurring_cents) + " per week, nothing down";
+        ? moneyS(o.down_cents) + " down / " + moneyS(o.recurring_cents) + " a week"
+        : moneyS(o.recurring_cents) + " a week";
     }
-    return money(o.down_cents) + " down, then " + money(o.recurring_cents) + " per month";
+    return moneyS(o.down_cents) + " down / " + moneyS(o.recurring_cents) + " a month";
   }
   function dueSub(o) {
     if (o.billing_frequency === "one_time") return "due today";
@@ -495,10 +498,10 @@
     CFG.options.forEach(function (o) {
       hh += '<button type="button" class="cbc-opt" role="radio" aria-checked="false" data-code="' + esc(o.code) + '">'
         + '<span class="radio"></span>'
-        + '<span class="nm">' + esc(o.name) + '</span>'
-        + '<span class="due">' + money(o.due_today_cents) + '<small>' + esc(dueSub(o)) + '</small></span>'
-        + '<span class="tm">' + esc(optTerms(o))
-        + (o.promo ? '<b class="cbc-save">' + esc(o.promo) + '</b>' : '') + '</span>'
+        + '<span class="nm">' + esc(o.name)
+        + (o.promo ? ' <b class="cbc-save">' + esc(o.promo) + '</b>' : '') + '</span>'
+        + '<span class="due">' + moneyS(o.due_today_cents) + '<small>' + esc(dueSub(o)) + '</small></span>'
+        + '<span class="tm">' + esc(optTerms(o)) + '</span>'
         + '</button>';
     });
     $("cbc-options").innerHTML = hh;
