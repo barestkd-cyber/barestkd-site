@@ -91,13 +91,19 @@
   body{background:#fff}
 }
 
-.cbc-opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:2px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:9px;cursor:pointer;font:inherit}
+.cbc-opt{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"r n d" ". t d";
+  column-gap:11px;row-gap:2px;align-items:center;width:100%;text-align:left;background:#fff;
+  border:2px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:9px;cursor:pointer;font:inherit}
+.cbc-opt .radio{grid-area:r}
+.cbc-opt .nm{grid-area:n}
+.cbc-opt .tm{grid-area:t}
+.cbc-opt .due{grid-area:d}
 .cbc-opt[aria-checked="true"]{border-color:var(--belt-red);box-shadow:0 0 0 3px rgba(227,30,36,.12)}
 .cbc-opt .radio{width:18px;height:18px;border-radius:50%;border:2px solid #B9BEC9;flex:0 0 auto}
 .cbc-opt[aria-checked="true"] .radio{border-color:var(--belt-red);background:radial-gradient(circle at center,var(--belt-red) 0 45%,#fff 50%)}
 .cbc-opt .nm{font-weight:700;font-size:.98rem}
 .cbc-opt .tm{color:#5b6570;font-size:.85rem;margin-top:2px}
-.cbc-opt .due{margin-left:auto;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cbc-opt .due{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:1.05rem}
 .cbc-more{margin-top:10px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
 .cbc-more > summary{cursor:pointer;padding:11px 14px;font-weight:800;font-size:.92rem;list-style:none}
 .cbc-more > summary::-webkit-details-marker{display:none}
@@ -128,11 +134,11 @@
 .cbc-tee select{margin-top:10px;width:100%;max-width:190px;font:inherit;padding:.55rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
 .cbc-policy{margin:0 0 6px;font-size:.94rem;font-weight:700;line-height:1.5}
 .cbc-policy-link{margin:0 0 14px;font-size:.9rem}
-@media (max-width:520px){
-  .cbc-opt{flex-wrap:wrap;align-items:flex-start}
-  .cbc-opt .radio{margin-top:3px}
-  .cbc-opt .due{margin-left:30px;margin-top:8px;text-align:left;white-space:normal}
-  .cbc-opt .due small{display:inline}
+@media (max-width:560px){
+  .cbc-opt{grid-template-columns:auto 1fr;grid-template-areas:"r n" ". t" ". d";align-items:start;row-gap:4px}
+  .cbc-opt .radio{margin-top:4px}
+  .cbc-opt .due{text-align:left;margin-top:4px}
+  .cbc-opt .due small{display:inline;margin-left:6px}
 }
 .cbc-opt .due small{display:block;font-weight:400;color:#5b6570;font-size:.75rem}
 
@@ -484,9 +490,9 @@
     CFG.options.forEach(function (o) {
       hh += '<button type="button" class="cbc-opt" role="radio" aria-checked="false" data-code="' + esc(o.code) + '">'
         + '<span class="radio"></span>'
-        + '<span><span class="nm">' + esc(o.name) + '</span>'
-        + '<span class="tm" style="display:block">' + esc(optTerms(o)) + '</span></span>'
+        + '<span class="nm">' + esc(o.name) + '</span>'
         + '<span class="due">' + money(o.due_today_cents) + '<small>' + esc(dueSub(o)) + '</small></span>'
+        + '<span class="tm">' + esc(optTerms(o)) + '</span>'
         + '</button>';
     });
     $("cbc-options").innerHTML = hh;
