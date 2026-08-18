@@ -103,6 +103,8 @@
 .cbc-opt[aria-checked="true"] .radio{border-color:var(--belt-red);background:radial-gradient(circle at center,var(--belt-red) 0 45%,#fff 50%)}
 .cbc-opt .nm{font-weight:700;font-size:.98rem}
 .cbc-opt .tm{color:#5b6570;font-size:.85rem;margin-top:2px}
+.cbc-save{display:inline-block;background:#18A974;color:#fff;font-weight:800;font-size:.72rem;
+  letter-spacing:.02em;border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:1px;white-space:nowrap}
 .cbc-opt .due{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:1.05rem}
 .cbc-more{margin-top:10px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
 .cbc-more > summary{cursor:pointer;padding:11px 14px;font-weight:800;font-size:.92rem;list-style:none}
@@ -480,6 +482,28 @@
     }
     return money(o.down_cents) + " down, then " + money(o.recurring_cents) + " per month";
   }
+  function yearTotal(o) {
+    if (o.billing_frequency === "one_time") return o.pif_cents;
+    var n = o.billing_frequency === "weekly" ? 52 : (o.payment_count || 12);
+    return o.down_cents + o.recurring_cents * n;
+  }
+  /* Percent saved against the priciest option across a full year. Returns 0
+     for the baseline itself so it gets no badge. */
+  function savingPct(o) {
+    var max = Math.max.apply(null, (CFG.options || []).map(yearTotal));
+    var mine = yearTotal(o);
+    if (!max || mine >= max) return 0;
+    return Math.round((max - mine) / max * 100);
+  }
+  /* Every option gets whatever badge it has earned: a real annual saving, or
+     no money up front, which is the reason to choose weekly. */
+  function optBadge(o) {
+    var pct = savingPct(o);
+    if (pct) return '<b class="cbc-save">' + pct + '% off!</b>';
+    if (!o.down_cents && o.billing_frequency !== "one_time") return '<b class="cbc-save">No down payment!</b>';
+    return '';
+  }
+
   function dueSub(o) {
     if (o.billing_frequency === "one_time") return "due today";
     if (o.down_cents > 0) return "down + first " + (o.billing_frequency === "weekly" ? "week" : "month") + ", due today";
@@ -492,7 +516,7 @@
         + '<span class="radio"></span>'
         + '<span class="nm">' + esc(o.name) + '</span>'
         + '<span class="due">' + money(o.due_today_cents) + '<small>' + esc(dueSub(o)) + '</small></span>'
-        + '<span class="tm">' + esc(optTerms(o)) + '</span>'
+        + '<span class="tm">' + esc(optTerms(o)) + optBadge(o) + '</span>'
         + '</button>';
     });
     $("cbc-options").innerHTML = hh;
