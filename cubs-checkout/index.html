@@ -148,6 +148,16 @@
 .cbc-opt .due small{display:inline;font-weight:400;color:#5b6570;font-size:.75rem}
 .cbc-opt .due i{display:block;font-style:normal;font-weight:400;color:#5b6570;font-size:.75rem;margin-top:1px}
 
+/* Optional-people expanders */
+.lkc-addbtn{display:block;width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:10px;
+  padding:11px 14px;margin-top:10px;font:inherit;font-weight:800;font-size:.92rem;cursor:pointer}
+.lkc-addbtn::after{content:"";float:right;color:var(--belt-red)}
+.lkc-extras > div[hidden]{display:none}
+#lkc-g2{margin-top:10px}
+.lkc-person{display:flex;gap:8px;margin-top:8px;align-items:center}
+.lkc-person input{flex:1 1 0;min-width:0;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
+.lkc-person-x{flex:0 0 auto;background:none;border:none;color:#9AA4AF;font-size:20px;cursor:pointer;padding:2px 6px}
+
 /* Footer: match the form column so it reads as centred with the page. */
 .lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
 </style>
@@ -298,9 +308,29 @@
           <label for="lkc-phone">Phone</label>
           <input id="lkc-phone" type="tel" autocomplete="tel" required>
         </div>
-        <div class="form-field" style="margin-bottom:0">
+        <div class="form-field">
           <label for="lkc-address">Home address</label>
           <input id="lkc-address" type="text" autocomplete="street-address" placeholder="Street, city, zip" required>
+        </div>
+
+        <!-- Optional people. One guardian is required above; everything here
+             is fill-what-you-want. Empty rows are ignored on submit. -->
+        <div class="lkc-extras" id="lkc-extras">
+          <button type="button" class="lkc-addbtn" id="lkc-add-g2">+ Add second guardian</button>
+          <div id="lkc-g2" hidden>
+            <div class="form-field"><label for="lkc-g2-name">Second guardian's name</label>
+              <input id="lkc-g2-name" type="text" autocomplete="off"></div>
+            <div class="form-field"><label for="lkc-g2-email">Their email</label>
+              <input id="lkc-g2-email" type="email" autocomplete="off"></div>
+            <div class="form-field"><label for="lkc-g2-phone">Their phone</label>
+              <input id="lkc-g2-phone" type="tel" autocomplete="off"></div>
+            <div class="form-field"><label for="lkc-g2-address">Their address</label>
+              <input id="lkc-g2-address" type="text" autocomplete="off" placeholder="Street, city, zip"></div>
+          </div>
+          <button type="button" class="lkc-addbtn" id="lkc-add-em">+ Add emergency contact</button>
+          <div id="lkc-em-list"></div>
+          <button type="button" class="lkc-addbtn" id="lkc-add-pu">+ Add person authorized to pick up</button>
+          <div id="lkc-pu-list"></div>
         </div>
       </div>
 
@@ -647,6 +677,40 @@
     });
   });
 
+  // ── optional people: second guardian, emergency, pickup ──────────────────
+  $("lkc-add-g2").addEventListener("click", function () {
+    $("lkc-g2").hidden = false; this.hidden = true;
+  });
+  function addPersonRow(listId, kind) {
+    var list = $(listId);
+    if (list.children.length >= 5) return;
+    var row = document.createElement("div");
+    row.className = "lkc-person";
+    row.innerHTML = '<input type="text" placeholder="Name" data-p="name">'
+      + '<input type="tel" placeholder="Phone" data-p="phone">'
+      + (kind === "emergency" ? '<input type="text" placeholder="Relationship" data-p="relationship">' : '')
+      + '<button type="button" class="lkc-person-x" aria-label="Remove">&times;</button>';
+    row.querySelector(".lkc-person-x").addEventListener("click", function () { row.remove(); });
+    list.appendChild(row);
+  }
+  $("lkc-add-em").addEventListener("click", function () { addPersonRow("lkc-em-list", "emergency"); });
+  $("lkc-add-pu").addEventListener("click", function () { addPersonRow("lkc-pu-list", "pickup"); });
+  function collectPeople(listId) {
+    return Array.prototype.map.call($(listId).children, function (row) {
+      var o = {};
+      row.querySelectorAll("[data-p]").forEach(function (i) { o[i.getAttribute("data-p")] = i.value.trim(); });
+      return o;
+    }).filter(function (o) { return o.name || o.phone; });
+  }
+  function collectGuardian2() {
+    if ($("lkc-g2").hidden) return null;
+    var g = {
+      name: $("lkc-g2-name").value.trim(), email: $("lkc-g2-email").value.trim(),
+      phone: $("lkc-g2-phone").value.trim(), address: $("lkc-g2-address").value.trim()
+    };
+    return (g.name || g.email || g.phone) ? g : null;
+  }
+
   // signature pad
   var pad = $("lkc-pad"), ctx = null, drawing = false, dirty = false;
   function padSetup() {
@@ -775,6 +839,9 @@
         parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
         email: $("lkc-email").value.trim(), phone: $("lkc-phone").value.trim(),
         address: $("lkc-address").value.trim(),
+        guardian2: collectGuardian2(),
+        emergency: collectPeople("lkc-em-list"),
+        pickup: collectPeople("lkc-pu-list"),
         initials: $("cbc-initials").value.trim().toUpperCase(),
         signer_name: $("lkc-signer").value.trim(), signer_relationship: $("lkc-rel").value.trim(),
         signature_png: pad.toDataURL("image/png"),

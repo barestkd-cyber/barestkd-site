@@ -369,6 +369,25 @@ Deno.serve(async (req) => {
     const parentFirst = str(body.parent_first), parentLast = str(body.parent_last);
     const email = str(body.email).toLowerCase(), phone = str(body.phone);
     const address = str(body.address).slice(0, 300);
+
+    // Optional people. All of it is fill-what-you-want: a second guardian,
+    // emergency contacts, pickup people. Empty entries are dropped, counts
+    // are capped, and a failure to save one never blocks the enrollment.
+    const g2raw = (body.guardian2 && typeof body.guardian2 === "object") ? body.guardian2 as Record<string, unknown> : null;
+    const guardian2 = g2raw ? {
+      name: str(g2raw.name).slice(0, 120), email: str(g2raw.email).toLowerCase().slice(0, 200),
+      phone: str(g2raw.phone).slice(0, 40), address: str(g2raw.address).slice(0, 300),
+    } : null;
+    const people = (raw: unknown, kind: string) =>
+      (Array.isArray(raw) ? raw : []).slice(0, 5)
+        .map((r) => ({
+          kind,
+          name: str((r as Record<string, unknown>).name).slice(0, 120),
+          phone: str((r as Record<string, unknown>).phone).slice(0, 40),
+          relationship: str((r as Record<string, unknown>).relationship).slice(0, 60) || null,
+        }))
+        .filter((r) => r.name && r.phone);
+    const extraPeople = [...people(body.emergency, "emergency"), ...people(body.pickup, "pickup")];
     const wantShirt = body.tshirt === true, shirtSize = str(body.tshirt_size);
     // White shirt; the artwork is the choice. Constrained to the two designs
     // that exist so the packing slip can't say something unprintable.
@@ -446,6 +465,20 @@ Deno.serve(async (req) => {
       student_id: studentId, email, name: guardianName, label: "parent",
     });
     if (gIns.error) problems.push("guardian row: " + gIns.error.message);
+
+    if (guardian2 && (guardian2.name || guardian2.email || guardian2.phone)) {
+      const g2Ins = await admin.from("student_guardians").insert({
+        student_id: studentId, label: "guardian",
+        name: guardian2.name || null, email: guardian2.email || null,
+        phone: guardian2.phone || null, address: guardian2.address || null,
+      });
+      if (g2Ins.error) problems.push("second guardian: " + g2Ins.error.message);
+    }
+    if (extraPeople.length) {
+      const epIns = await admin.from("student_contacts").insert(
+        extraPeople.map((r) => ({ student_id: studentId, ...r })));
+      if (epIns.error) problems.push("extra contacts: " + epIns.error.message);
+    }
 
     // 3. The sale header FIRST. The membership carries sale_id, so the sale
     //    row has to exist before it or the foreign key has nothing to point
