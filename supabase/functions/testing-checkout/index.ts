@@ -100,6 +100,48 @@ function prettyDay(ymd: string): string {
   return DAYS[d.getUTCDay()] + ", " + MONTHS[p[1] - 1] + " " + p[2];
 }
 
+// How long to block out on a calendar. A testing does not have a published
+// end time, so this is a deliberate guess: long enough that the slot looks
+// real, short enough that it does not swallow someone's whole evening.
+const TESTING_MINUTES = 90;
+
+/** "5:30 PM" -> "1730". Returns null on anything it cannot read, which just
+ *  means no calendar button rather than a button pointing at the wrong hour. */
+function to24(t: string): string | null {
+  const m = /^(d{1,2}):(d{2})s*(AM|PM)$/i.exec(String(t || "").trim());
+  if (!m) return null;
+  let h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 12 || min > 59) return null;
+  const pm = m[3].toUpperCase() === "PM";
+  if (pm && h !== 12) h += 12;
+  if (!pm && h === 12) h = 0;
+  return String(h).padStart(2, "0") + String(min).padStart(2, "0");
+}
+function addMinutes(hhmm: string, mins: number): string {
+  const total = Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(2)) + mins;
+  const h = Math.floor(total / 60) % 24, m = total % 60;
+  return String(h).padStart(2, "0") + String(m).padStart(2, "0");
+}
+
+/** A Google Calendar "add event" link for ONE testing. Google's TEMPLATE URL
+ *  carries a single event, so a family testing across two days gets a button
+ *  for the FIRST one and the full list in the email text. */
+function googleCalUrl(o: { title: string; ymd: string; start: string; minutes: number; details: string }): string | null {
+  const start = to24(o.start);
+  if (!start) return null;
+  const d = o.ymd.replace(/-/g, "");
+  const q = new URLSearchParams({
+    action: "TEMPLATE",
+    text: o.title,
+    dates: d + "T" + start + "00/" + d + "T" + addMinutes(start, o.minutes) + "00",
+    ctz: "America/Chicago",
+    location: "1901 Deerbrook Dr, Tyler, TX 75703",
+    details: o.details,
+  });
+  return "https://calendar.google.com/calendar/render?" + q.toString();
+}
+
 /** The card admin fee, exactly as the POS suggests it: basis points on the
  *  pre-fee pre-tax base, plus the flat part. Never taxed. */
 function adminFeeCents(baseCents: number, bps: number, flat: number): number {
@@ -348,6 +390,24 @@ Deno.serve(async (req) => {
       + ", " + prettyDay(String(s.group.test_date))
       + (s.group.start_time ? " at " + String(s.group.start_time) : ""));
 
+    // Earliest testing first, so the calendar button points at whichever day
+    // comes soonest rather than whichever student was typed first.
+    const soonest = seats.slice().sort((a, b) => {
+      const da = String(a.group.test_date), db = String(b.group.test_date);
+      if (da !== db) return da < db ? -1 : 1;
+      return (to24(String(a.group.start_time || "")) || "9999")
+        .localeCompare(to24(String(b.group.start_time || "")) || "9999");
+    })[0];
+    const calUrl = soonest && soonest.group.start_time
+      ? googleCalUrl({
+          title: "Belt testing at Bares Taekwondo Fitness",
+          ymd: String(soonest.group.test_date),
+          start: String(soonest.group.start_time),
+          minutes: TESTING_MINUTES,
+          details: "Arrive at least 5 minutes early, in full uniform, with all required gear. Family and friends are welcome to watch.",
+        })
+      : null;
+
     const saleIns = await admin.from("pos_sales").insert({
       id: saleId, buyer_contact_id: buyerId, sale_date: today,
       staff_email: "testing-checkout@website", brand: "btkd",
@@ -356,6 +416,7 @@ Deno.serve(async (req) => {
       admin_fee_cents: fee, tax_cents: totals.taxCents,
       total_cents: totals.totalCents,
       receipt_email: email,
+      calendar_url: calUrl,
       // What the PARENT reads on their receipt. Without this the only email
       // they get is a total, and never says which day to show up.
       customer_note:
