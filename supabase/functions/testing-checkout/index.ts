@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
 
     const today = todayCT();
     const groupsRes = await admin.from("testing_dates")
-      .select("id,label,test_date,start_time,applies_to,fee_cents,signup_by,program,sort_order")
+      .select("id,label,test_date,start_time,applies_to,fee_cents,fee_addl_cents,signup_by,program,sort_order")
       .gte("test_date", today).order("sort_order");
     const groups = groupsRes.data ?? [];
 
@@ -181,7 +181,8 @@ Deno.serve(async (req) => {
           test_date: g.test_date,
           start_time: g.start_time,
           applies_to: g.applies_to,
-          flat_fee_cents: g.fee_cents,      // null means the family ladder
+          flat_fee_cents: g.fee_cents,           // null means the family ladder
+          flat_addl_fee_cents: g.fee_addl_cents, // later seats at a flat event
           signup_by: g.signup_by,           // printed, never enforced
           pretty_day: prettyDay(String(g.test_date)),
         })),
@@ -289,16 +290,17 @@ Deno.serve(async (req) => {
         : TKD_RANKS;
       if (!allowed.includes(rank)) return json({ error: "Pick the current belt for " + first + "." }, 400, cors);
 
-      // A per-event flat fee wins: Late Testing is $70 and never laddered.
-      // Otherwise the family ladder, where seat 1 follows the group's program
-      // and every later seat is flat.
-      const cents = group.fee_cents != null
-        ? Number(group.fee_cents)
-        : BTKDPricing.testingFeeCents({
-            program: group.program === "Cubs" ? "Cubs" : "TKD",
-            position,
-            settings,
-          });
+      // One function prices every seat. A per-event override replaces the
+      // ladder (Late Testing: $70 first, $60 each additional); with no
+      // override the family ladder runs, seat 1 following the group's
+      // program and later seats flat.
+      const cents = BTKDPricing.testingFeeCents({
+        program: group.program === "Cubs" ? "Cubs" : "TKD",
+        position,
+        settings,
+        flatCents: group.fee_cents,
+        flatAddlCents: group.fee_addl_cents,
+      });
       seats.push({ first, last, group, rank, position, cents });
     }
 

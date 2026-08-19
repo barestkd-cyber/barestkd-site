@@ -487,7 +487,8 @@ const BTKDPricing = (function () {
 
   /* What ONE belt-testing seat costs.
    *
-   *   testingFeeCents({ program, position, settings })
+   *   testingFeeCents({ program, position, settings,
+   *                     flatCents, flatAddlCents })
    *
    * `position` is DECLARED by the parent at checkout, never derived from a
    * household. The public testing page has no login, and the owner's rule
@@ -511,6 +512,16 @@ const BTKDPricing = (function () {
     function cents(v, fallback) {
       var n = Number(v);
       return (isFinite(n) && n >= 0) ? Math.round(n) : fallback;
+    }
+    // A per-event override replaces the ladder entirely. Late Testing is a
+    // catch-up slot priced its own way (owner 2026-08-19: $70 for the first
+    // family member, "2nd + late tester can be 60"), not a discounted copy
+    // of the regular ladder. flatAddlCents null means every seat pays the
+    // same, which is what a genuinely flat event fee looks like.
+    if (opts.flatCents != null) {
+      var flatFirst = cents(opts.flatCents, 0);
+      if (pos === 1) return flatFirst;
+      return opts.flatAddlCents != null ? cents(opts.flatAddlCents, flatFirst) : flatFirst;
     }
     if (pos === 1) {
       var isCubs = String(opts.program || '').trim().toLowerCase() === 'cubs';

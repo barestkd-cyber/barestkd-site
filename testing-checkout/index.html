@@ -146,6 +146,44 @@
           <p class="tst-deadline" id="tst-deadline"></p>
         </div>
 
+        <!-- ============================================================
+             THE TESTING WEEK. Hand-written, and it changes every testing
+             cycle: update the days, the times and the no-class notes here
+             when the next testing is set. Deliberately not generated - the
+             owner writes these schedules by hand everywhere else on the
+             site, and a generator for something edited twice a year is more
+             to maintain than the thing it replaces.
+             ============================================================ -->
+        <div class="tst-step">
+          <h2>Testing Week</h2>
+          <p class="step-sub">What the whole week looks like, including the classes that do not meet.</p>
+          <ul class="tst-sched">
+            <li><div class="g">Friday, August 28</div>
+                <div class="w">Cubs testing, 5:30 PM</div></li>
+            <li><div class="g">Saturday, August 29 <em>(no regular classes)</em></div>
+                <div class="w">Juniors white through Senior Orange, 9:30 AM<br>
+                Juniors green through black and all adults, 11:00 AM</div></li>
+            <li><div class="g">Monday, August 31 <em>(no Taekwondo)</em></div>
+                <div class="w">Kickboxing, 5:45 PM</div></li>
+            <li><div class="g">Tuesday, September 1 <em>(no regular classes)</em></div>
+                <div class="w">Late testing, 5:30 PM</div></li>
+            <li><div class="g">Wednesday, September 2</div>
+                <div class="w">Leadership-led class</div></li>
+            <li><div class="g">Thursday, September 3 <em>(no Taekwondo or Jiu Jitsu)</em></div>
+                <div class="w">Awards ceremony, 6:00 PM</div></li>
+            <li><div class="g">Saturday, September 5 and Monday, September 7</div>
+                <div class="w">No classes or events, Labor Day weekend</div></li>
+          </ul>
+          <div class="tst-who">
+            <strong>On testing day</strong>
+            <ul>
+              <li>Arrive at least 5 minutes early for your scheduled time.</li>
+              <li>Full uniform, and bring all required gear.</li>
+              <li>Family and friends are welcome to come and watch.</li>
+            </ul>
+          </div>
+        </div>
+
         <!-- 2. The person paying and receiving the receipt. Asked once. -->
         <div class="tst-step">
           <h2>Your Information</h2>
@@ -320,7 +358,15 @@
   function seatCents(stu) {
     var g = groupById(stu.groupId);
     if (!g) return 0;
-    if (g.flat_fee_cents != null) return Number(g.flat_fee_cents);
+    // A per-event override replaces the ladder. Late Testing is $70 for the
+    // first family member and $60 for each additional, so position still
+    // matters even though the regular ladder does not apply.
+    if (g.flat_fee_cents != null) {
+      if (stu.seat === 1) return Number(g.flat_fee_cents);
+      return g.flat_addl_fee_cents != null
+        ? Number(g.flat_addl_fee_cents)
+        : Number(g.flat_fee_cents);
+    }
     var f = CFG.fees;
     if (stu.seat === 1) return g.program === "Cubs" ? f.seat1_cubs_cents : f.seat1_standard_cents;
     if (stu.seat === 2) return f.seat2_cents;
@@ -345,6 +391,17 @@
       }).join("");
       var g = groupById(s.groupId);
       var flat = g && g.flat_fee_cents != null;
+      // Only lock the selector where the seat genuinely cannot change the
+      // price. A flat event WITH a second rate still depends on it.
+      var tiered = flat && g.flat_addl_fee_cents != null
+        && Number(g.flat_addl_fee_cents) !== Number(g.flat_fee_cents);
+      var locked = flat && !tiered;
+      var seatNote = locked
+        ? "One rate for everyone in this group."
+        : (tiered
+            ? money(g.flat_fee_cents) + " for your first, " + money(g.flat_addl_fee_cents)
+              + " for each additional. Already paid for another student? Pick their next place here."
+            : "Already paid for another student in this testing? Pick their next place here.");
 
       return '<div class="tst-stu">'
         + '<div class="tst-stu-hd"><span class="tst-stu-n">Student ' + (i + 1) + "</span>"
@@ -358,11 +415,8 @@
         + "</div>"
         + '<div class="tst-f"><label>Testing group</label><select data-f="groupId" data-k="' + s.key + '">' + opts + "</select></div>"
         + '<div class="tst-f"><label>Current belt</label><select data-f="rank" data-k="' + s.key + '">' + rankOpts + "</select></div>"
-        + '<div class="tst-f"><label>Family rate</label><select data-f="seat" data-k="' + s.key + '"' + (flat ? " disabled" : "") + ">" + seatOpts + "</select>"
-        + '<p class="tst-seatnote">' + (flat
-            ? "Late Testing is a flat rate and does not use the family discount."
-            : "Already paid for another student in this testing? Pick their next place here.")
-        + "</p></div>"
+        + '<div class="tst-f"><label>Family rate</label><select data-f="seat" data-k="' + s.key + '"' + (locked ? " disabled" : "") + ">" + seatOpts + "</select>"
+        + '<p class="tst-seatnote">' + seatNote + "</p></div>"
         + '<div class="tst-price">' + money(seatCents(s)) + "</div>"
         + "</div>";
     }).join("");
