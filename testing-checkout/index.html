@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Belt Testing Signup | Bares Taekwondo Fitness | Tyler, TX</title>
-<meta name="description" content="Sign your student up for belt testing at Bares Taekwondo Fitness in Tyler, TX.">
+<title>Belt Testing Registration | Bares Taekwondo Fitness | Tyler, TX</title>
+<meta name="description" content="Register your student for belt testing at Bares Taekwondo Fitness in Tyler, TX.">
 <link rel="canonical" href="https://www.barestkd.fit/testing-checkout/">
 <meta name="robots" content="noindex">
 <link rel="icon" href="/assets/img/favicon.png">
@@ -114,8 +114,8 @@
     <div class="container tst-col">
 
       <p class="eyebrow" style="text-align:center">Bares Taekwondo Fitness</p>
-      <h1 style="text-align:center;margin:0 0 6px">Belt Testing Signup</h1>
-      <p style="text-align:center;color:#5b6570;margin:0 0 22px" id="tst-sub">Loading…</p>
+      <h1 style="text-align:center;margin:0 0 6px">Belt Testing Registration</h1>
+      <p style="text-align:center;color:#5b6570;margin:0 0 22px" id="tst-sub"></p>
 
       <img class="tst-photo" src="/assets/img/testing-lineup.jpg"
            alt="Bares Taekwondo Fitness students lined up in uniform for belt testing"
@@ -123,14 +123,14 @@
 
       <!-- Shown instead of the form when the page is not open. -->
       <div class="tst-closed" id="tst-closed" hidden>
-        <h2>Signups are not open right now</h2>
-        <p>There is no testing taking sign-ups at the moment. Give us a call and we will let you know when the next one opens.</p>
+        <h2>Registration is not open right now</h2>
+        <p>There is no testing taking registrations at the moment. Give us a call and we will let you know when the next one opens.</p>
         <p style="margin-top:14px"><a class="btn btn--primary" href="tel:903-561-2966">Call 903-561-2966</a></p>
       </div>
 
       <!-- Shown after a successful payment. -->
       <div class="tst-done" id="tst-done" hidden>
-        <h2>You're signed up</h2>
+        <h2>You're registered</h2>
         <p id="tst-done-msg"></p>
         <p style="margin-top:16px"><a class="btn btn--primary" id="tst-done-link" href="/">View your receipt</a></p>
       </div>
@@ -144,7 +144,7 @@
           <p class="step-sub">Find your student's group. It tells you the day and the time.</p>
           <ul class="tst-sched" id="tst-sched"></ul>
           <div class="tst-who">
-            <strong>Who should sign up</strong>
+            <strong>Who should register</strong>
             <ul>
               <li>Cubs with 2 or more black stripes</li>
               <li>White through Senior Orange with 3 or more black stripes</li>
@@ -170,8 +170,8 @@
             <li><div class="g">Friday, August 28</div>
                 <div class="w">Cubs testing, 5:30 PM</div></li>
             <li><div class="g">Saturday, August 29 <em>(no regular classes)</em></div>
-                <div class="w">Juniors white through Senior Orange, 9:30 AM<br>
-                Juniors green through black and all adults, 11:00 AM</div></li>
+                <div class="w">Juniors White through Senior Orange, 9:30 AM<br>
+                Juniors Green through Black and all Adults, 11:00 AM</div></li>
             <li><div class="g">Monday, August 31 <em>(no Taekwondo)</em></div>
                 <div class="w">Kickboxing, 5:45 PM</div></li>
             <li><div class="g">Tuesday, September 1 <em>(no regular classes)</em></div>
@@ -246,7 +246,7 @@
             </div>
           </div>
 
-          <button class="btn btn--primary btn--lg tst-pay" type="submit" id="tst-pay">Pay and Sign Up</button>
+          <button class="btn btn--primary btn--lg tst-pay" type="submit" id="tst-pay">Pay and Register</button>
           <div class="tst-status" id="tst-statusmsg"></div>
 
           <!-- Honeypot. Real people never see it; bots fill it in. -->
@@ -302,7 +302,6 @@
         $("tst-closed").hidden = false;
         return;
       }
-      $("tst-sub").textContent = "Pick your student's group, and pay for everyone testing at once.";
       $("tst-form").hidden = false;
       renderSchedule();
       addStudent();
@@ -323,7 +322,7 @@
     // Every group carries the same sign-up-by date today; show the earliest.
     var by = CFG.groups.map(function (g) { return g.signup_by; })
       .filter(Boolean).sort()[0];
-    $("tst-deadline").textContent = by ? "Please sign up by " + prettyDate(by) + "." : "";
+    $("tst-deadline").textContent = by ? "Please register by " + prettyDate(by) + "." : "";
   }
 
   /* yyyy-mm-dd to "Thursday, August 27", built without new Date(str) - that
@@ -555,7 +554,7 @@
 
     var btn = $("tst-pay");
     btn.disabled = true; btn.textContent = "Working…";
-    status("", "Setting up your signup…");
+    status("", "Setting up your registration…");
 
     fetch(FN, {
       method: "POST",
@@ -616,7 +615,7 @@
         window.scrollTo(0, 0);
       })
       .catch(function (err) {
-        btn.disabled = false; btn.textContent = "Pay and Sign Up";
+        btn.disabled = false; btn.textContent = "Pay and Register";
         var msg = (err && err.message && err.message !== "failed")
           ? err.message
           : "Something went wrong. Try again or call 903-561-2966.";
