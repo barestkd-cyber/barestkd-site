@@ -485,6 +485,43 @@ const BTKDPricing = (function () {
     return (rec || 0) + (down || 0);
   }
 
+  /* What ONE belt-testing seat costs.
+   *
+   *   testingFeeCents({ program, position, settings })
+   *
+   * `position` is DECLARED by the parent at checkout, never derived from a
+   * household. The public testing page has no login, and the owner's rule
+   * (2026-08-19) is that a parent who paid for one child in an earlier
+   * checkout can come back and check out as second at the second-seat price
+   * without a first seat in the same cart.
+   *
+   * Seat 1 pays that student's PROGRAM rate, so Cubs is cheaper. Every later
+   * seat is a flat family rate regardless of program, which means a family
+   * that puts their Cubs student first pays the Cubs rate for seat 1. That is
+   * the owner's explicit call, not an accident of ordering.
+   *
+   * Unknown or missing settings fall back to the launch numbers rather than
+   * to zero: a misspelled settings key must never make testing free.
+   */
+  function testingFeeCents(opts) {
+    opts = opts || {};
+    var s = opts.settings || {};
+    var pos = Math.round(Number(opts.position));
+    if (!isFinite(pos) || pos < 1) pos = 1;
+    function cents(v, fallback) {
+      var n = Number(v);
+      return (isFinite(n) && n >= 0) ? Math.round(n) : fallback;
+    }
+    if (pos === 1) {
+      var isCubs = String(opts.program || '').trim().toLowerCase() === 'cubs';
+      return isCubs ? cents(s.testing_fee_cubs_cents, 5000)
+                    : cents(s.testing_fee_standard_cents, 6000);
+    }
+    if (pos === 2) return cents(s.testing_fee_2nd_cents, 5000);
+    if (pos === 3) return cents(s.testing_fee_3rd_cents, 3000);
+    return cents(s.testing_fee_addl_cents, 1000);   // 4th and each additional
+  }
+
   /* Totals for a whole invoice.
    *
    *   invoiceTotals({
@@ -533,6 +570,7 @@ const BTKDPricing = (function () {
     calculatePrice: calculatePrice,
     buildMembershipSnapshot: buildMembershipSnapshot,
     dueTodayCents: dueTodayCents,
+    testingFeeCents: testingFeeCents,
     invoiceTotals: invoiceTotals,
     allocateCents: allocateCents,
     // exposed for the UI and for tests
