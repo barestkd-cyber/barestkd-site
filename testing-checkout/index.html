@@ -33,6 +33,11 @@
 .tst-who li{padding:2px 0}
 .tst-deadline{margin:12px 0 0;font-size:.93rem;font-weight:700}
 
+/* The lineup photo. It removes ITSELF if the file is missing, because a
+   broken image icon on a page that takes money reads as a broken page. */
+.tst-photo{width:100%;height:auto;display:block;border-radius:14px;
+  margin:0 0 22px;border:1px solid var(--line);background:#f0f0f0}
+
 /* One student. The card is the unit people think in, so it is the unit on
    screen: name, group, belt, seat, price, and a way to remove it. */
 .tst-stu{border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc;padding:14px;margin:0 0 12px}
@@ -111,6 +116,10 @@
       <p class="eyebrow" style="text-align:center">Bares Taekwondo Fitness</p>
       <h1 style="text-align:center;margin:0 0 6px">Belt Testing Signup</h1>
       <p style="text-align:center;color:#5b6570;margin:0 0 22px" id="tst-sub">Loading…</p>
+
+      <img class="tst-photo" src="/assets/img/testing-lineup.jpg"
+           alt="Bares Taekwondo Fitness students lined up in uniform for belt testing"
+           loading="lazy" onerror="this.remove()">
 
       <!-- Shown instead of the form when the page is not open. -->
       <div class="tst-closed" id="tst-closed" hidden>
