@@ -341,7 +341,11 @@
   function addStudent() {
     students.push({
       key: nextKey++, first: "", last: "",
-      groupId: CFG.groups[0].id, rank: "",
+      // Group starts BLANK on purpose. Defaulting to the first group meant a
+      // parent who skimmed signed a Junior up for the Cubs group: wrong day,
+      // wrong time, and $50 charged instead of $60. Nothing here may be
+      // right by accident.
+      groupId: "", rank: "",
       // Seat defaults to this student's place in the family, but stays
       // editable: a parent who already paid for one child in an earlier
       // checkout picks 2nd here without a 1st in this cart. Owner's rule.
@@ -387,14 +391,20 @@
 
   function renderStudents() {
     $("tst-students").innerHTML = students.map(function (s, i) {
-      var opts = CFG.groups.map(function (g) {
-        return '<option value="' + esc(g.id) + '"' + (String(g.id) === String(s.groupId) ? " selected" : "") + ">"
-          + esc(g.label) + "</option>";
-      }).join("");
-      var rankOpts = '<option value="">Pick a belt</option>'
-        + ranksFor(s.groupId).map(function (r) {
-          return "<option" + (r === s.rank ? " selected" : "") + ">" + esc(r) + "</option>";
+      var hasGroup = !!s.groupId && !!groupById(s.groupId);
+      var opts = '<option value=""' + (hasGroup ? "" : " selected") + '>Choose your group</option>'
+        + CFG.groups.map(function (g) {
+          return '<option value="' + esc(g.id) + '"' + (String(g.id) === String(s.groupId) ? " selected" : "") + ">"
+            + esc(g.label) + "</option>";
         }).join("");
+      // The belt ladder depends on the group (Cubs run their own), so there is
+      // nothing honest to show until one is picked.
+      var rankOpts = hasGroup
+        ? '<option value="">Pick a belt</option>'
+          + ranksFor(s.groupId).map(function (r) {
+              return "<option" + (r === s.rank ? " selected" : "") + ">" + esc(r) + "</option>";
+            }).join("")
+        : '<option value="">Choose a group first</option>';
       var seatOpts = SEAT_LABELS.map(function (lab, idx) {
         return '<option value="' + (idx + 1) + '"' + (s.seat === idx + 1 ? " selected" : "") + ">" + lab + "</option>";
       }).join("");
@@ -423,10 +433,10 @@
         + '<div class="tst-f"><label>Last name</label><input data-f="last" data-k="' + s.key + '" value="' + esc(s.last) + '"></div>'
         + "</div>"
         + '<div class="tst-f"><label>Testing group</label><select data-f="groupId" data-k="' + s.key + '">' + opts + "</select></div>"
-        + '<div class="tst-f"><label>Current belt</label><select data-f="rank" data-k="' + s.key + '">' + rankOpts + "</select></div>"
+        + '<div class="tst-f"><label>Current belt</label><select data-f="rank" data-k="' + s.key + '"' + (hasGroup ? "" : " disabled") + ">" + rankOpts + "</select></div>"
         + '<div class="tst-f"><label>Family rate</label><select data-f="seat" data-k="' + s.key + '"' + (locked ? " disabled" : "") + ">" + seatOpts + "</select>"
         + '<p class="tst-seatnote">' + seatNote + "</p></div>"
-        + '<div class="tst-price">' + money(seatCents(s)) + "</div>"
+        + '<div class="tst-price">' + (hasGroup ? money(seatCents(s)) : "Choose a group") + "</div>"
         + "</div>";
     }).join("");
 
@@ -468,10 +478,12 @@
   function renderPrice() {
     var base = 0;
     var rows = students.map(function (s, i) {
-      var c = seatCents(s);
+      var picked = !!s.groupId && !!groupById(s.groupId);
+      var c = picked ? seatCents(s) : 0;
       base += c;
       var who = (s.first || s.last) ? (s.first + " " + s.last).trim() : ("Student " + (i + 1));
-      return '<div class="tst-line"><span>' + esc(who) + "</span><span class=\"amt\">" + money(c) + "</span></div>";
+      return '<div class="tst-line"><span>' + esc(who) + "</span><span class=\"amt\">"
+        + (picked ? money(c) : "-") + "</span></div>";
     });
     var fee = base > 0
       ? Math.round(base * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents
@@ -533,6 +545,10 @@
     for (var j = 0; j < students.length; j++) {
       var s = students[j];
       if (!s.first.trim() || !s.last.trim()) { status("error", "Enter a first and last name for student " + (j + 1) + "."); return; }
+      if (!s.groupId || !groupById(s.groupId)) {
+        status("error", "Choose a testing group for " + (s.first.trim() || ("student " + (j + 1))) + ", so we know which day they test.");
+        return;
+      }
       if (!s.rank) { status("error", "Pick the current belt for " + (s.first.trim() || ("student " + (j + 1))) + "."); return; }
     }
     if (!CARD) { status("error", "The card field has not loaded yet. Give it a moment or reload the page."); return; }
