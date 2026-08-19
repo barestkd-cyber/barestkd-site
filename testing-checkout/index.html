@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Belt Testing Signup | Bares Taekwondo Fitness | Tyler, TX</title>
+<meta name="description" content="Sign your student up for belt testing at Bares Taekwondo Fitness in Tyler, TX.">
+<link rel="canonical" href="https://www.barestkd.fit/testing-checkout/">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/assets/css/styles.css">
+<style>
+/* Page-local styles. One narrow column at every width: this is a form, not a
+   landing page, and a 1200px-wide input row is harder to fill in, not easier. */
+.tst-col{max-width:640px;margin-inline:auto}
+.tst-step{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px}
+.tst-step > h2{margin:0 0 4px;font-size:1.15rem}
+.tst-step .step-sub{margin:0 0 14px;font-size:.9rem;color:#5b6570}
+
+/* The schedule. Read far more often than it is filled in, so it gets to be a
+   plain list rather than anything clever. */
+.tst-sched{list-style:none;padding:0;margin:0}
+.tst-sched li{padding:9px 0;border-bottom:1px solid #f0f0f0}
+.tst-sched li:last-child{border-bottom:none}
+.tst-sched .g{font-weight:700;font-size:.97rem}
+.tst-sched .w{font-size:.9rem;color:#5b6570;margin-top:2px}
+.tst-who{border-left:4px solid var(--belt-red);background:#FFF6F6;padding:12px 14px;
+  border-radius:0 10px 10px 0;font-size:.93rem;line-height:1.6;margin-top:14px}
+.tst-who ul{margin:8px 0 0;padding-left:20px}
+.tst-who li{padding:2px 0}
+.tst-deadline{margin:12px 0 0;font-size:.93rem;font-weight:700}
+
+/* One student. The card is the unit people think in, so it is the unit on
+   screen: name, group, belt, seat, price, and a way to remove it. */
+.tst-stu{border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc;padding:14px;margin:0 0 12px}
+.tst-stu-hd{display:flex;flex-direction:row;align-items:center;gap:10px;margin:0 0 12px}
+.tst-stu-n{font-weight:800;font-size:.95rem;flex:1 1 auto}
+.tst-stu-x{flex:0 0 auto;background:none;border:none;color:#9AA4AF;font-size:20px;
+  cursor:pointer;padding:2px 8px;line-height:1}
+.tst-stu-x:hover{color:var(--belt-red)}
+.tst-row{display:flex;flex-direction:row;gap:10px;flex-wrap:wrap}
+.tst-row > *{flex:1 1 160px;min-width:0}
+.tst-f{display:flex;flex-direction:column;gap:4px;margin:0 0 10px}
+.tst-f label{font-size:.82rem;font-weight:700;color:#4a545e}
+.tst-f input,.tst-f select,.tst-f textarea{font:inherit;padding:.62rem .7rem;border:2px solid var(--line);
+  border-radius:8px;background:#fff;width:100%}
+.tst-f textarea{min-height:80px;resize:vertical}
+.tst-seatnote{font-size:.82rem;color:#5b6570;margin:6px 0 0;line-height:1.5}
+.tst-price{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;font-size:1.02rem;margin-top:4px}
+.tst-add{width:100%;background:#fff;border:2px dashed #cbd2d9;border-radius:10px;
+  padding:11px 14px;margin-top:2px;font:inherit;font-weight:800;font-size:.92rem;cursor:pointer}
+.tst-add:hover{border-color:var(--belt-red);color:var(--belt-red)}
+
+/* Money */
+.tst-line{display:flex;justify-content:space-between;gap:16px;padding:7px 0;
+  border-bottom:1px solid #eee;font-size:.97rem}
+.tst-line .amt{font-variant-numeric:tabular-nums}
+.tst-total{display:flex;justify-content:space-between;align-items:center;gap:16px;
+  background:var(--ink);color:#fff;border-radius:12px;padding:14px 16px;margin-top:14px}
+.tst-total .lbl{font-weight:700}
+.tst-total .amt{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* Card + status */
+.tst-card{border:2px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+.tst-cardload{color:#5b6570;font-size:13.5px}
+.tst-carderr{display:none;color:var(--belt-red);font-size:13.5px;margin-top:8px;font-weight:600}
+.tst-status{margin-top:12px;font-size:.95rem;line-height:1.5}
+.tst-status.error{color:var(--belt-red);font-weight:600}
+.tst-pay{width:100%;margin-top:14px}
+.tst-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
+.tst-closed{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 20px;text-align:center}
+.tst-closed h2{margin:0 0 10px;font-size:1.25rem}
+.tst-done{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 20px;text-align:center}
+.tst-done h2{font-size:1.4rem;margin:0 0 8px}
+@media (max-width:560px){ .tst-row > *{flex:1 1 100%} }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href="/">
+      <img src="/assets/img/logo.png" alt="Bares Taekwondo Fitness" width="101" height="54">
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/mommy-and-me-martial-arts-tyler-tx">Little Kickers</a></li>
+        <li><a href="/schedule/events">Schedule/Events</a></li>
+        <li><a href="/contact-form">Contact</a></li>
+      </ul>
+    </nav>
+    <a class="call-link" href="tel:903-561-2966" aria-label="Call Bares Taekwondo Fitness at 903-561-2966">
+      <svg class="call-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24 11.36 11.36 0 0 0 3.57.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02l-2.2 2.2z"/></svg>
+      <span class="call-link__num">903-561-2966</span>
+    </a>
+  </div>
+</header>
+
+<main id="main-content">
+  <section class="section">
+    <div class="container tst-col">
+
+      <p class="eyebrow" style="text-align:center">Bares Taekwondo Fitness</p>
+      <h1 style="text-align:center;margin:0 0 6px">Belt Testing Signup</h1>
+      <p style="text-align:center;color:#5b6570;margin:0 0 22px" id="tst-sub">Loading…</p>
+
+      <!-- Shown instead of the form when the page is not open. -->
+      <div class="tst-closed" id="tst-closed" hidden>
+        <h2>Signups are not open right now</h2>
+        <p>There is no testing taking sign-ups at the moment. Give us a call and we will let you know when the next one opens.</p>
+        <p style="margin-top:14px"><a class="btn btn--primary" href="tel:903-561-2966">Call 903-561-2966</a></p>
+      </div>
+
+      <!-- Shown after a successful payment. -->
+      <div class="tst-done" id="tst-done" hidden>
+        <h2>You're signed up</h2>
+        <p id="tst-done-msg"></p>
+        <p style="margin-top:16px"><a class="btn btn--primary" id="tst-done-link" href="/">View your receipt</a></p>
+      </div>
+
+      <form id="tst-form" novalidate hidden>
+
+        <!-- 1. When it is, and who it is for. This is the part people come
+             back to re-read, so it sits above everything they have to fill. -->
+        <div class="tst-step">
+          <h2>The Testing</h2>
+          <p class="step-sub">Find your student's group. It tells you the day and the time.</p>
+          <ul class="tst-sched" id="tst-sched"></ul>
+          <div class="tst-who">
+            <strong>Who should sign up</strong>
+            <ul>
+              <li>Cubs with 2 or more black stripes</li>
+              <li>White through Senior Orange with 3 or more black stripes</li>
+              <li>Green through Red with at least 2 color stripes</li>
+              <li>Senior Red through Black who have been given permission to test</li>
+            </ul>
+          </div>
+          <p class="tst-deadline" id="tst-deadline"></p>
+        </div>
+
+        <!-- 2. The person paying and receiving the receipt. Asked once. -->
+        <div class="tst-step">
+          <h2>Your Information</h2>
+          <p class="step-sub">The receipt and the details come to you.</p>
+          <div class="tst-row">
+            <div class="tst-f"><label for="tst-pfirst">Your first name</label>
+              <input id="tst-pfirst" autocomplete="given-name"></div>
+            <div class="tst-f"><label for="tst-plast">Your last name</label>
+              <input id="tst-plast" autocomplete="family-name"></div>
+          </div>
+          <div class="tst-row">
+            <div class="tst-f"><label for="tst-email">Email</label>
+              <input id="tst-email" type="email" inputmode="email" autocomplete="email"></div>
+            <div class="tst-f"><label for="tst-phone">Phone</label>
+              <input id="tst-phone" type="tel" inputmode="tel" autocomplete="tel"></div>
+          </div>
+        </div>
+
+        <!-- 3. Students. Repeatable, because a family testing three kids
+             should pay once, not three times. -->
+        <div class="tst-step">
+          <h2>Who is Testing</h2>
+          <p class="step-sub">Add everyone testing from your family to get the family rate.</p>
+          <div id="tst-students"></div>
+          <button type="button" class="tst-add" id="tst-addstu">Add another student</button>
+        </div>
+
+        <!-- 4. Anything they want us to know. Spark had this and people use it. -->
+        <div class="tst-step">
+          <h2>Anything We Should Know?</h2>
+          <p class="step-sub">Optional.</p>
+          <div class="tst-f">
+            <label for="tst-comments" class="sr-only">Comments</label>
+            <textarea id="tst-comments" placeholder="Injuries, scheduling conflicts, questions…"></textarea>
+          </div>
+        </div>
+
+        <!-- 5. Money, then the card. -->
+        <div class="tst-step">
+          <h2>Total</h2>
+          <div id="tst-lines"></div>
+          <div class="tst-total">
+            <span class="lbl">Total due today</span>
+            <span class="amt" id="tst-p-total">-</span>
+          </div>
+
+          <div style="margin-top:18px">
+            <div class="tst-f"><label for="tst-card">Card</label>
+              <div class="tst-card" id="tst-card"><span class="tst-cardload">Loading the card field…</span></div>
+              <div class="tst-carderr" id="tst-carderr"></div>
+            </div>
+          </div>
+
+          <button class="btn btn--primary btn--lg tst-pay" type="submit" id="tst-pay">Pay and Sign Up</button>
+          <div class="tst-status" id="tst-statusmsg"></div>
+
+          <!-- Honeypot. Real people never see it; bots fill it in. -->
+          <div style="position:absolute;left:-9999px" aria-hidden="true">
+            <label for="tst-hp">Leave this empty</label>
+            <input id="tst-hp" tabindex="-1" autocomplete="off">
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="tst-foot">
+      <strong>Bares Taekwondo Fitness</strong><br>
+      1901 Deerbrook Dr, Tyler, TX 75703<br>
+      <a href="tel:903-561-2966">903-561-2966</a> · <a href="mailto:race@barestkd.fit">race@barestkd.fit</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/assets/js/main.js" defer></script>
+<script>
+(function () {
+  "use strict";
+  var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/testing-checkout";
+  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
+
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+    });
+  };
+  var money = function (c) { return "$" + (Number(c || 0) / 100).toFixed(2); };
+
+  var CFG = null, SALE_ID = null, STRIPE = null, CARD = null;
+  var students = [];      // { first, last, groupId, rank, seat }
+  var nextKey = 1;
+
+  if (window.crypto && crypto.randomUUID) SALE_ID = crypto.randomUUID();
+
+  /* ---- boot ------------------------------------------------------------- */
+  fetch(FN, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (cfg) {
+      CFG = cfg;
+      if (!cfg.page_live || !(cfg.groups || []).length) {
+        $("tst-sub").textContent = "";
+        $("tst-closed").hidden = false;
+        return;
+      }
+      $("tst-sub").textContent = "Pick your student's group, and pay for everyone testing at once.";
+      $("tst-form").hidden = false;
+      renderSchedule();
+      addStudent();
+      mountCard();
+    })
+    .catch(function () {
+      $("tst-sub").textContent = "";
+      $("tst-closed").hidden = false;
+    });
+
+  /* ---- the schedule ----------------------------------------------------- */
+  function renderSchedule() {
+    $("tst-sched").innerHTML = CFG.groups.map(function (g) {
+      var when = g.pretty_day + (g.start_time ? " at " + g.start_time : "");
+      return '<li><div class="g">' + esc(g.label) + "</div>"
+        + '<div class="w">' + esc(when) + "</div></li>";
+    }).join("");
+    // Every group carries the same sign-up-by date today; show the earliest.
+    var by = CFG.groups.map(function (g) { return g.signup_by; })
+      .filter(Boolean).sort()[0];
+    $("tst-deadline").textContent = by ? "Please sign up by " + prettyDate(by) + "." : "";
+  }
+
+  /* yyyy-mm-dd to "Thursday, August 27", built without new Date(str) - that
+     parses as UTC and reads a day early in Central. */
+  function prettyDate(ymd) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
+    if (!m) return String(ymd || "");
+    var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    return d.toLocaleDateString("en-US", {
+      timeZone: "UTC", weekday: "long", month: "long", day: "numeric"
+    });
+  }
+
+  /* ---- students --------------------------------------------------------- */
+  function addStudent() {
+    students.push({
+      key: nextKey++, first: "", last: "",
+      groupId: CFG.groups[0].id, rank: "",
+      // Seat defaults to this student's place in the family, but stays
+      // editable: a parent who already paid for one child in an earlier
+      // checkout picks 2nd here without a 1st in this cart. Owner's rule.
+      seat: Math.min(students.length + 1, 4)
+    });
+    renderStudents();
+  }
+
+  function ranksFor(groupId) {
+    var g = groupById(groupId);
+    if (!g) return CFG.ranks.tkd;
+    if (g.program === "Cubs") return CFG.ranks.cub;
+    if (g.program === "Any") return CFG.ranks.cub.concat(CFG.ranks.tkd);
+    return CFG.ranks.tkd;
+  }
+  function groupById(id) {
+    for (var i = 0; i < CFG.groups.length; i++) {
+      if (String(CFG.groups[i].id) === String(id)) return CFG.groups[i];
+    }
+    return null;
+  }
+
+  function seatCents(stu) {
+    var g = groupById(stu.groupId);
+    if (!g) return 0;
+    if (g.flat_fee_cents != null) return Number(g.flat_fee_cents);
+    var f = CFG.fees;
+    if (stu.seat === 1) return g.program === "Cubs" ? f.seat1_cubs_cents : f.seat1_standard_cents;
+    if (stu.seat === 2) return f.seat2_cents;
+    if (stu.seat === 3) return f.seat3_cents;
+    return f.seat4plus_cents;
+  }
+
+  var SEAT_LABELS = ["1st family member", "2nd family member", "3rd family member", "4th or later"];
+
+  function renderStudents() {
+    $("tst-students").innerHTML = students.map(function (s, i) {
+      var opts = CFG.groups.map(function (g) {
+        return '<option value="' + esc(g.id) + '"' + (String(g.id) === String(s.groupId) ? " selected" : "") + ">"
+          + esc(g.label) + "</option>";
+      }).join("");
+      var rankOpts = '<option value="">Pick a belt</option>'
+        + ranksFor(s.groupId).map(function (r) {
+          return "<option" + (r === s.rank ? " selected" : "") + ">" + esc(r) + "</option>";
+        }).join("");
+      var seatOpts = SEAT_LABELS.map(function (lab, idx) {
+        return '<option value="' + (idx + 1) + '"' + (s.seat === idx + 1 ? " selected" : "") + ">" + lab + "</option>";
+      }).join("");
+      var g = groupById(s.groupId);
+      var flat = g && g.flat_fee_cents != null;
+
+      return '<div class="tst-stu">'
+        + '<div class="tst-stu-hd"><span class="tst-stu-n">Student ' + (i + 1) + "</span>"
+        + (students.length > 1
+            ? '<button type="button" class="tst-stu-x" data-rm="' + s.key + '" aria-label="Remove student ' + (i + 1) + '">&times;</button>'
+            : "")
+        + "</div>"
+        + '<div class="tst-row">'
+        + '<div class="tst-f"><label>First name</label><input data-f="first" data-k="' + s.key + '" value="' + esc(s.first) + '"></div>'
+        + '<div class="tst-f"><label>Last name</label><input data-f="last" data-k="' + s.key + '" value="' + esc(s.last) + '"></div>'
+        + "</div>"
+        + '<div class="tst-f"><label>Testing group</label><select data-f="groupId" data-k="' + s.key + '">' + opts + "</select></div>"
+        + '<div class="tst-f"><label>Current belt</label><select data-f="rank" data-k="' + s.key + '">' + rankOpts + "</select></div>"
+        + '<div class="tst-f"><label>Family rate</label><select data-f="seat" data-k="' + s.key + '"' + (flat ? " disabled" : "") + ">" + seatOpts + "</select>"
+        + '<p class="tst-seatnote">' + (flat
+            ? "Late Testing is a flat rate and does not use the family discount."
+            : "Already paid for another student in this testing? Pick their next place here.")
+        + "</p></div>"
+        + '<div class="tst-price">' + money(seatCents(s)) + "</div>"
+        + "</div>";
+    }).join("");
+
+    // Wire the freshly-rendered controls.
+    Array.prototype.forEach.call($("tst-students").querySelectorAll("[data-f]"), function (el) {
+      var ev = el.tagName === "SELECT" ? "change" : "input";
+      el.addEventListener(ev, function () {
+        var s = byKey(+el.getAttribute("data-k"));
+        if (!s) return;
+        var f = el.getAttribute("data-f");
+        s[f] = (f === "seat") ? +el.value : el.value;
+        // Changing group can invalidate the chosen belt, so re-render.
+        if (f === "groupId") {
+          if (ranksFor(s.groupId).indexOf(s.rank) === -1) s.rank = "";
+          renderStudents();
+        } else if (f === "seat") {
+          renderStudents();
+        } else {
+          renderPrice();
+        }
+      });
+    });
+    Array.prototype.forEach.call($("tst-students").querySelectorAll("[data-rm]"), function (b) {
+      b.addEventListener("click", function () {
+        students = students.filter(function (x) { return x.key !== +b.getAttribute("data-rm"); });
+        renderStudents();
+      });
+    });
+    renderPrice();
+  }
+
+  function byKey(k) {
+    for (var i = 0; i < students.length; i++) if (students[i].key === k) return students[i];
+    return null;
+  }
+
+  /* ---- money. The server's numbers are what reach the ledger; this just
+     keeps the page honest while they fill it in. ------------------------- */
+  function renderPrice() {
+    var base = 0;
+    var rows = students.map(function (s, i) {
+      var c = seatCents(s);
+      base += c;
+      var who = (s.first || s.last) ? (s.first + " " + s.last).trim() : ("Student " + (i + 1));
+      return '<div class="tst-line"><span>' + esc(who) + "</span><span class=\"amt\">" + money(c) + "</span></div>";
+    });
+    var fee = base > 0
+      ? Math.round(base * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents
+      : 0;
+    rows.push('<div class="tst-line"><span>Card processing</span><span class="amt">' + money(fee) + "</span></div>");
+    $("tst-lines").innerHTML = rows.join("");
+    $("tst-p-total").textContent = money(base + fee);
+  }
+
+  /* ---- Stripe ----------------------------------------------------------- */
+  function cardErr(msg) {
+    var el = $("tst-carderr");
+    el.textContent = msg || "";
+    el.style.display = msg ? "block" : "none";
+  }
+  function mountCard() {
+    if (!CFG.publishable_key) { $("tst-card").innerHTML = '<span class="tst-cardload">Card payments are not set up yet.</span>'; return; }
+    loadStripeJs(function () {
+      try {
+        STRIPE = Stripe(CFG.publishable_key);
+        var elements = STRIPE.elements();
+        CARD = elements.create("card", { style: { base: { fontSize: "16px", color: "#15171C" } } });
+        $("tst-card").innerHTML = "";
+        CARD.mount("#tst-card");
+        CARD.on("change", function (e) { cardErr(e.error ? e.error.message : ""); });
+      } catch (e) {
+        $("tst-card").innerHTML = '<span class="tst-cardload">Could not load the card field. Reload the page.</span>';
+      }
+    });
+  }
+  function loadStripeJs(cb) {
+    if (window.Stripe) { cb(); return; }
+    var s = document.createElement("script");
+    s.src = "https://js.stripe.com/v3/";
+    s.onload = cb;
+    s.onerror = function () { $("tst-card").innerHTML = '<span class="tst-cardload">Could not reach Stripe. Check your connection.</span>'; };
+    document.head.appendChild(s);
+  }
+
+  function status(kind, msg) {
+    var el = $("tst-statusmsg");
+    el.className = "tst-status" + (kind ? " " + kind : "");
+    el.textContent = msg || "";
+  }
+
+  /* ---- submit ----------------------------------------------------------- */
+  $("tst-addstu").addEventListener("click", addStudent);
+
+  $("tst-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if ($("tst-hp").value.trim() !== "") return;                 // honeypot
+    if (!CFG || !SALE_ID) { status("error", "Reload the page and try again."); return; }
+
+    var need = [["tst-pfirst", "your first name"], ["tst-plast", "your last name"],
+      ["tst-email", "your email"], ["tst-phone", "your phone number"]];
+    for (var i = 0; i < need.length; i++) {
+      if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
+    }
+    for (var j = 0; j < students.length; j++) {
+      var s = students[j];
+      if (!s.first.trim() || !s.last.trim()) { status("error", "Enter a first and last name for student " + (j + 1) + "."); return; }
+      if (!s.rank) { status("error", "Pick the current belt for " + (s.first.trim() || ("student " + (j + 1))) + "."); return; }
+    }
+    if (!CARD) { status("error", "The card field has not loaded yet. Give it a moment or reload the page."); return; }
+
+    var btn = $("tst-pay");
+    btn.disabled = true; btn.textContent = "Working…";
+    status("", "Setting up your signup…");
+
+    fetch(FN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
+      body: JSON.stringify({
+        sale_id: SALE_ID,
+        parent_first: $("tst-pfirst").value.trim(),
+        parent_last: $("tst-plast").value.trim(),
+        email: $("tst-email").value.trim(),
+        phone: $("tst-phone").value.trim(),
+        comments: $("tst-comments").value.trim(),
+        students: students.map(function (x) {
+          return {
+            first: x.first.trim(), last: x.last.trim(),
+            group_id: x.groupId, rank: x.rank, position: x.seat
+          };
+        }),
+        hp: $("tst-hp").value
+      })
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error((res.j && res.j.error) || "failed");
+        if (res.j.paid) return { paid: true, receipt: res.j.receipt_url };
+        if (!res.j.client_secret) { location.href = res.j.receipt_url; return { redirected: true }; }
+        status("", "Charging your card…");
+        return STRIPE.confirmCardPayment(res.j.client_secret, { payment_method: { card: CARD } })
+          .then(function (r2) {
+            if (r2.error) throw new Error(r2.error.message || "Your card was declined.");
+            status("", "Confirming…");
+            return fetch(FN, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
+              body: JSON.stringify({
+                action: "finalize", sale_id: SALE_ID,
+                payment_intent_id: r2.paymentIntent.id
+              })
+            }).then(function (r3) { return r3.json(); })
+              .then(function (j3) {
+                if (!j3.ok) throw new Error(j3.error || "We could not confirm the payment.");
+                return { paid: true, receipt: j3.receipt_url };
+              });
+          });
+      })
+      .then(function (out) {
+        if (!out || out.redirected) return;
+        $("tst-form").hidden = true;
+        $("tst-sub").textContent = "";
+        var lines = students.map(function (s) {
+          var g = groupById(s.groupId);
+          return (s.first + " " + s.last).trim() + " is testing "
+            + (g ? g.pretty_day + (g.start_time ? " at " + g.start_time : "") : "");
+        });
+        $("tst-done-msg").textContent = lines.join(". ") + ". Your receipt is on its way to "
+          + $("tst-email").value.trim() + ".";
+        if (out.receipt) $("tst-done-link").href = out.receipt;
+        $("tst-done").hidden = false;
+        window.scrollTo(0, 0);
+      })
+      .catch(function (err) {
+        btn.disabled = false; btn.textContent = "Pay and Sign Up";
+        var msg = (err && err.message && err.message !== "failed")
+          ? err.message
+          : "Something went wrong. Try again or call 903-561-2966.";
+        cardErr(msg);
+        status("error", msg);
+      });
+  });
+})();
+</script>
+</body>
+</html>
