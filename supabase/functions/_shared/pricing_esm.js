@@ -504,6 +504,77 @@ const BTKDPricing = (function () {
    * Unknown or missing settings fall back to the launch numbers rather than
    * to zero: a misspelled settings key must never make testing free.
    */
+  /* What a private lesson booking costs.
+   *
+   *   privateLessonCents({ count, settings })  -> integer cents
+   *
+   * The owner sells one lesson at the flat rate, or a pack of seven for the
+   * price of six ("buy 6 get one free"). The free lesson is expressed as
+   * pay-for-N, not as a discount percentage, because that is how he says it
+   * and it stays exact in cents at any rate.
+   *
+   * Anything that is not the pack size is billed per lesson, so a future
+   * three-lesson sale cannot accidentally inherit the pack discount.
+   */
+  /* Which private-lesson slots exist on a given day.
+   *
+   *   privateSlotsForDay({ openMinutes, firstClassMinutes, durationMin })
+   *     -> [minutesFromMidnight, ...]   (ascending)
+   *
+   * The owner's rule, verbatim: "availability which is our open hours
+   * before the start time of our classes". So slots are laid out BACKWARDS
+   * from the first class of the day, which is why his own Monday and
+   * Thursday 4:00 PM lessons land exactly against the 4:30 class. Laying
+   * them forwards from opening instead would leave a ragged gap before
+   * class and would not match the lessons he already teaches.
+   *
+   * A day with no classes has no "before class" to speak of and returns
+   * nothing, rather than guessing at an all-day availability he never
+   * stated.
+   */
+  function privateSlotsForDay(opts) {
+    opts = opts || {};
+    var dur = Math.round(Number(opts.durationMin));
+    if (!isFinite(dur) || dur < 5) dur = 30;
+    var first = Math.round(Number(opts.firstClassMinutes));
+    var open = Math.round(Number(opts.openMinutes));
+    if (!isFinite(first) || !isFinite(open) || first <= open) return [];
+    var out = [];
+    for (var t = first - dur; t >= open; t -= dur) out.push(t);
+    return out.reverse();
+  }
+
+  /* "3:15 PM" / "15:15" -> 915. Returns null on anything it cannot read, so
+   * a mistyped setting closes the day rather than opening it wrongly. */
+  function minutesFromClock(v) {
+    var str = String(v == null ? '' : v).trim();
+    var m = /^(\d{1,2}):(\d{2})\s*([AaPp][Mm])?$/.exec(str);
+    if (!m) return null;
+    var h = Number(m[1]), min = Number(m[2]);
+    if (min > 59) return null;
+    var ap = m[3] ? m[3].toLowerCase() : null;
+    if (ap) {
+      if (h < 1 || h > 12) return null;
+      if (h === 12) h = 0;
+      if (ap === 'pm') h += 12;
+    } else if (h > 23) return null;
+    return h * 60 + min;
+  }
+
+  function privateLessonCents(opts) {
+    opts = opts || {};
+    var s = opts.settings || {};
+    var rate = Math.round(Number(s.private_rate_cents));
+    if (!isFinite(rate) || rate < 0) rate = 3500;
+    var packSize = Math.round(Number(s.private_pack_size));
+    if (!isFinite(packSize) || packSize < 2) packSize = 7;
+    var payFor = Math.round(Number(s.private_pack_pay_for));
+    if (!isFinite(payFor) || payFor < 1 || payFor > packSize) payFor = packSize - 1;
+    var count = Math.round(Number(opts.count));
+    if (!isFinite(count) || count < 1) count = 1;
+    return count === packSize ? rate * payFor : rate * count;
+  }
+
   function testingFeeCents(opts) {
     opts = opts || {};
     var s = opts.settings || {};
@@ -679,6 +750,9 @@ const BTKDPricing = (function () {
     invoiceTotals: invoiceTotals,
     prorateCents: prorateCents,
     installmentSchedule: installmentSchedule,
+    privateLessonCents: privateLessonCents,
+    privateSlotsForDay: privateSlotsForDay,
+    minutesFromClock: minutesFromClock,
     nextBillOn: nextBillOn,
     allocateCents: allocateCents,
     // exposed for the UI and for tests

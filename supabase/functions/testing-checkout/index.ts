@@ -108,7 +108,7 @@ const TESTING_MINUTES = 90;
 /** "5:30 PM" -> "1730". Returns null on anything it cannot read, which just
  *  means no calendar button rather than a button pointing at the wrong hour. */
 function to24(t: string): string | null {
-  const m = /^(d{1,2}):(d{2})s*(AM|PM)$/i.exec(String(t || "").trim());
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(t || "").trim());
   if (!m) return null;
   let h = Number(m[1]);
   const min = Number(m[2]);

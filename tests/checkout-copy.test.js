@@ -90,6 +90,15 @@ const PAGES = [
     forbidPhrases: ['Membership Agreement', 'membership agreement', 'auto-renew',
       'automatically renews', '12-month', 'twelve (12) month', 'down payment',
       'paid in full at enrollment', 'cancellation notice'] },
+
+  // A private lesson is a service someone buys once, not a membership. It
+  // must not inherit a single word of enrollment language, and it must not
+  // borrow the trial page's free-week promise either.
+  { dir: 'private-lesson', kind: 'event', program: 'Private Lessons',
+    forbidPhrases: ['Membership Agreement', 'membership agreement', 'auto-renew',
+      'automatically renews', '12-month', 'twelve (12) month', 'down payment',
+      'cancellation notice', 'free week', 'free trial', 'Your Cub', 'this session',
+      'six-week', 'enrollment'] },
 ];
 
 /* Phrases each page OWNS. The program-name check missed all of these:
