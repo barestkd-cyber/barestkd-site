@@ -92,6 +92,21 @@ const PAGES = [
       'paid in full at enrollment', 'cancellation notice'] },
 ];
 
+/* Phrases each page OWNS. The program-name check missed all of these:
+ * every generated page shipped with the heading "Your Cub", because Cub
+ * singular is not a program name, and with "the agreement for this session"
+ * which is Little Kickers language for a six-week block, on pages selling a
+ * twelve-month membership. Names are the obvious leak; the wording around
+ * them is the one that actually reaches a buyer. */
+const CROSSOVER = [
+  { phrase: 'Your Cub',            owner: ['cubs-checkout'] },
+  { phrase: 'Your Little Kicker',  owner: ['little-kickers-checkout'] },
+  { phrase: 'Ages 3-4',            owner: ['cubs-checkout'] },
+  { phrase: 'Ages 2-3',            owner: ['little-kickers-checkout'] },
+  { phrase: 'for this session',    owner: ['little-kickers-checkout'] },
+  { phrase: 'little attention spans', owner: ['cubs-checkout'] },
+];
+
 const OTHER_PROGRAMS = ['Little Kickers', 'Cubs', 'Juniors', 'Teens & Adults',
   'Kickboxing', 'Jiu Jitsu', "AMP'D"];
 
@@ -162,6 +177,15 @@ for (const page of PAGES) {
         'no schedule or group information on an event signup page');
     });
   }
+
+  test(page.dir + ': no wording owned by another page', () => {
+    const strays = CROSSOVER
+      .filter((c) => !c.owner.includes(page.dir))
+      .filter((c) => body.includes(c.phrase))
+      .map((c) => c.phrase);
+    assert.deepStrictEqual(strays, [],
+      'wording that belongs to another page: ' + strays.join(' | '));
+  });
 
   test(page.dir + ': no borrowed concepts from another program', () => {
     const strays = (page.forbidPhrases || []).filter((ph) => body.includes(ph));
