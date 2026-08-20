@@ -71,11 +71,9 @@ const PROGRAMS: Record<string, ProgramCfg> = {
     uniform: "Beginner uniform",
     shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
     featuredTee: null, guardianAlways: true,
-    addOns: [
-      { program: "Kickboxing", code: "addon_kickboxing" },
-      { program: "Jiu Jitsu", code: "addon_jiujitsu" },
-    ],
-    bothCode: "addon_both",
+    // NO add-ons. The schedule has Kickboxing and Jiu Jitsu both marked 13+,
+    // so neither is open to a Juniors-age student. Offering them here would
+    // sell a parent a class their child cannot attend.
   },
   "teens-adults": {
     program: "Teens/Adults", label: "Teens and Adults Taekwondo", tpl: TAEKWONDO_TEMPLATE,
