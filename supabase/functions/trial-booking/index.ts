@@ -419,12 +419,25 @@ Deno.serve(async (req) => {
       const wantDays = [...new Set(bookings
         .map((b) => str((b as Record<string, unknown> || {}).class_datetime))
         .filter(Boolean)
-        .map((iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Chicago" })))];
+        .map((iso) => {
+          const d = new Date(iso);
+          return isNaN(d.getTime())
+            ? null
+            : d.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+        })
+        .filter((d): d is string => d !== null))];
       if (wantDays.length) {
         const boHit = await admin.from("calendar_events")
           .select("event_date,title")
           .eq("type", "blackout").eq("blocks_trials", true)
           .in("event_date", wantDays).limit(1).maybeSingle();
+        // Fail CLOSED. If we cannot tell whether the day is blacked out, we
+        // do not guess: refusing a real booking is recoverable, taking one
+        // for a day the studio is shut is not.
+        if (boHit.error) {
+          console.error("[trial-booking] blackout check failed:", boHit.error);
+          return json({ error: "We could not confirm that class time. Please try again in a moment." }, 503, cors);
+        }
         if (boHit.data) {
           const p = String(boHit.data.event_date).split("-").map(Number);
           const dd = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
