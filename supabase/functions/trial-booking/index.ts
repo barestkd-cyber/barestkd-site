@@ -291,7 +291,16 @@ async function handleSchedule(cors: Record<string, string>, req: Request) {
       programs.push({ program: titleFromCss(k), ageLabel: "", kids: false, classes: leftovers[k] });
     });
 
-    const payload: any = { programs: programs };
+    // Days the studio is closed to trials, from the CRM calendar. The
+    // client scheduler drops these days entirely.
+    const boRes = await adminClient()
+      .from("calendar_events")
+      .select("event_date")
+      .eq("type", "blackout").eq("blocks_trials", true)
+      .gte("event_date", todayCT);
+    const blackouts = ((boRes.data ?? []) as any[]).map((r) => String(r.event_date));
+
+    const payload: any = { programs: programs, blackouts: blackouts };
     if (wantRaw) payload.raw = list;
     if (!wantRaw) scheduleCache = { at: now, data: payload };
     return json(payload, 200, cacheHeaders);
@@ -401,6 +410,27 @@ Deno.serve(async (req) => {
         const mo = t.getMonth() - dobDate.getMonth();
         if (mo < 0 || (mo === 0 && t.getDate() < dobDate.getDate())) a--;
         studentAge = a >= 0 && a < 120 ? a : null;
+      }
+
+      // Blackout days refuse the booking BEFORE anything is written. The
+      // schedule response caches for five minutes, so a page loaded just
+      // before a closure was added can still offer the day; this is the
+      // check that actually holds.
+      const wantDays = [...new Set(bookings
+        .map((b) => str((b as Record<string, unknown> || {}).class_datetime))
+        .filter(Boolean)
+        .map((iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Chicago" })))];
+      if (wantDays.length) {
+        const boHit = await admin.from("calendar_events")
+          .select("event_date,title")
+          .eq("type", "blackout").eq("blocks_trials", true)
+          .in("event_date", wantDays).limit(1).maybeSingle();
+        if (boHit.data) {
+          const p = String(boHit.data.event_date).split("-").map(Number);
+          const dd = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+          const nice = dd.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric" });
+          return json({ error: "We're closed on " + nice + ". Please pick a class on another day." }, 409, cors);
+        }
       }
 
       // ONE contact per student. program stays NULL; trial-interest programs

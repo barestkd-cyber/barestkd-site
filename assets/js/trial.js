@@ -199,7 +199,13 @@
   // A class stays bookable through the end of its own day rather than vanishing
   // at its start time: someone who walks in a few minutes late still needs to be
   // able to sign up for the class they're standing in.
+  var BLACKOUT_DAYS = {};
+  function ymdOf(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+      + "-" + String(d.getDate()).padStart(2, "0");
+  }
   function slotsOnDate(item, d) {
+    if (BLACKOUT_DAYS[ymdOf(d)]) return [];
     var now = studioNow();
     var dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); // midnight after d
     if (dayEnd.getTime() <= now.getTime()) return [];
@@ -336,6 +342,10 @@
       .then(function (r) { if (!r.ok) throw new Error("bad " + r.status); return r.json(); })
       .then(function (data) {
         PROGRAMS = (data && data.programs) || [];
+        // Closed days from the CRM calendar: the scheduler simply never
+        // offers them. The server refuses them too, for stale pages.
+        BLACKOUT_DAYS = {};
+        ((data && data.blackouts) || []).forEach(function (d) { BLACKOUT_DAYS[d] = true; });
         if (!bookablePrograms().length) { renderFallback(); return; }
         renderPrograms();
       })

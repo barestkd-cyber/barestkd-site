@@ -594,6 +594,39 @@ const BTKDPricing = (function () {
     return roundHalfUpCents(monthly * remaining / cycleDays);
   }
 
+  /* Lay out a payment schedule: `count` payments of `amountCents`, the
+   * first on `firstDueOn`, then weekly or monthly.
+   *
+   *   installmentSchedule({ firstDueOn, frequency, amountCents, count })
+   *     -> [{ seq, dueOn, amountCents }]
+   *
+   * Monthly dates keep the ANCHOR day of the first due date across the
+   * whole run: a schedule anchored on the 31st goes Jan 31, Feb 28, Mar 31,
+   * never sliding permanently to the 28th after one short month. Weekly is
+   * every 7 days exactly. Bad inputs return [] rather than half a schedule.
+   */
+  function installmentSchedule(opts) {
+    opts = opts || {};
+    var count = Math.round(Number(opts.count) || 0);
+    var amount = Math.max(Math.round(Number(opts.amountCents) || 0), 0);
+    var first = ymdToUTC(opts.firstDueOn);
+    if (count < 1 || count > 520 || first == null) return [];
+    var out = [];
+    if (opts.frequency === 'weekly') {
+      for (var i = 0; i < count; i++) {
+        out.push({ seq: i + 1, dueOn: utcToYmd(first + i * 7 * DAY_MS), amountCents: amount });
+      }
+      return out;
+    }
+    var f = new Date(first);
+    var anchorDay = f.getUTCDate(), y = f.getUTCFullYear(), mo = f.getUTCMonth();
+    for (var j = 0; j < count; j++) {
+      var last = new Date(Date.UTC(y, mo + j + 1, 0)).getUTCDate();
+      out.push({ seq: j + 1, dueOn: utcToYmd(Date.UTC(y, mo + j, Math.min(anchorDay, last))), amountCents: amount });
+    }
+    return out;
+  }
+
   /* Totals for a whole invoice.
    *
    *   invoiceTotals({
@@ -645,6 +678,7 @@ const BTKDPricing = (function () {
     testingFeeCents: testingFeeCents,
     invoiceTotals: invoiceTotals,
     prorateCents: prorateCents,
+    installmentSchedule: installmentSchedule,
     nextBillOn: nextBillOn,
     allocateCents: allocateCents,
     // exposed for the UI and for tests
