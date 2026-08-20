@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Juniors Taekwondo Enrollment | Bares Taekwondo Fitness | Tyler, TX</title>
+<meta name="description" content="Enroll in Juniors Taekwondo at Bares Taekwondo Fitness in Tyler, TX. Martial arts classes for kids.">
+<link rel="canonical" href="https://www.barestkd.fit/juniors-checkout/">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/assets/css/styles.css">
+<style>
+/* Page-local styles. One narrow column on every width - this is a form, not a
+   landing page, and a 1200px-wide input row is harder to fill in, not easier. */
+.lkc-col{max-width:640px;margin-inline:auto}
+.lkc-step{border:2px solid #111;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:22px}
+.lkc-step > h2{margin:0 0 4px;font-size:1.15rem}
+.lkc-step .step-sub{margin:0 0 14px;font-size:.9rem;color:#5b6570}
+
+/* Session dates */
+.lkc-when{font-weight:700;margin:0 0 10px}
+.lkc-dates{list-style:none;margin:0 0 4px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
+@media (max-width:420px){.lkc-dates{grid-template-columns:1fr}}
+.lkc-dates li{font-size:.95rem;padding:3px 0;border-bottom:1px solid #f0f0f0}
+.lkc-dates li span{display:inline-block;min-width:1.6em;color:#8a929b;font-variant-numeric:tabular-nums}
+
+/* Price lines */
+.lkc-line{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid #eee;font-size:.97rem}
+.lkc-line[hidden]{display:none}
+.lkc-line:last-child{border-bottom:none}
+.lkc-line .amt{font-variant-numeric:tabular-nums;white-space:nowrap}
+.lkc-total{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
+  margin-top:6px;padding:14px 16px;border-radius:12px;background:#111;color:#fff}
+.lkc-total .lbl{font-weight:700;letter-spacing:.02em}
+.lkc-total .amt{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}
+.lkc-total .sub{display:block;font-size:.78rem;font-weight:400;opacity:.75;letter-spacing:0}
+
+/* T-shirt add-on - its own row, NOT a .form-field (that is a column flex and
+   squashed this into a narrow stack on desktop). */
+.lkc-shirt{margin:14px 0 4px;padding:14px;border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc}
+.lkc-shirt-q{display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:nowrap;font-size:.97rem;font-weight:600;margin:0}
+.lkc-shirt-q input[type=checkbox]{width:20px;height:20px;flex:0 0 auto;margin:0}
+/* flex-basis 0 so long price text wraps INSIDE the span instead of shoving
+   the whole description onto its own line under the checkbox */
+.lkc-shirt-q .grow{flex:1 1 0;min-width:0}
+.lkc-shirt select{margin-top:10px;width:100%;max-width:180px;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
+/* Shirt design picker - white shirt, choose the girl or boy artwork. */
+.lkc-pick{margin:14px 0 8px;font-weight:700;font-size:.95rem}
+.lkc-tees{display:flex;flex-direction:row;gap:12px;flex-wrap:wrap}
+.lkc-tee{flex:1 1 150px;min-width:140px;background:#fff;border:2px solid var(--line);border-radius:12px;
+  padding:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;font:inherit}
+.lkc-tee img{width:100%;height:auto;max-width:190px;display:block}
+.lkc-tee-name{font-weight:700;font-size:.9rem}
+.lkc-tee[aria-checked="true"]{border-color:var(--belt-red);box-shadow:0 0 0 3px rgba(227,30,36,.15)}
+.lkc-tee:focus-visible{outline:2px solid var(--belt-red);outline-offset:2px}
+/* The "grown-up must be on the mat" rule - a requirement, not a nicety. */
+.lkc-note{border-left:4px solid var(--belt-red);background:#FFF6F6;padding:12px 14px;border-radius:0 10px 10px 0;font-size:.95rem;line-height:1.6;margin-top:12px}
+
+/* Agreement + signature */
+.lkc-agree-box{border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc;max-height:320px;overflow-y:auto;padding:14px 16px;font-size:13.5px;line-height:1.55}
+.lkc-agree-box h4{margin:14px 0 4px;font-size:13.5px;letter-spacing:.02em}
+.lkc-agree-box .ttl{font-weight:700;text-align:center;font-size:15px;margin:2px 0 10px}
+.lkc-agree-box .ent{text-align:center;margin:0;font-size:12.5px;color:#444}
+.lkc-agree-box p{margin:6px 0}
+.lkc-sig-wrap{border:1.5px dashed #9aa4af;border-radius:10px;background:#fff;position:relative}
+.lkc-sig-wrap canvas{display:block;width:100%;height:150px;touch-action:none;border-radius:10px}
+.lkc-sig-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#b6bec7;font-size:14px;pointer-events:none}
+.lkc-sig-clear{margin-top:6px;background:none;border:none;color:#555;font-size:13px;text-decoration:underline;cursor:pointer;padding:4px}
+.lkc-check{display:flex;flex-direction:row;gap:10px;align-items:flex-start;font-size:14px;margin:14px 0}
+.lkc-check input{margin-top:3px;width:18px;height:18px;flex:0 0 auto}
+#lkc-pay{width:100%}
+#lkc-pay[disabled]{opacity:.55;cursor:not-allowed}
+.lkc-status{min-height:22px}
+
+/* Card field and the confirmation that replaces the form. */
+.lkc-cardbox{border:2px solid var(--line);border-radius:10px;padding:14px 13px;background:#fff;min-height:50px}
+.lkc-cardbox.StripeElement--focus{border-color:#111}
+.lkc-cardload{color:#5b6570;font-size:13.5px}
+.lkc-carderr{display:none;color:var(--belt-red);font-size:13.5px;margin-top:8px;font-weight:600}
+.lkc-testnote{margin-top:10px;font-size:12.5px;color:#5b6570;background:#F4F6F8;border-radius:8px;padding:9px 11px}
+.lkc-done{border-color:#18A974;background:#F6FFFA}
+.lkc-done h2{font-size:1.4rem;margin-bottom:8px}
+
+.lkc-receipt{margin-top:16px}
+.lkc-receipt:empty{display:none}
+.lkc-printrow{text-align:center;margin-top:12px}
+@media print{
+  .site-header,.site-footer,.lkc-printrow,.lkc-note,#lkc-done-cal,.belt-divider{display:none!important}
+  .lkc-done{border:none;background:#fff}
+  body{background:#fff}
+}
+
+.cbc-opt{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"r n d" ". t d";
+  column-gap:11px;row-gap:2px;align-items:center;width:100%;text-align:left;background:#fff;
+  border:2px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:9px;cursor:pointer;font:inherit}
+.cbc-opt .radio{grid-area:r}
+.cbc-opt .nm{grid-area:n}
+.cbc-opt .tm{grid-area:t}
+.cbc-opt .due{grid-area:d}
+.cbc-opt[aria-checked="true"]{border-color:var(--belt-red);box-shadow:0 0 0 3px rgba(227,30,36,.12)}
+.cbc-opt .radio{width:18px;height:18px;border-radius:50%;border:2px solid #B9BEC9;flex:0 0 auto}
+.cbc-opt[aria-checked="true"] .radio{border-color:var(--belt-red);background:radial-gradient(circle at center,var(--belt-red) 0 45%,#fff 50%)}
+.cbc-opt .nm{font-weight:700;font-size:.98rem}
+.cbc-opt .tm{color:#5b6570;font-size:.85rem;margin-top:2px}
+.cbc-save{display:inline-block;background:#18A974;color:#fff;font-weight:800;font-size:.72rem;
+  letter-spacing:.02em;border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:1px;white-space:nowrap}
+.cbc-opt .due{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:1.05rem}
+.cbc-more{margin-top:10px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
+.cbc-more > summary{cursor:pointer;padding:11px 14px;font-weight:800;font-size:.92rem;list-style:none}
+.cbc-more > summary::-webkit-details-marker{display:none}
+.cbc-more > summary::after{content:" +";color:var(--belt-red)}
+.cbc-more[open] > summary::after{content:" -"}
+.cbc-more > div{padding:0 14px 12px}
+.cbc-shirt{display:flex;flex-direction:row;gap:14px;align-items:flex-start;padding:12px 0;border-top:1px solid #eee}
+.cbc-tee-copy{flex:1 1 auto;min-width:0}
+.cbc-shirt:first-child{border-top:none}
+.cbc-tee{margin:14px 0 4px;border:2px solid #18A974;border-radius:12px;background:#F6FFFA;overflow:hidden}
+.cbc-tee-flag{background:#18A974;color:#fff;font-weight:800;font-size:.82rem;letter-spacing:.04em;padding:6px 12px;text-transform:uppercase}
+.cbc-tee-flag b{font-size:.95rem}
+.cbc-tee-body{display:flex;flex-direction:row;gap:14px;align-items:flex-start;padding:13px 14px}
+.cbc-tee-flip{background:#B4B6B9;border:2px solid #9A9C9F;border-radius:12px;padding:12px 10px 8px;cursor:pointer;
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:8px;font:inherit;width:190px}
+.cbc-tee-art{width:100%;height:auto;max-height:120px;object-fit:contain;display:block}
+.cbc-tee-art[hidden]{display:none}
+.cbc-tee-flipbtn{font-size:.72rem;font-weight:800;color:#15171C;text-transform:uppercase;letter-spacing:.03em}
+.cbc-shirt .cbc-tee-flip{flex:0 0 150px;width:150px}
+@media (max-width:560px){
+  .cbc-tee-body{flex-direction:column;align-items:stretch}
+  .cbc-shirt{flex-direction:column}
+  .cbc-shirt .cbc-tee-flip{flex:none;width:100%;max-width:240px;margin-inline:auto}
+  .cbc-tee-flip{width:100%;max-width:260px;margin-inline:auto}
+  .cbc-tee-copy{width:100%}
+}
+.cbc-tee-copy{flex:1 1 auto;min-width:0}
+.cbc-tee-note{margin:7px 0 0;font-size:.85rem;color:#5b6570;line-height:1.5}
+.cbc-tee-now{color:#18A974}
+.cbc-tee select{margin-top:10px;width:100%;max-width:190px;font:inherit;padding:.55rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
+.cbc-policy{margin:0 0 6px;font-size:.94rem;font-weight:700;line-height:1.5}
+.cbc-policy-link{margin:0 0 14px;font-size:.9rem}
+@media (max-width:560px){
+  .cbc-opt{grid-template-columns:auto 1fr;grid-template-areas:"r n" ". t" ". d";align-items:start;row-gap:4px}
+  .cbc-opt .radio{margin-top:4px}
+  .cbc-opt .due{text-align:left;margin-top:4px}
+}
+.cbc-opt .due small{display:inline;font-weight:400;color:#5b6570;font-size:.75rem}
+.cbc-opt .due i{display:block;font-style:normal;font-weight:400;color:#5b6570;font-size:.75rem;margin-top:1px}
+
+.lkc-addr-row{display:grid;grid-template-columns:1fr 72px 96px;gap:10px}
+.lkc-addr-row .form-field{margin-bottom:1rem}
+
+/* Optional-people expanders */
+.lkc-addbtn{display:block;width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:10px;
+  padding:11px 14px;margin-top:10px;font:inherit;font-weight:800;font-size:.92rem;cursor:pointer}
+.lkc-addbtn::after{content:"";float:right;color:var(--belt-red)}
+.lkc-extras > div[hidden]{display:none}
+#lkc-g2{margin-top:10px}
+.lkc-person{display:flex;gap:8px;margin-top:8px;align-items:center}
+.lkc-person input{flex:1 1 0;min-width:0;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
+.lkc-person-x{flex:0 0 auto;background:none;border:none;color:#9AA4AF;font-size:20px;cursor:pointer;padding:2px 6px}
+
+/* Footer: match the form column so it reads as centred with the page. */
+.lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href="/">
+      <img src="/assets/img/logo.png" alt="Bares Taekwondo Fitness" width="101" height="54">
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/preschool-martial-arts-tyler-tx">Cubs</a></li>
+        <li><a href="/schedule/events">Schedule/Events</a></li>
+        <li><a href="/contact-form">Contact</a></li>
+      </ul>
+    </nav>
+    <a class="call-link" href="tel:903-561-2966" aria-label="Call Bares Taekwondo Fitness at 903-561-2966">
+      <svg class="call-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24 11.36 11.36 0 0 0 3.57.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02l-2.2 2.2z"/></svg>
+      <span class="call-link__num">903-561-2966</span>
+    </a>
+  </div>
+</header>
+<main id="main-content">
+<!-- Photo hero, not the reel: the program page carries the video, and a
+     checkout page should load instantly and get out of the way. -->
+<section class="hero hero--page">
+  <img class="hero__media hero__poster" src="/assets/img/juniors-hero.jpg"
+       alt="The Juniors class training on the mat at Bares Taekwondo Fitness in Tyler, TX"
+       fetchpriority="high" decoding="async" width="1800" height="873">
+  <div class="hero__scrim"></div>
+  <div class="container hero__inner">
+    <p class="eyebrow">Juniors Taekwondo</p>
+    <h1>Juniors Enrollment</h1>
+    <p class="hero__sub">Taekwondo for kids: focus, discipline and confidence, taught in a class built to keep them moving.</p>
+  </div>
+</section>
+<hr class="belt-divider" aria-hidden="true">
+<section class="section fade-up" aria-label="Enrollment">
+  <div class="container lkc-col">
+
+    <!-- Replaces the form once the card clears. No redirect: they stay put
+         and see the classes they just bought. -->
+    <div class="lkc-step lkc-done" id="lkc-done" hidden>
+      <h2 id="lkc-done-h">You're enrolled</h2>
+      <p id="lkc-done-p"></p>
+      <div id="cbc-done-plan" class="lkc-line" style="border:none;font-weight:600"></div>
+      <p class="step-sub">Class times are at <a href="/schedule/events">barestkd.fit/schedule</a>. See you on the mat!</p>
+      <p class="step-sub" style="margin-top:14px">We've emailed a copy of all of this to <b id="lkc-done-email"></b>,
+        so you can close this page whenever you like.<br>
+        Questions? Call <a href="tel:903-561-2966">903-561-2966</a>.</p>
+
+      <!-- The receipt itself, printable without leaving the page. Same card
+           the invoice page and the emailed link render, from receipt-view. -->
+      <div id="lkc-receipt" class="lkc-receipt"></div>
+      <p class="lkc-printrow" id="lkc-printrow" hidden>
+        <button type="button" class="btn btn--secondary" id="lkc-print">Print or save as PDF</button>
+      </p>
+    </div>
+
+    <form id="lkc-form" novalidate>
+
+      <!-- 1 ─ the membership: pick a payment option. Options and prices come
+           from the live catalog; the server re-derives everything, so the page
+           can never charge a number it invented. -->
+      <div class="lkc-step">
+        <h2>Your Membership</h2>
+        <p class="cbc-policy">Juniors Taekwondo is a 12-month program. Monthly/weekly payments may be canceled with 30 days notice given.</p>
+        
+        <div id="cbc-options" role="radiogroup" aria-label="Payment option">Loading options…</div>
+
+        <div class="lkc-shirt" id="cbc-uniform-block" hidden>
+          <label class="lkc-shirt-q" for="cbc-uniform">
+            <input id="cbc-uniform" type="checkbox">
+            <span class="grow" style="white-space:nowrap">Beginner uniform. <b id="cbc-uniform-price">$82.25</b> + tax</span>
+          </label>
+        </div>
+
+        <!-- Enrollment-only shirt offer. The tee is drawn rather than
+             photographed so the gray stays true and the logo stays crisp. -->
+        <div id="cbc-shirts" hidden>
+          <div id="cbc-shirt-featured"></div>
+          <details class="cbc-more" id="cbc-more">
+            <summary>See other shirts</summary>
+            <div id="cbc-shirt-others"></div>
+          </details>
+        </div>
+
+        <div id="lkc-prices" style="margin-top:14px">
+          <div class="lkc-line" id="cbc-r-pick"><span>Pick an option above</span><span class="amt">-</span></div>
+          <div class="lkc-line" id="cbc-r-down" hidden><span>Down payment</span><span class="amt" id="cbc-p-down">-</span></div>
+          <div class="lkc-line" id="cbc-r-rec" hidden><span id="cbc-l-rec">Monthly payment</span><span class="amt" id="cbc-p-rec">-</span></div>
+          <div class="lkc-line" id="cbc-r-uni" hidden><span>Beginner uniform</span><span class="amt" id="cbc-p-uni">-</span></div>
+          <div id="cbc-r-shirts"></div>
+          <div class="lkc-line" id="cbc-r-tax" hidden><span>Sales tax</span><span class="amt" id="cbc-p-tax">-</span></div>
+          <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
+        </div>
+
+        <div class="lkc-total">
+          <span class="lbl">Total due today
+            <span class="sub" id="cbc-after"></span>
+          </span>
+          <span class="amt" id="lkc-p-total">-</span>
+        </div>
+      </div>
+
+      <!-- 2 ─ the student -->
+      <div class="lkc-step">
+        <h2>Your Cub</h2>
+        <p class="step-sub">Who's joining the Juniors class.</p>
+        <div class="form-field">
+          <label for="lkc-sfirst">Student's first name</label>
+          <input id="lkc-sfirst" type="text" autocomplete="off" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-slast">Student's last name</label>
+          <input id="lkc-slast" type="text" autocomplete="off" required>
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label for="lkc-dob">Student's date of birth</label>
+          <input id="lkc-dob" type="date" required>
+        </div>
+      </div>
+
+      <!-- 3 ─ the parent or guardian -->
+      <div class="lkc-step">
+        <h2>Parent / Guardian</h2>
+        <p class="step-sub">Your contact info. The receipt and class updates come to you.</p>
+        <div class="form-field">
+          <label for="lkc-pfirst">Your first name</label>
+          <input id="lkc-pfirst" type="text" autocomplete="given-name" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-plast">Your last name</label>
+          <input id="lkc-plast" type="text" autocomplete="family-name" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-email">Email</label>
+          <input id="lkc-email" type="email" autocomplete="email" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-phone">Phone</label>
+          <input id="lkc-phone" type="tel" autocomplete="tel" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-street">Street address</label>
+          <input id="lkc-street" type="text" autocomplete="address-line1" required>
+        </div>
+        <div class="lkc-addr-row">
+          <div class="form-field"><label for="lkc-city">City</label>
+            <input id="lkc-city" type="text" autocomplete="address-level2" required></div>
+          <div class="form-field"><label for="lkc-state">State</label>
+            <input id="lkc-state" type="text" autocomplete="address-level1" value="TX" required></div>
+          <div class="form-field"><label for="lkc-zip">Zip</label>
+            <input id="lkc-zip" type="text" inputmode="numeric" autocomplete="postal-code" required></div>
+        </div>
+
+        <!-- Optional people. One guardian is required above; everything here
+             is fill-what-you-want. Empty rows are ignored on submit. -->
+        <div class="lkc-extras" id="lkc-extras">
+          <button type="button" class="lkc-addbtn" id="lkc-add-g2">+ Add second guardian</button>
+          <div id="lkc-g2" hidden>
+            <div class="form-field"><label for="lkc-g2-name">Second guardian's name</label>
+              <input id="lkc-g2-name" type="text" autocomplete="off"></div>
+            <div class="form-field"><label for="lkc-g2-email">Their email</label>
+              <input id="lkc-g2-email" type="email" autocomplete="off"></div>
+            <div class="form-field"><label for="lkc-g2-phone">Their phone</label>
+              <input id="lkc-g2-phone" type="tel" autocomplete="off"></div>
+            <div class="form-field"><label for="lkc-g2-address">Their address</label>
+              <input id="lkc-g2-address" type="text" autocomplete="off" placeholder="Street, city, zip"></div>
+          </div>
+          <button type="button" class="lkc-addbtn" id="lkc-add-em">+ Add emergency contact</button>
+          <div id="lkc-em-list"></div>
+          <button type="button" class="lkc-addbtn" id="lkc-add-pu">+ Add person authorized to pick up</button>
+          <div id="lkc-pu-list"></div>
+        </div>
+      </div>
+
+      <!-- 4 ─ the agreement -->
+      <div class="lkc-step">
+        <h2>Enrollment Agreement</h2>
+        <p class="step-sub">The real agreement for this session. Please read it. Your details fill in as you type.</p>
+        <div class="lkc-agree-box" id="lkc-agree-doc" tabindex="0">Loading the agreement…</div>
+
+        <div class="form-field" style="margin-top:14px">
+          <label for="cbc-initials">Your initials (go beside the option you picked)</label>
+          <input id="cbc-initials" type="text" maxlength="6" style="max-width:120px;text-transform:uppercase" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-signer">Signature name (parent / guardian)</label>
+          <input id="lkc-signer" type="text" autocomplete="name" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-rel">Relationship to student</label>
+          <input id="lkc-rel" type="text" value="Parent" required>
+        </div>
+        <div class="form-field">
+          <label>Sign here</label>
+          <div class="lkc-sig-wrap">
+            <canvas id="lkc-pad" height="150"></canvas>
+            <div class="lkc-sig-hint" id="lkc-sig-hint">Sign with your finger or mouse</div>
+          </div>
+          <button type="button" class="lkc-sig-clear" id="lkc-sig-clear">Clear signature</button>
+        </div>
+        <label class="lkc-check">
+          <input id="lkc-agree" type="checkbox">
+          <span>I have read and agree to the Taekwondo Membership Agreement above, including the waiver. I understand this is a 12-month membership and that the amount shown is due today.</span>
+        </label>
+      </div>
+
+      <!-- 5 - payment, right here. No hop to an invoice page to press Pay
+           again; the card never touches this site, only Stripe's iframe. -->
+      <div class="lkc-step">
+        <h2>Payment</h2>
+        <p class="step-sub">Card details go straight to Stripe. We never see or store the number.</p>
+        <div id="lkc-cardbox" class="lkc-cardbox"><div class="lkc-cardload">Loading secure card field…</div></div>
+        <div id="lkc-carderr" class="lkc-carderr"></div>
+        <div id="lkc-testnote"></div>
+      </div>
+
+      <div class="hp-field" aria-hidden="true">
+        <label for="lkc-hp">Leave this field empty</label>
+        <input id="lkc-hp" type="text" tabindex="-1" autocomplete="off">
+      </div>
+
+      <button class="btn btn--primary btn--lg" type="submit" id="lkc-pay">Pay and Enroll</button>
+      <p class="form-consent">Your card is processed securely by Stripe. By providing your number you consent to receive notification messages from Bares Taekwondo Fitness; reply STOP to opt out.</p>
+      <p class="form-privacy"><a href="/privacy-policy">Privacy Policy</a></p>
+      <p class="form-status lkc-status" id="lkc-status" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="lkc-foot">
+      <strong>Bares Taekwondo Fitness</strong><br>
+      1901 Deerbrook Dr, Tyler, TX 75703<br>
+      <a href="tel:903-561-2966">903-561-2966</a> · <a href="mailto:race@barestkd.fit">race@barestkd.fit</a>
+    </div>
+  </div>
+</footer>
+
+<!-- The agreement text comes from the CRM's generated templates - the same
+     file the front desk signs from, so the web can never drift from it. -->
+<script src="https://crm.barestkd.fit/agreements.js" defer></script>
+<script src="/assets/js/main.js" defer></script>
+<script>
+(function () {
+  "use strict";
+  var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/program-checkout?p=juniors";
+  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
+
+  var CFG = null, CHOSEN = null, SALE_ID = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var money = function (c) { return "$" + (c / 100).toFixed(2); };
+  var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+  if (window.crypto && crypto.randomUUID) SALE_ID = crypto.randomUUID();
+
+  function fmtMDY(ymd) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || "")); return m ? (m[2] + "-" + m[3] + "-" + m[1]) : ""; }
+
+  fetch(FN, { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (cfg) {
+      CFG = cfg;
+      if ((cfg.shirts || []).length) renderShirts();
+      if (cfg.uniform_available) {
+        $("cbc-uniform-block").hidden = false;
+        $("cbc-uniform-price").textContent = moneyS(cfg.uniform_cents);
+      }
+      renderOptions();
+      renderPrice(); renderDoc();
+    })
+    .catch(function () {
+      $("cbc-options").textContent = "Enrollment isn't loading right now. Call 903-561-2966.";
+      $("lkc-pay").disabled = true;
+    });
+
+  /* One card per shirt. The featured one sits above the fold at half price;
+     the rest live behind "See other shirts" so they are offered without
+     crowding the enrollment decision. */
+  function shirtCard(sh, i) {
+    var sizes = '<option value="" disabled selected>Pick a size</option>'
+      + (CFG.tee_sizes || []).map(function (s) { return '<option>' + esc(s) + '</option>'; }).join("");
+    var price = sh.featured
+      ? '<b><s>' + moneyS(sh.full_cents) + '</s> <span class="cbc-tee-now">' + moneyS(sh.cents) + '</span></b>'
+      : '<b>' + moneyS(sh.cents) + '</b>';
+    return '<div class="cbc-shirt">'
+      + '<div class="cbc-tee-copy">'
+      + '<label class="lkc-shirt-q"><input type="checkbox" data-shirt="' + i + '">'
+      + '<span class="grow">' + esc(sh.name) + ' ' + price + '</span></label>'
+      + (sh.featured ? '<p class="cbc-tee-note">Enrollment special.</p>' : '')
+      + '<select data-size="' + i + '" aria-label="Size for ' + esc(sh.name) + '" hidden>' + sizes + '</select>'
+      + '</div>'
+      + '<button type="button" class="cbc-tee-flip" data-flip="' + i + '" style="background:' + esc(sh.color) + '">'
+      + '<img class="cbc-tee-art" data-art="' + i + '" src="' + esc(sh.front) + '" alt="' + esc(sh.name) + '">'
+      + (sh.back ? '<span class="cbc-tee-flipbtn" data-lbl="' + i + '">Front &middot; tap for back</span>' : '')
+      + '</button>'
+      + '</div>';
+  }
+
+  function renderShirts() {
+    $("cbc-shirts").hidden = false;
+    var feat = "", others = "";
+    CFG.shirts.forEach(function (sh, i) {
+      if (sh.featured) feat += shirtCard(sh, i); else others += shirtCard(sh, i);
+    });
+    $("cbc-shirt-featured").innerHTML = feat;
+    $("cbc-shirt-others").innerHTML = others;
+    if (!others) $("cbc-more").hidden = true;
+
+    // a price row per shirt, hidden until ticked
+    $("cbc-r-shirts").innerHTML = CFG.shirts.map(function (sh, i) {
+      return '<div class="lkc-line" data-row="' + i + '" hidden><span>' + esc(sh.name)
+        + (sh.featured ? ' <small style="color:#18A974;font-weight:700">50% off</small>' : '')
+        + '</span><span class="amt" data-amt="' + i + '">-</span></div>';
+    }).join("");
+
+    document.querySelectorAll("[data-shirt]").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var i = cb.getAttribute("data-shirt");
+        document.querySelector('[data-size="' + i + '"]').hidden = !cb.checked;
+        renderPrice();
+      });
+    });
+    document.querySelectorAll("[data-size]").forEach(function (s) {
+      s.addEventListener("change", renderPrice);
+    });
+    // flip to the back where a design has one
+    document.querySelectorAll("[data-flip]").forEach(function (b) {
+      var i = b.getAttribute("data-flip");
+      var sh = CFG.shirts[+i];
+      if (!sh.back) return;
+      var showingBack = false;
+      b.addEventListener("click", function () {
+        showingBack = !showingBack;
+        document.querySelector('[data-art="' + i + '"]').src = showingBack ? sh.back : sh.front;
+        var lbl = document.querySelector('[data-lbl="' + i + '"]');
+        if (lbl) lbl.innerHTML = showingBack ? "Back &middot; tap for front" : "Front &middot; tap for back";
+      });
+    });
+  }
+
+  /* Which shirts are ticked, with their sizes. */
+  function chosenShirts() {
+    if (!CFG || !CFG.shirts) return [];
+    var out = [];
+    CFG.shirts.forEach(function (sh, i) {
+      var cb = document.querySelector('[data-shirt="' + i + '"]');
+      if (cb && cb.checked) {
+        out.push({ i: i, name: sh.name, cents: sh.cents, size: (document.querySelector('[data-size="' + i + '"]') || {}).value || "" });
+      }
+    });
+    return out;
+  }
+
+  /* Whole dollars unless there are real cents: $1192, $99, but $27.95. The
+     12-month term is stated once at the top of the card and in the policies,
+     not repeated on every option line. */
+  function moneyS(c) {
+    return c % 100 === 0 ? "$" + (c / 100) : "$" + (c / 100).toFixed(2);
+  }
+  function optTerms(o) {
+    if (o.billing_frequency === "one_time") return "One payment of " + moneyS(o.pif_cents);
+    if (o.billing_frequency === "weekly") {
+      return o.down_cents > 0
+        ? moneyS(o.down_cents) + " down / " + moneyS(o.recurring_cents) + " weekly"
+        : moneyS(o.recurring_cents) + " weekly";
+    }
+    return moneyS(o.down_cents) + " down / " + moneyS(o.recurring_cents) + " monthly";
+  }
+  function dueSub(o) {
+    if (o.billing_frequency === "one_time") return "";
+    var unit = o.billing_frequency === "weekly" ? "week" : "month";
+    return o.down_cents > 0 ? "down payment + first " + unit : "first " + unit;
+  }
+  function renderOptions() {
+    var hh = "";
+    CFG.options.forEach(function (o) {
+      hh += '<button type="button" class="cbc-opt" role="radio" aria-checked="false" data-code="' + esc(o.code) + '">'
+        + '<span class="radio"></span>'
+        + '<span class="nm">' + esc(o.name)
+        + (o.promo ? ' <b class="cbc-save">' + esc(o.promo) + '</b>' : '') + '</span>'
+        + '<span class="due">' + moneyS(o.due_today_cents) + ' <small>due today</small>'
+        + (dueSub(o) ? '<i>' + esc(dueSub(o)) + '</i>' : '') + '</span>'
+        + '<span class="tm">' + esc(optTerms(o)) + '</span>'
+        + '</button>';
+    });
+    $("cbc-options").innerHTML = hh;
+    Array.prototype.forEach.call(document.querySelectorAll(".cbc-opt"), function (b) {
+      b.addEventListener("click", function () {
+        CHOSEN = null;
+        for (var i = 0; i < CFG.options.length; i++) if (CFG.options[i].code === b.getAttribute("data-code")) CHOSEN = CFG.options[i];
+        Array.prototype.forEach.call(document.querySelectorAll(".cbc-opt"), function (x) {
+          x.setAttribute("aria-checked", String(x === b));
+        });
+        renderPrice(); renderDoc();
+      });
+    });
+  }
+
+  /* Same arithmetic the server runs; the server's answer reaches the ledger,
+     this one just keeps the page honest. */
+  function priceParts() {
+    if (!CHOSEN) return null;
+    var due = CHOSEN.due_today_cents;
+    var uni = ($("cbc-uniform").checked && CFG.uniform_available) ? CFG.uniform_cents : 0;
+    var picked = chosenShirts();
+    var tee = picked.reduce(function (a, x) { return a + x.cents; }, 0);
+    var base = due + uni + tee;
+    var fee = base > 0 ? Math.round(base * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents : 0;
+    var tax = Math.floor((uni + tee) * CFG.tax_rate + 0.5);   // goods are taxable, tuition is not
+    return { due: due, uni: uni, tee: tee, fee: fee, tax: tax, total: base + fee + tax };
+  }
+  function renderPrice() {
+    var pp = priceParts();
+    var show = function (id, on) { $(id).hidden = !on; };
+    if (!pp) {
+      show("cbc-r-pick", true); show("cbc-r-down", false); show("cbc-r-rec", false);
+      show("cbc-r-uni", false); show("cbc-r-tax", false);
+      document.querySelectorAll("[data-row]").forEach(function (r) { r.hidden = true; });
+      $("lkc-p-fee").textContent = "-"; $("lkc-p-total").textContent = "-";
+      $("cbc-after").textContent = "";
+      return;
+    }
+    // Same two rows for every option, so nothing appears or vanishes as you
+    // click around. Paid in full is simply the whole amount down and nothing
+    // recurring.
+    show("cbc-r-pick", false); show("cbc-r-down", true); show("cbc-r-rec", true);
+    var pif = CHOSEN.billing_frequency === "one_time";
+    $("cbc-p-down").textContent = money(pif ? CHOSEN.pif_cents : CHOSEN.down_cents);
+    $("cbc-l-rec").textContent = CHOSEN.billing_frequency === "weekly" ? "Weekly payment" : "Monthly payment";
+    $("cbc-p-rec").textContent = money(pif ? 0 : CHOSEN.recurring_cents);
+    show("cbc-r-uni", pp.uni > 0);
+    if (pp.uni > 0) $("cbc-p-uni").textContent = money(pp.uni);
+    (CFG.shirts || []).forEach(function (sh, i) {
+      var on = chosenShirts().some(function (x) { return String(x.i) === String(i); });
+      var row = document.querySelector('[data-row="' + i + '"]');
+      if (row) row.hidden = !on;
+      if (on) document.querySelector('[data-amt="' + i + '"]').textContent = money(sh.cents);
+    });
+    show("cbc-r-tax", pp.uni + pp.tee > 0);
+    if (pp.uni + pp.tee > 0) $("cbc-p-tax").textContent = money(pp.tax);
+
+    $("lkc-p-fee").textContent = money(pp.fee);
+    $("lkc-p-total").textContent = money(pp.total);
+    $("cbc-after").textContent = CHOSEN.billing_frequency === "one_time"
+      ? "Nothing more to pay"
+      : "Then " + money(CHOSEN.recurring_cents) + " " + (CHOSEN.billing_frequency === "weekly" ? "weekly" : "monthly");
+  }
+
+  // The agreement, rendered live from the CRM's template so the page and the
+  // frozen server copy can never say different things.
+  function renderDoc() {
+    var box = $("lkc-agree-doc");
+    var A = window.BTKDAgreements;
+    if (!CFG) return;
+    if (!A) { box.textContent = "The agreement could not load. Refresh the page, or call us."; return; }
+    var tpl = null;
+    for (var i = 0; i < A.TEMPLATES.length; i++) if (A.TEMPLATES[i].key === "taekwondo") tpl = A.TEMPLATES[i];
+    if (!tpl) { box.textContent = "The agreement could not load. Call us at 903-561-2966."; return; }
+
+    var student = (($("lkc-sfirst").value || "") + " " + ($("lkc-slast").value || "")).trim() || "____________________";
+    var guardian = (($("lkc-pfirst").value || "") + " " + ($("lkc-plast").value || "")).trim() || "____________________";
+    var dob = fmtMDY($("lkc-dob").value) || "____________";
+    var today = fmtMDY(new Date().toLocaleDateString("en-CA"));
+    var initials = ($("cbc-initials").value || "").toUpperCase().trim() || "____";
+
+    var hh = '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
+      + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
+      + '<p>Participant (Student) Name: <b>' + esc(student) + '</b><br>'
+      + 'Date of Birth: <b>' + esc(dob) + '</b><br>'
+      + 'Parent / Guardian: <b>' + esc(guardian) + '</b><br>'
+      + "Today's Date: <b>" + esc(today) + '</b><br>'
+      + 'Membership Start Date: <b>' + esc(today) + '</b></p>'
+      + '<h4>FEES</h4>';
+    CFG.options.forEach(function (o) {
+      var line;
+      if (o.billing_frequency === "one_time") {
+        line = esc(o.name) + " is a single payment of <b>" + money(o.pif_cents) + "</b> for the full twelve (12) month term.";
+      } else {
+        line = esc(o.name) + " is a down payment of <b>" + money(o.down_cents) + "</b> and a "
+          + (o.billing_frequency === "weekly" ? "weekly" : "monthly") + " payment of <b>" + money(o.recurring_cents) + "</b>.";
+      }
+      var sel = CHOSEN && CHOSEN.code === o.code;
+      hh += '<p' + (sel ? ' style="background:#FFF6D9;border-radius:6px;padding:4px 6px"' : '') + '>' + line + (sel ? ' <b>&larr; selected</b>' : '') + '</p>';
+    });
+    var payDate = "";
+    if (CHOSEN) {
+      if (CHOSEN.billing_frequency === "monthly") {
+        var d = new Date(); var n = d.getDate();
+        var suf = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th";
+        payDate = "the " + n + suf + " of each month";
+      } else if (CHOSEN.billing_frequency === "weekly") {
+        payDate = "each " + ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
+      } else payDate = "none (paid in full)";
+    }
+    hh += '<p>Selected option: <b>' + (CHOSEN ? esc(CHOSEN.name) : "____________") + '</b>'
+      + '&nbsp;&nbsp;Initials: <b>' + esc(initials) + '</b>'
+      + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
+    for (var f = 0; f < tpl.feesTail.length; f++) hh += '<p>' + esc(tpl.feesTail[f]) + '</p>';
+    for (var s = 0; s < tpl.sections.length; s++) {
+      hh += '<h4>' + esc(tpl.sections[s].h) + '</h4>';
+      for (var q = 0; q < tpl.sections[s].p.length; q++) hh += '<p>' + esc(tpl.sections[s].p[q]) + '</p>';
+    }
+    hh += '<p><i>' + esc(tpl.signNote) + '</i></p>';
+    box.innerHTML = hh;
+  }
+  ["lkc-sfirst", "lkc-slast", "lkc-dob", "lkc-pfirst", "lkc-plast", "cbc-initials"].forEach(function (id) {
+    document.addEventListener("input", function (e) { if (e.target && e.target.id === id) renderDoc(); });
+  });
+  var signerTouched = false;
+  $("cbc-uniform").addEventListener("change", renderPrice);
+
+  $("lkc-signer").addEventListener("input", function () { signerTouched = true; });
+  ["lkc-pfirst", "lkc-plast"].forEach(function (id) {
+    $(id).addEventListener("input", function () {
+      if (!signerTouched) $("lkc-signer").value = (($("lkc-pfirst").value || "") + " " + ($("lkc-plast").value || "")).trim();
+    });
+  });
+
+  // ── optional people: second guardian, emergency, pickup ──────────────────
+  $("lkc-add-g2").addEventListener("click", function () {
+    $("lkc-g2").hidden = false; this.hidden = true;
+  });
+  function addPersonRow(listId, kind) {
+    var list = $(listId);
+    if (list.children.length >= 5) return;
+    var row = document.createElement("div");
+    row.className = "lkc-person";
+    row.innerHTML = '<input type="text" placeholder="Name" data-p="name">'
+      + '<input type="tel" placeholder="Phone" data-p="phone">'
+      + (kind === "emergency" ? '<input type="text" placeholder="Relationship" data-p="relationship">' : '')
+      + '<button type="button" class="lkc-person-x" aria-label="Remove">&times;</button>';
+    row.querySelector(".lkc-person-x").addEventListener("click", function () { row.remove(); });
+    list.appendChild(row);
+  }
+  $("lkc-add-em").addEventListener("click", function () { addPersonRow("lkc-em-list", "emergency"); });
+  $("lkc-add-pu").addEventListener("click", function () { addPersonRow("lkc-pu-list", "pickup"); });
+  function collectPeople(listId) {
+    return Array.prototype.map.call($(listId).children, function (row) {
+      var o = {};
+      row.querySelectorAll("[data-p]").forEach(function (i) { o[i.getAttribute("data-p")] = i.value.trim(); });
+      return o;
+    }).filter(function (o) { return o.name || o.phone; });
+  }
+  function collectGuardian2() {
+    if ($("lkc-g2").hidden) return null;
+    var g = {
+      name: $("lkc-g2-name").value.trim(), email: $("lkc-g2-email").value.trim(),
+      phone: $("lkc-g2-phone").value.trim(), address: $("lkc-g2-address").value.trim()
+    };
+    return (g.name || g.email || g.phone) ? g : null;
+  }
+
+  // signature pad
+  var pad = $("lkc-pad"), ctx = null, drawing = false, dirty = false;
+  function padSetup() {
+    var r = pad.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    pad.width = Math.round(r.width * dpr); pad.height = 150 * dpr;
+    ctx = pad.getContext("2d"); ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.strokeStyle = "#111";
+  }
+  setTimeout(padSetup, 200); window.addEventListener("resize", function () { if (!dirty) padSetup(); });
+  function pt(e) { var r = pad.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  pad.addEventListener("pointerdown", function (e) {
+    e.preventDefault(); pad.setPointerCapture(e.pointerId);
+    drawing = true; dirty = true; $("lkc-sig-hint").style.display = "none";
+    var q = pt(e); ctx.beginPath(); ctx.moveTo(q[0], q[1]);
+  });
+  pad.addEventListener("pointermove", function (e) {
+    if (!drawing) return; var q = pt(e); ctx.lineTo(q[0], q[1]); ctx.stroke();
+  });
+  ["pointerup", "pointercancel"].forEach(function (ev) { pad.addEventListener(ev, function () { drawing = false; }); });
+  $("lkc-sig-clear").addEventListener("click", function () {
+    dirty = false; padSetup(); $("lkc-sig-hint").style.display = "flex";
+  });
+
+  // Stripe card field
+  var STRIPE = null, CARD = null;
+  function cardErr(msg) {
+    var el = $("lkc-carderr"); if (!el) return;
+    el.textContent = msg || ""; el.style.display = msg ? "block" : "none";
+  }
+  function loadStripeJs() {
+    if (window.Stripe) return Promise.resolve(true);
+    return new Promise(function (res) {
+      var s = document.createElement("script");
+      s.src = "https://js.stripe.com/v3/";
+      s.onload = function () { res(true); }; s.onerror = function () { res(false); };
+      document.head.appendChild(s);
+    });
+  }
+  function mountCard() {
+    loadStripeJs().then(function (ok) {
+      var box = $("lkc-cardbox");
+      if (!ok || !CFG || !CFG.publishable_key) {
+        box.innerHTML = '<div class="lkc-cardload" style="color:var(--belt-red)">Card payments are not available right now. Call 903-561-2966 to finish enrollment.</div>';
+        return;
+      }
+      STRIPE = window.Stripe(CFG.publishable_key);
+      CARD = STRIPE.elements().create("card", {
+        hidePostalCode: false,
+        style: { base: { fontSize: "16px", color: "#15171C" } }
+      });
+      box.innerHTML = "";
+      CARD.mount(box);
+      CARD.on("change", function (e) { cardErr(e.error ? e.error.message : ""); });
+      if (!/^pk_live_/.test(CFG.publishable_key)) {
+        var n = document.createElement("div");
+        n.className = "lkc-testnote";
+        n.textContent = "Stripe is in TEST mode. Use 4242 4242 4242 4242. A real card will be declined.";
+        box.parentNode.insertBefore(n, box.nextSibling);
+      }
+    });
+  }
+  var cardMountWait = setInterval(function () { if (CFG) { clearInterval(cardMountWait); mountCard(); } }, 150);
+
+  // submit: create the enrollment, confirm the card, finalize
+  function status(state, msg) {
+    var el = $("lkc-status"); el.textContent = msg;
+    if (state) el.setAttribute("data-state", state); else el.removeAttribute("data-state");
+  }
+  function showDone(receiptUrl) {
+    $("lkc-form").hidden = true;
+    var st = $("lkc-sfirst").value.trim();
+    $("lkc-done").hidden = false;
+    $("lkc-done-h").textContent = st + " is enrolled in Juniors";
+    $("lkc-done-p").textContent = "Welcome to the mat. Here's the plan you picked:";
+    $("cbc-done-plan").textContent = CHOSEN ? (CHOSEN.name + " · " + (CHOSEN.billing_frequency === "one_time"
+      ? money(CHOSEN.pif_cents) + " paid in full"
+      : money(CHOSEN.due_today_cents) + " today, then " + money(CHOSEN.recurring_cents)
+        + (CHOSEN.billing_frequency === "weekly" ? " weekly" : " monthly"))) : "";
+    $("lkc-done-email").textContent = $("lkc-email").value.trim();
+    var tok = (receiptUrl || "").split("t=")[1];
+    if (tok) {
+      fetch("https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/receipt-view?t=" + encodeURIComponent(tok) + "&f=frag", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.text() : null; })
+        .then(function (frag) {
+          if (!frag) return;
+          $("lkc-receipt").innerHTML = frag;
+          $("lkc-printrow").hidden = false;
+        }).catch(function () {});
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  $("lkc-print").addEventListener("click", function () { window.print(); });
+
+  $("lkc-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if ($("lkc-hp").value.trim() !== "") return;
+    if (!CFG) { status("error", "Enrollment isn't loading. Call 903-561-2966."); return; }
+    if (!SALE_ID) { status("error", "Your browser is too old for this page. Please call us."); return; }
+    if (!CHOSEN) { status("error", "Pick a payment option first."); return; }
+    var need = [["lkc-sfirst", "the student's first name"], ["lkc-slast", "the student's last name"],
+      ["lkc-dob", "the student's date of birth"], ["lkc-pfirst", "your first name"],
+      ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"], ["lkc-street", "your street address"], ["lkc-city", "your city"], ["lkc-zip", "your zip code"],
+      ["cbc-initials", "your initials"], ["lkc-signer", "the signature name"], ["lkc-rel", "your relationship to the student"]];
+    for (var i = 0; i < need.length; i++) {
+      if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
+    }
+    var pickedShirts = chosenShirts();
+    for (var s = 0; s < pickedShirts.length; s++) {
+      if (!pickedShirts[s].size) { status("error", "Pick a size for the " + pickedShirts[s].name + "."); return; }
+    }
+    if (!$("lkc-agree").checked) { status("error", "Please read the agreement and tick the box."); return; }
+    if (!dirty) { status("error", "Please sign in the signature box."); return; }
+    if (!CARD) { status("error", "The card field did not load. Refresh and try again."); return; }
+
+    var btn = $("lkc-pay"); btn.disabled = true; status("", "Setting up the enrollment…");
+    fetch(FN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY },
+      body: JSON.stringify({
+        sale_id: SALE_ID,
+        plan_code: CHOSEN.code,
+        uniform: $("cbc-uniform").checked === true,
+        shirts: pickedShirts.map(function (x) { return { name: x.name, size: x.size }; }),
+        student_first: $("lkc-sfirst").value.trim(), student_last: $("lkc-slast").value.trim(),
+        student_dob: $("lkc-dob").value,
+        parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
+        email: $("lkc-email").value.trim(), phone: $("lkc-phone").value.trim(),
+        address: [$("lkc-street").value.trim(), $("lkc-city").value.trim(),
+          ($("lkc-state").value.trim() + " " + $("lkc-zip").value.trim()).trim()].filter(Boolean).join(", "),
+        guardian2: collectGuardian2(),
+        emergency: collectPeople("lkc-em-list"),
+        pickup: collectPeople("lkc-pu-list"),
+        initials: $("cbc-initials").value.trim().toUpperCase(),
+        signer_name: $("lkc-signer").value.trim(), signer_relationship: $("lkc-rel").value.trim(),
+        signature_png: pad.toDataURL("image/png"),
+        agreed: $("lkc-agree").checked === true,
+        hp: $("lkc-hp").value
+      })
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.j && res.j.error || "failed");
+        if (res.j.paid && res.j.receipt_url) { showDone(res.j.receipt_url); return null; }
+        if (!res.j.client_secret) {
+          if (res.j.receipt_url) { showDone(res.j.receipt_url); return null; }
+          throw new Error("failed");
+        }
+        status("", "Charging " + money(res.j.total_cents) + "…");
+        return STRIPE.confirmCardPayment(res.j.client_secret, { payment_method: { card: CARD } })
+          .then(function (out) {
+            if (out.error) throw new Error(out.error.message || "The card was declined.");
+            if (!out.paymentIntent || out.paymentIntent.status !== "succeeded") throw new Error("The payment did not complete.");
+            status("", "Finishing up…");
+            return fetch(FN, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY },
+              body: JSON.stringify({ action: "finalize", sale_id: SALE_ID, payment_intent_id: out.paymentIntent.id })
+            }).then(function (r) { return r.json(); });
+          })
+          .then(function (fin) {
+            if (!fin) return;
+            if (!fin.ok) throw new Error(fin.error || "The card was charged but recording it failed. Call us before paying again.");
+            status("success", "Payment received.");
+            showDone(fin.receipt_url);
+          });
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        var msg = (err && err.message && err.message !== "failed")
+          ? err.message
+          : "Something went wrong. Nothing was charged. Try again or call 903-561-2966.";
+        cardErr(""); status("error", msg);
+      });
+  });
+})();
+
+</script>
+</body>
+</html>

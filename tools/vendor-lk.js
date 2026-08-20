@@ -26,6 +26,11 @@ const A = require(path.join(CRM, 'agreements.js'));
 const VENDORED = [
   { key: 'little_kickers', file: 'lk_agreement.js' },
   { key: 'cubs', file: 'cubs_agreement.js' },
+  // The remaining programs that transact self-serve. `taekwondo` covers BOTH
+  // Juniors and Teens/Adults - one attorney-approved document, two pages.
+  { key: 'taekwondo', file: 'taekwondo_agreement.js' },
+  { key: 'kickboxing', file: 'kickboxing_agreement.js' },
+  { key: 'jiujitsu', file: 'jiujitsu_agreement.js' },
 ];
 for (const v of VENDORED) {
   const tpl = A.TEMPLATES.find((t) => t.key === v.key);
