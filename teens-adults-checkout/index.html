@@ -255,11 +255,22 @@
           </details>
         </div>
 
+        <!-- Add another program to this same membership. Each one becomes a
+             real membership with its own roster spot, but rides THIS
+             agreement as a priced line, so there is one document to read
+             and one signature to give. -->
+        <div class="lkc-shirt" id="cbc-addons-block" hidden>
+          <p class="lkc-pick" style="margin-top:0">Train more than one program?</p>
+          <div id="cbc-addons"></div>
+          <p class="tst-seatnote" id="cbc-addons-note" style="font-size:.82rem;color:#5b6570;margin:8px 0 0"></p>
+        </div>
+
         <div id="lkc-prices" style="margin-top:14px">
           <div class="lkc-line" id="cbc-r-pick"><span>Pick an option above</span><span class="amt">-</span></div>
           <div class="lkc-line" id="cbc-r-down" hidden><span>Down payment</span><span class="amt" id="cbc-p-down">-</span></div>
           <div class="lkc-line" id="cbc-r-rec" hidden><span id="cbc-l-rec">Monthly payment</span><span class="amt" id="cbc-p-rec">-</span></div>
           <div class="lkc-line" id="cbc-r-uni" hidden><span>Beginner uniform</span><span class="amt" id="cbc-p-uni">-</span></div>
+          <div id="cbc-r-addons"></div>
           <div id="cbc-r-shirts"></div>
           <div class="lkc-line" id="cbc-r-tax" hidden><span>Sales tax</span><span class="amt" id="cbc-p-tax">-</span></div>
           <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
@@ -437,6 +448,7 @@
         $("cbc-uniform-block").hidden = false;
         $("cbc-uniform-price").textContent = moneyS(cfg.uniform_cents);
       }
+      if ((cfg.add_ons || []).length) renderAddOns();
       renderOptions();
       renderPrice(); renderDoc();
     })
@@ -570,16 +582,56 @@
 
   /* Same arithmetic the server runs; the server's answer reaches the ledger,
      this one just keeps the page honest. */
+  /* Add-on programs. Taking every offered one can be cheaper than the sum of
+     them (a Taekwondo member pays $40 for one and $60 for both), so the pair
+     price comes from the server rather than being added up here. */
+  function renderAddOns() {
+    var list = CFG.add_ons || [];
+    $("cbc-addons-block").hidden = false;
+    $("cbc-addons").innerHTML = list.map(function (a, i) {
+      return '<label class="lkc-shirt-q" style="margin-top:6px"><input type="checkbox" data-addon="' + i + '">'
+        + '<span class="grow">Add <b>' + esc(a.program) + '</b> '
+        + '<b>' + moneyS(a.monthly_cents) + '</b> per month</span></label>';
+    }).join("");
+    if (CFG.add_ons_both_cents && list.length > 1) {
+      $("cbc-addons-note").textContent = "Take both and they are "
+        + moneyS(CFG.add_ons_both_cents) + " a month together.";
+    }
+    document.querySelectorAll("[data-addon]").forEach(function (cb) {
+      cb.addEventListener("change", function () { renderPrice(); renderDoc(); });
+    });
+  }
+  /* Which add-ons are ticked, and what each costs once the pair price is
+     taken into account. Mirrors priceAddOns on the server. */
+  function chosenAddOns() {
+    var list = (CFG && CFG.add_ons) || [];
+    var picked = [];
+    document.querySelectorAll("[data-addon]").forEach(function (cb) {
+      if (cb.checked) picked.push(list[+cb.getAttribute("data-addon")]);
+    });
+    if (!picked.length) return [];
+    if (CFG.add_ons_both_cents && list.length > 1 && picked.length === list.length) {
+      var each = Math.floor(CFG.add_ons_both_cents / picked.length);
+      var rem = CFG.add_ons_both_cents - each * picked.length;
+      return picked.map(function (a, i) {
+        return { program: a.program, cents: each + (i === 0 ? rem : 0) };
+      });
+    }
+    return picked.map(function (a) { return { program: a.program, cents: a.monthly_cents }; });
+  }
+
   function priceParts() {
     if (!CHOSEN) return null;
     var due = CHOSEN.due_today_cents;
     var uni = ($("cbc-uniform").checked && CFG.uniform_available) ? CFG.uniform_cents : 0;
     var picked = chosenShirts();
     var tee = picked.reduce(function (a, x) { return a + x.cents; }, 0);
-    var base = due + uni + tee;
+    var adds = chosenAddOns();
+    var addCents = adds.reduce(function (a, x) { return a + x.cents; }, 0);
+    var base = due + uni + tee + addCents;
     var fee = base > 0 ? Math.round(base * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents : 0;
     var tax = Math.floor((uni + tee) * CFG.tax_rate + 0.5);   // goods are taxable, tuition is not
-    return { due: due, uni: uni, tee: tee, fee: fee, tax: tax, total: base + fee + tax };
+    return { due: due, uni: uni, tee: tee, adds: adds, fee: fee, tax: tax, total: base + fee + tax };
   }
   function renderPrice() {
     var pp = priceParts();
@@ -601,6 +653,10 @@
     $("cbc-l-rec").textContent = CHOSEN.billing_frequency === "weekly" ? "Weekly payment" : "Monthly payment";
     $("cbc-p-rec").textContent = money(pif ? 0 : CHOSEN.recurring_cents);
     show("cbc-r-uni", pp.uni > 0);
+    $("cbc-r-addons").innerHTML = (pp.adds || []).map(function (a) {
+      return '<div class="lkc-line"><span>' + esc(a.program) + ' (first month)</span>'
+        + '<span class="amt">' + money(a.cents) + '</span></div>';
+    }).join("");
     if (pp.uni > 0) $("cbc-p-uni").textContent = money(pp.uni);
     (CFG.shirts || []).forEach(function (sh, i) {
       var on = chosenShirts().some(function (x) { return String(x.i) === String(i); });
@@ -664,9 +720,22 @@
         payDate = "each " + ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
       } else payDate = "none (paid in full)";
     }
+    var docAdds = chosenAddOns();
+    docAdds.forEach(function (a) {
+      hh += '<p>Add-on: ' + esc(a.program) + ' is ' + money(a.cents) + ' per month.</p>';
+    });
     hh += '<p>Selected option: <b>' + (CHOSEN ? esc(CHOSEN.name) : "____________") + '</b>'
       + '&nbsp;&nbsp;Initials: <b>' + esc(initials) + '</b>'
       + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
+    if (docAdds.length) {
+      var addTotal = docAdds.reduce(function (t, a) { return t + a.cents; }, 0);
+      hh += '<p>I am also enrolling in <b>'
+        + docAdds.map(function (a) { return esc(a.program); }).join(" and ")
+        + '</b> for <b>' + money(addTotal) + '</b> per month, billed on the agreed'
+        + ' payment date above under the same payment authorization, and'
+        + ' cancellable on the same notice.&nbsp;&nbsp;Initials: <b>'
+        + esc(initials) + '</b></p>';
+    }
     for (var f = 0; f < tpl.feesTail.length; f++) hh += '<p>' + esc(tpl.feesTail[f]) + '</p>';
     for (var s = 0; s < tpl.sections.length; s++) {
       hh += '<h4>' + esc(tpl.sections[s].h) + '</h4>';
@@ -844,6 +913,7 @@
         sale_id: SALE_ID,
         plan_code: CHOSEN.code,
         uniform: $("cbc-uniform").checked === true,
+        addons: chosenAddOns().map(function (a) { return a.program; }),
         shirts: pickedShirts.map(function (x) { return { name: x.name, size: x.size }; }),
         student_first: $("lkc-sfirst").value.trim(), student_last: $("lkc-slast").value.trim(),
         student_dob: $("lkc-dob").value,

@@ -41,6 +41,13 @@ type ProgramCfg = {
   shirts: string[];           // shirts offered at enrollment, at catalog price
   featuredTee: string | null; // half-price enrollment special, or null
   guardianAlways: boolean;    // true where every student is a child
+  // Programs this page can add to the primary membership. Each add-on is a
+  // real membership of its own, but rides the PRIMARY agreement as a priced
+  // line with its own initial, under the waiver, payment authorization and
+  // cancellation terms already in that document.
+  addOns?: { program: string; code: string }[];
+  // Where every add-on is taken at once and the pair is priced as one rate.
+  bothCode?: string;
 };
 
 /* The ONLY place a program differs. Adding one is a row here, a page, and a
@@ -64,18 +71,29 @@ const PROGRAMS: Record<string, ProgramCfg> = {
     uniform: "Beginner uniform",
     shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
     featuredTee: null, guardianAlways: true,
+    addOns: [
+      { program: "Kickboxing", code: "addon_kickboxing" },
+      { program: "Jiu Jitsu", code: "addon_jiujitsu" },
+    ],
+    bothCode: "addon_both",
   },
   "teens-adults": {
     program: "Teens/Adults", label: "Teens and Adults Taekwondo", tpl: TAEKWONDO_TEMPLATE,
     uniform: "Beginner uniform",
     shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
     featuredTee: null, guardianAlways: false,
+    addOns: [
+      { program: "Kickboxing", code: "addon_kickboxing" },
+      { program: "Jiu Jitsu", code: "addon_jiujitsu" },
+    ],
+    bothCode: "addon_both",
   },
   "kickboxing": {
     program: "Kickboxing", label: "Kickboxing", tpl: KICKBOXING_TEMPLATE,
     uniform: null,
     shirts: ["Team Grizzly Kickboxing tee", "Classic gray tee"],
     featuredTee: null, guardianAlways: false,
+    addOns: [{ program: "Jiu Jitsu", code: "specialty_second_jiujitsu" }],
   },
   // $50 a month for everyone: there is no member-versus-stranger rate here,
   // which is exactly why AMP'D can have a public page at all.
@@ -90,6 +108,7 @@ const PROGRAMS: Record<string, ProgramCfg> = {
     uniform: null,
     shirts: ["Classic gray tee"],
     featuredTee: null, guardianAlways: false,
+    addOns: [{ program: "Kickboxing", code: "specialty_second_kickboxing" }],
   },
 };
 
@@ -220,6 +239,7 @@ function optionLine(p: PlanRow, tpl: Tpl): string {
 function buildBodyText(ctx: {
   participant: string; dob: string; guardian: string; today: string;
   options: PlanRow[]; chosen: PlanRow; payDate: string | null; tpl: Tpl;
+  addOns?: { program: string; monthlyCents: number }[];
   initials: string; signerName: string; signerRelationship: string;
 }): string {
   const tpl = ctx.tpl;
@@ -237,9 +257,28 @@ function buildBodyText(ctx: {
   out.push("FEES");
   for (const p of ctx.options) out.push(optionLine(p, ctx.tpl));
   out.push("");
+  // Add-on programs are priced lines on THIS agreement, not separate
+  // contracts. The waiver already covers martial arts generally, the
+  // payment authorization already covers whatever the fee table shows, and
+  // the cancellation section already applies, so an add-on needs a price
+  // and an initial and nothing else.
+  const adds = (ctx.addOns ?? []).filter((a) => a && a.program);
+  for (const a of adds) {
+    out.push("Add-on: " + a.program + " is " + money(a.monthlyCents) + " per month.");
+  }
+  out.push("");
   out.push("Selected option: " + ctx.chosen.name
     + "   Initials: " + ctx.initials
     + "   Payment date: " + (ctx.payDate ?? "none (paid in full)"));
+  if (adds.length) {
+    const names = adds.map((a) => a.program).join(" and ");
+    const total = adds.reduce((t, a) => t + a.monthlyCents, 0);
+    out.push("");
+    out.push("I am also enrolling in " + names + " for " + money(total)
+      + " per month, billed on the agreed payment date above under the same"
+      + " payment authorization, and cancellable on the same notice."
+      + "    Initials: " + ctx.initials);
+  }
   for (const line of tpl.feesTail as string[]) out.push(line);
   for (const sec of tpl.sections as Array<{ h: string; p: string[] }>) {
     out.push("");
@@ -308,6 +347,42 @@ Deno.serve(async (req) => {
     .eq("name", cfg.uniform ?? "\u0000none").eq("active", true).maybeSingle();
   const uniform = uniRes.data ?? null;
 
+  // Add-on rates, priced from the catalog like everything else. The pair
+  // rate is a row of its own rather than the sum of two, because the owner
+  // discounts taking both (a TKD member pays $40 for one and $60 for both,
+  // not $80).
+  const addOnCfg = cfg.addOns ?? [];
+  const addOnCodes = addOnCfg.map((a) => a.code).concat(cfg.bothCode ? [cfg.bothCode] : []);
+  const addOnPlanRes = addOnCodes.length
+    ? await admin.from("pricing_plans")
+        .select("id,code,name,program,billing_frequency,recurring_cents,down_cents,pif_cents,payment_count")
+        .in("code", addOnCodes).eq("active", true)
+    : { data: [] as PlanRow[] };
+  const addOnPlans = (addOnPlanRes.data ?? []) as PlanRow[];
+  const planByCode = (c: string) => addOnPlans.find((p) => p.code === c) ?? null;
+
+  /* What each chosen add-on costs per month. Selecting every offered add-on
+   * uses the pair rate where one exists; otherwise each is its own price. */
+  function priceAddOns(chosenPrograms: string[]) {
+    const picked = addOnCfg.filter((a) => chosenPrograms.includes(a.program));
+    if (!picked.length) return [] as { program: string; code: string; monthlyCents: number }[];
+    if (cfg.bothCode && picked.length === addOnCfg.length && addOnCfg.length > 1) {
+      const both = planByCode(cfg.bothCode);
+      const each = Math.floor((both?.recurring_cents || 0) / picked.length);
+      // Split the pair rate across the programs so each membership carries a
+      // real price, and give the remainder to the first so they sum exactly.
+      const rem = (both?.recurring_cents || 0) - each * picked.length;
+      return picked.map((a, i) => ({
+        program: a.program, code: cfg.bothCode as string,
+        monthlyCents: each + (i === 0 ? rem : 0),
+      }));
+    }
+    return picked.map((a) => ({
+      program: a.program, code: a.code,
+      monthlyCents: planByCode(a.code)?.recurring_cents || 0,
+    }));
+  }
+
   const setRes = await admin.from("pricing_settings").select("key,value_cents")
     .in("key", ["admin_fee_bps", "admin_fee_flat_cents"]);
   const settings: Record<string, number> = {};
@@ -349,6 +424,11 @@ Deno.serve(async (req) => {
         admin_fee_bps: feeBps,
         admin_fee_flat_cents: feeFlat,
         tax_rate: TAX_RATE,
+        add_ons: addOnCfg.map((a) => ({
+          program: a.program,
+          monthly_cents: planByCode(a.code)?.recurring_cents || 0,
+        })),
+        add_ons_both_cents: cfg.bothCode ? (planByCode(cfg.bothCode)?.recurring_cents || 0) : null,
         agreement_version: cfg.tpl.version,
       }, 200, cors);
     }
@@ -476,6 +556,21 @@ Deno.serve(async (req) => {
     });
     if (!calc.eligible) return json({ error: "That option can't be sold right now." }, 409, cors);
     const due = BTKDPricing.dueTodayCents(calc, null);   // down + first payment; PIF = the full amount
+
+    // Add-on programs. Each is a real membership with its own roster row, but
+    // rides the PRIMARY agreement as a priced line, so the buyer signs once.
+    // The first month is due today, exactly like the primary plan’s first
+    // period, otherwise they would train a month before paying for it.
+    const wantAddOns = Array.isArray(body.addons)
+      ? [...new Set(body.addons.map((x: unknown) => str(x)).filter(Boolean))]
+      : [];
+    for (const p of wantAddOns) {
+      if (!addOnCfg.some((a) => a.program === p)) {
+        return json({ error: "That add-on is not available here. Reload the page." }, 400, cors);
+      }
+    }
+    const pricedAddOns = priceAddOns(wantAddOns);
+    const addOnCents = pricedAddOns.reduce((t, a) => t + a.monthlyCents, 0);
     // The uniform is a normal taxable product riding the same invoice.
     const wantUniform = body.uniform === true && !!uniform;
     if (body.uniform === true && !uniform) {
@@ -498,9 +593,10 @@ Deno.serve(async (req) => {
     const shirtsCents = wantShirts.reduce((a, x) => a + x.cents, 0);
 
     const lines = [{ cents: due, taxable: false }];
+    pricedAddOns.forEach((a) => lines.push({ cents: a.monthlyCents, taxable: false }));
     if (wantUniform) lines.push({ cents: uniformCents, taxable: true });
     wantShirts.forEach((x) => lines.push({ cents: x.cents, taxable: true }));
-    const fee = adminFeeCents(due + uniformCents + shirtsCents, feeBps, feeFlat);   // card-only online, fee always rides
+    const fee = adminFeeCents(due + addOnCents + uniformCents + shirtsCents, feeBps, feeFlat);   // card-only online, fee always rides
     const totals = BTKDPricing.invoiceTotals({
       lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
     });
@@ -514,7 +610,7 @@ Deno.serve(async (req) => {
     const contactIns = await admin.from("contacts").insert({
       first_name: studentFirst, last_name: studentLast,
       segment: "active", member_role: "student",
-      source: "website-cubs-checkout", entered_on: today,
+      source: "website-" + slug + "-checkout", entered_on: today,
       dob, email, phone, address,
     }).select("id").single();
     if (contactIns.error) throw contactIns.error;
@@ -548,27 +644,32 @@ Deno.serve(async (req) => {
         + " payment is " + money(chosen.recurring_cents || 0) + ", due " + payDate + ".";
     const saleIns = await admin.from("pos_sales").insert({
       id: saleId, buyer_contact_id: studentId, sale_date: today,
-      staff_email: "cubs-checkout@website", brand: "btkd",
+      staff_email: "program-checkout@website", brand: "btkd",
       tender_method: null, status: "unpaid",
       subtotal_cents: totals.subtotalCents, discount_cents: 0,
       admin_fee_cents: fee, tax_cents: totals.taxCents,
       total_cents: totals.totalCents,
       customer_note:
-        studentFirst + " is enrolled in Cubs.\n\n"
+        studentFirst + " is enrolled in " + cfg.label + ".\n\n"
         + "Your plan: " + chosen.name + "\n"
         + "Today you paid " + money(totals.totalCents) + " (includes card processing).\n"
-        + monthlyLine + "\n\n"
+        + monthlyLine + "\n"
+        + (pricedAddOns.length
+            ? "Also enrolled: " + pricedAddOns.map((a) => a.program + " at "
+                + money(a.monthlyCents) + "/month").join(", ") + "\n"
+            : "")
+        + "\n"
         + "Class times: barestkd.fit/schedule\n"
         + "1901 Deerbrook Dr, Tyler\n\n"
         + (wantUniform
-            ? "Your Cubs uniform is paid for. We'll have it ready at the first class.\n"
+            ? "Your uniform is paid for. We'll have it ready at the first class.\n"
             : "Wear comfortable clothes for the first class. Uniforms are available at the front desk.\n")
         + (wantShirts.length
             ? "Shirts paid for and ready at the first class: "
               + wantShirts.map((x) => x.row.name + " (" + x.size + ")").join(", ") + "\n"
             : "")
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
-      notes: "Cubs online enrollment, " + chosen.name
+      notes: cfg.label + " online enrollment, " + chosen.name
         + (wantUniform ? ", UNIFORM PURCHASED - have one ready" : "")
         + (wantShirts.length ? ", SHIRTS: " + wantShirts.map((x) => x.row.name + " " + x.size).join(", ") : "")
         + " (" + (chosen.billing_frequency === "one_time"
@@ -582,7 +683,7 @@ Deno.serve(async (req) => {
     // 4. The membership - frozen snapshot of the CHOSEN option.
     const snap = BTKDPricing.buildMembershipSnapshot({
       calc, contactId: studentId, program: cfg.program,
-      startedOn: today, createdBy: "cubs-checkout (website)", override: null,
+      startedOn: today, createdBy: "program-checkout (website)", override: null,
     });
     (snap as Record<string, unknown>).payment_count = chosen.payment_count;
     (snap as Record<string, unknown>).sale_id = saleId;
@@ -596,6 +697,7 @@ Deno.serve(async (req) => {
       participant: studentFirst + " " + studentLast, dob: fmtMDY(dob),
       guardian: guardianName, today: fmtMDY(today),
       options, chosen, payDate, initials,
+      addOns: pricedAddOns.map((a) => ({ program: a.program, monthlyCents: a.monthlyCents })),
       signerName, signerRelationship: signerRel,
     });
     const agrIns = await admin.from("membership_agreements").insert({
@@ -645,6 +747,37 @@ Deno.serve(async (req) => {
         student_contact_id: null, product_id: x.row.id, membership_row: null, membership_id: null,
       });
     });
+    // Each add-on becomes its own membership and roster row: check-in is
+    // gated per program, and billing has to know what each one costs. Only
+    // the CONTRACT is shared, which is the whole point.
+    for (const a of pricedAddOns) {
+      const aPlan = addOnPlans.find((p) => p.code === a.code);
+      if (!aPlan) { problems.push("add-on plan missing: " + a.code); continue; }
+      const aCalc = BTKDPricing.calculatePrice({
+        plan: { ...aPlan, recurring_cents: a.monthlyCents },
+        settings, person: { contact_id: studentId, activeMemberships: [] },
+        householdMembers: [], plans: [aPlan],
+      });
+      const aSnap = BTKDPricing.buildMembershipSnapshot({
+        calc: aCalc, contactId: studentId, program: a.program,
+        startedOn: today, createdBy: "program-checkout add-on (website)", override: null,
+      });
+      (aSnap as Record<string, unknown>).sale_id = saleId;
+      const aMem = await admin.from("memberships").insert(aSnap).select("id").single();
+      if (aMem.error) { problems.push("add-on membership " + a.program + ": " + aMem.error.message); continue; }
+      lineRows.push({
+        sale_id: saleId, kind: "mem",
+        label: a.program + " (added to " + cfg.label + ")",
+        qty: 1, unit_cents: a.monthlyCents, discount_cents: 0, taxable: false,
+        line_total_cents: a.monthlyCents, student_contact_id: studentId,
+        product_id: null, membership_row: aSnap, membership_id: aMem.data.id,
+      });
+      const aEnr = await admin.from("enrollments").insert({
+        student_id: studentId, program: a.program, status: "active", sale_id: saleId,
+      });
+      if (aEnr.error) problems.push("add-on roster " + a.program + ": " + aEnr.error.message);
+    }
+
     const lIns = await admin.from("pos_sale_lines").insert(lineRows);
     if (lIns.error) problems.push("sale lines: " + lIns.error.message);
 
@@ -654,7 +787,7 @@ Deno.serve(async (req) => {
     });
     if (eIns.error) problems.push("roster: " + eIns.error.message);
 
-    if (problems.length) console.error("[cubs-checkout] partial writes:", saleId, problems);
+    if (problems.length) console.error("[program-checkout] partial writes:", saleId, problems);
 
     // 8. The payment, on this page. The card ATTACHES TO A CUSTOMER with
     //    setup_future_usage: the buyer just signed up for recurring payments,
@@ -674,12 +807,12 @@ Deno.serve(async (req) => {
     f.set("amount", String(totals.totalCents));
     f.set("currency", "usd");
     f.set("payment_method_types[]", "card");
-    f.set("description", "Cubs (" + chosen.name + ") - " + studentFirst + " " + studentLast);
+    f.set("description", cfg.label + " (" + chosen.name + ") - " + studentFirst + " " + studentLast);
     f.set("receipt_email", email);
     f.set("customer", cust.id);
     f.set("setup_future_usage", "off_session");
     f.set("metadata[sale_id]", saleId);
-    f.set("metadata[source]", "cubs-checkout");
+    f.set("metadata[source]", "program-checkout");
     const pi = await stripe("payment_intents", secretKey, f);
     await admin.from("pos_sales").update({ stripe_payment_intent: pi.id, stripe_customer_id: cust.id }).eq("id", saleId);
 
@@ -691,7 +824,7 @@ Deno.serve(async (req) => {
       total_cents: totals.totalCents,
     }, 200, cors);
   } catch (e) {
-    console.error("[cubs-checkout] failed:", e);
+    console.error("[program-checkout] failed:", e);
     const detail = (e as { message?: string })?.message || String(e);
     const debug = reqBody.debug === true;
     return json({
