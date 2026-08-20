@@ -533,6 +533,67 @@ const BTKDPricing = (function () {
     return cents(s.testing_fee_addl_cents, 1000);   // 4th and each additional
   }
 
+  /* ── billing-date alignment ───────────────────────────────────────────
+   * A member adding a second program should not end up with two charge
+   * dates. The new program joins the one they already have, so they pay a
+   * part-month today and everything lands together from then on.
+   *
+   * All dates are yyyy-mm-dd strings and all arithmetic is UTC. Never
+   * new Date("2026-08-20") for local semantics: that parses as UTC and
+   * reads a day early in Central, which here would shift a billing date.
+   */
+  function ymdToUTC(ymd) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''));
+    return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+  function utcToYmd(ms) { return new Date(ms).toISOString().slice(0, 10); }
+  var DAY_MS = 86400000;
+
+  /* The next time a monthly membership bills, given the day of the month it
+   * has always billed on. Clamps to the last day of shorter months, so a
+   * membership that bills on the 31st bills on the 30th in April rather
+   * than skipping into May. */
+  function nextBillOn(anchorYmd, todayYmd) {
+    var a = ymdToUTC(anchorYmd), t = ymdToUTC(todayYmd);
+    if (a == null || t == null) return null;
+    var day = new Date(a).getUTCDate();
+    var y = new Date(t).getUTCFullYear(), mo = new Date(t).getUTCMonth();
+    for (var i = 0; i < 3; i++) {
+      var last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+      var cand = Date.UTC(y, mo, Math.min(day, last));
+      if (cand > t) return utcToYmd(cand);
+      mo++;
+    }
+    return null;
+  }
+
+  /* What a member owes today for the part-month between now and the date
+   * their existing membership already bills on.
+   *
+   *   prorateCents({ monthlyCents, today, nextBillOn })
+   *
+   * Charged per day of the cycle they are joining part-way through, so the
+   * fraction is measured against that cycle rather than an assumed 30 days.
+   * Joining ON the billing date owes a full month, not zero: they are
+   * starting a whole cycle. */
+  function prorateCents(opts) {
+    opts = opts || {};
+    var monthly = Math.max(Math.round(Number(opts.monthlyCents) || 0), 0);
+    var t = ymdToUTC(opts.today), n = ymdToUTC(opts.nextBillOn);
+    if (!monthly || t == null || n == null) return monthly;
+    if (n <= t) return monthly;
+
+    var nd = new Date(n);
+    var prevLast = new Date(Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth(), 0)).getUTCDate();
+    var prev = Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth() - 1,
+      Math.min(nd.getUTCDate(), prevLast));
+    var cycleDays = Math.round((n - prev) / DAY_MS);
+    var remaining = Math.round((n - t) / DAY_MS);
+    if (cycleDays <= 0) return monthly;
+    if (remaining >= cycleDays) return monthly;
+    return roundHalfUpCents(monthly * remaining / cycleDays);
+  }
+
   /* Totals for a whole invoice.
    *
    *   invoiceTotals({
@@ -583,6 +644,8 @@ const BTKDPricing = (function () {
     dueTodayCents: dueTodayCents,
     testingFeeCents: testingFeeCents,
     invoiceTotals: invoiceTotals,
+    prorateCents: prorateCents,
+    nextBillOn: nextBillOn,
     allocateCents: allocateCents,
     // exposed for the UI and for tests
     householdRank: householdRank,
