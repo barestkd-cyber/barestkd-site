@@ -30,6 +30,7 @@ import BTKDPricing from "../_shared/pricing_esm.js";
 import TAEKWONDO_TEMPLATE from "../_shared/taekwondo_agreement.js";
 import KICKBOXING_TEMPLATE from "../_shared/kickboxing_agreement.js";
 import JIUJITSU_TEMPLATE from "../_shared/jiujitsu_agreement.js";
+import AMPD_TEMPLATE from "../_shared/ampd_agreement.js";
 
 type Tpl = typeof TAEKWONDO_TEMPLATE;
 type ProgramCfg = {
@@ -74,6 +75,14 @@ const PROGRAMS: Record<string, ProgramCfg> = {
     program: "Kickboxing", label: "Kickboxing", tpl: KICKBOXING_TEMPLATE,
     uniform: null,
     shirts: ["Team Grizzly Kickboxing tee", "Classic gray tee"],
+    featuredTee: null, guardianAlways: false,
+  },
+  // $50 a month for everyone: there is no member-versus-stranger rate here,
+  // which is exactly why AMP'D can have a public page at all.
+  "ampd": {
+    program: "AMP'D", label: "AMP'D", tpl: AMPD_TEMPLATE,
+    uniform: null,
+    shirts: ["Classic gray tee"],
     featuredTee: null, guardianAlways: false,
   },
   "jiu-jitsu": {

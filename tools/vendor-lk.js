@@ -31,6 +31,7 @@ const VENDORED = [
   { key: 'taekwondo', file: 'taekwondo_agreement.js' },
   { key: 'kickboxing', file: 'kickboxing_agreement.js' },
   { key: 'jiujitsu', file: 'jiujitsu_agreement.js' },
+  { key: 'ampd', file: 'ampd_agreement.js' },
 ];
 for (const v of VENDORED) {
   const tpl = A.TEMPLATES.find((t) => t.key === v.key);

@@ -81,6 +81,10 @@ const PAGES = [
     templateKey: 'jiujitsu', term: 'month-to-month',
     forbidPhrases: ['12-month', 'twelve (12) month', 'preschool'] },
 
+  { dir: "ampd-checkout", kind: "enrollment", program: "AMP'D",
+    templateKey: "ampd", term: "month-to-month",
+    forbidPhrases: ["12-month", "twelve (12) month", "preschool"] },
+
   // An event page names every program on purpose, because every program tests.
   { dir: 'testing-checkout', kind: 'event', program: 'Belt Testing',
     forbidPhrases: ['Membership Agreement', 'membership agreement', 'auto-renew',
