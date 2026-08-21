@@ -281,11 +281,25 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "GET") {
+      // The price with the card fee already in it, worked out by the same
+      // code that builds the invoice. The page displays these verbatim.
+      const feeRow = await admin.from("pricing_settings").select("key,value_cents")
+        .in("key", ["admin_fee_bps", "admin_fee_flat_cents"]);
+      const fs2: Record<string, number> = {};
+      ((feeRow.data ?? []) as { key: string; value_cents: number }[]).forEach((r) => fs2[r.key] = r.value_cents);
+      const withFee = (cents: number) => BTKDPricing.invoiceTotals({
+        lines: [{ cents, taxable: LESSON_TAXABLE }],
+        discountCents: 0,
+        adminFeeCents: adminFeeCents(cents, fs2.admin_fee_bps ?? 290, fs2.admin_fee_flat_cents ?? 30),
+        taxRate: TAX_RATE,
+      }).totalCents;
       return json({
         page_live: pageLive,
         rate_cents: rateCents,
         pack_size: packSize,
         pack_cents: packCents,
+        single_total_cents: withFee(rateCents),
+        pack_total_cents: withFee(packCents),
         duration_min: DURATION_MIN,
         days,
         publishable_key: Deno.env.get("STRIPE_PUBLISHABLE_KEY") ?? "",

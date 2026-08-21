@@ -76,13 +76,8 @@
   <div class="container pl-col">
 
     <h1 style="margin:0 0 6px">Private Lessons</h1>
-    <p style="margin:0 0 10px;color:#5b6570">
-      One-on-one training with Mr. Bares, 30 minutes.
-    </p>
     <p style="margin:0 0 22px;color:#5b6570">
-      Lessons run in the hour before evening classes Monday through Thursday,
-      and on Saturday mornings before the 9:30 class. The open times below come
-      straight off the studio schedule, so what you see is genuinely free.
+      30 minutes, one-on-one with Mr. Bares. Open times from our schedule:
     </p>
 
     <div id="pl-live"></div>
@@ -92,13 +87,11 @@
 
       <section class="pl-step">
         <h2>Pick a time</h2>
-        <p class="step-sub">Times open up before class each day. Pick the one that fits.</p>
         <div class="pl-scroll"><div id="pl-days"></div></div>
       </section>
 
       <section class="pl-step">
-        <h2>One lesson, or a pack</h2>
-        <p class="step-sub" id="pl-packsub"></p>
+        <h2>How many</h2>
         <div class="pl-opts" id="pl-opts"></div>
       </section>
 
@@ -143,7 +136,6 @@
           <div class="pl-carderr" id="pl-carderr"></div>
         </div>
         <div class="pl-total"><span>Total</span><span id="pl-total"></span></div>
-        <p class="pl-note" id="pl-feenote"></p>
         <button class="btn btn--primary pl-btn" id="pl-go" type="submit">Book and pay</button>
       </section>
     </form>
@@ -240,21 +232,18 @@
     });
   }
 
+  // Prices come from the server with the card fee already in them, so what is
+  // shown here is exactly what the card is charged.
   function renderOpts() {
-    var one = CFG.rate_cents, pack = CFG.pack_cents, n = CFG.pack_size;
-    var save = one * n - pack;
-    var free = n - Math.round(pack / one);
-    $("pl-packsub").textContent = "Buy " + (n - free) + ", get " + free
-      + (free === 1 ? " free" : " free") + ". You book the first lesson now and we schedule the rest with you.";
+    var one = CFG.single_total_cents, pack = CFG.pack_total_cents, n = CFG.pack_size;
+    var free = n - Math.round(CFG.pack_cents / CFG.rate_cents);
     var h = ""
       + '<label class="pl-opt on" data-pack="0"><input type="radio" name="plopt" checked>'
-      + '<span><span class="t">One lesson</span>'
-      + '<span class="d">' + CFG.duration_min + ' minutes, one-on-one.</span></span>'
+      + '<span><span class="t">One lesson</span></span>'
       + '<span class="p">' + money(one) + '</span></label>'
       + '<label class="pl-opt" data-pack="1"><input type="radio" name="plopt">'
-      + '<span><span class="t">' + n + ' lessons<span class="pl-save">save ' + money(save) + '</span></span>'
-      + '<span class="d">Pay for ' + (n - free) + ', get ' + free + ' free. Your first lesson is the time you picked above; '
-      + 'we will schedule the other ' + (n - 1) + ' with you.</span></span>'
+      + '<span><span class="t">' + n + ' lessons<span class="pl-save">' + free + ' free</span></span>'
+      + '<span class="d">We schedule the other ' + (n - 1) + ' with you.</span></span>'
       + '<span class="p">' + money(pack) + '</span></label>';
     $("pl-opts").innerHTML = h;
     Array.prototype.forEach.call($("pl-opts").querySelectorAll(".pl-opt"), function (l) {
@@ -268,13 +257,9 @@
     });
   }
 
-  // The page shows the lesson price only. The card fee and tax are added by
-  // the server, which owns the arithmetic, and appear on the receipt.
+  // The server already put the card fee into these, so this is the charge.
   function total() {
-    var c = wantPack ? CFG.pack_cents : CFG.rate_cents;
-    $("pl-total").textContent = money(c) + " plus card fee";
-    $("pl-feenote").textContent = "A small card processing fee is added at checkout. "
-      + "Your receipt shows the exact breakdown.";
+    $("pl-total").textContent = money(wantPack ? CFG.pack_total_cents : CFG.single_total_cents);
   }
 
   function loadStripeJs(cb) {
@@ -360,11 +345,10 @@
           done('<p class="big">You are booked.</p>'
             + '<p>' + esc(picked.dayLabel) + ' at ' + esc(picked.label) + '</p>'
             + (wantPack
-              ? '<p style="margin-top:12px;color:#5b6570">Your other ' + (CFG.pack_size - 1)
-                + ' lessons are paid for. We will reach out to schedule them, or call us at '
-                + '<a href="tel:+19035612966">' + PHONE + '</a>.</p>'
+              ? '<p style="margin-top:12px;color:#5b6570">We will call to schedule your other '
+                + (CFG.pack_size - 1) + '.</p>'
               : '')
-            + '<p style="margin-top:12px;color:#5b6570">A receipt is on its way to ' + esc(email) + '.</p>');
+            + '<p style="margin-top:12px;color:#5b6570">Receipt sent to ' + esc(email) + '.</p>');
         });
     }).catch(function (e) {
       showErr(e.message || "Something went wrong. Please try again or call us at " + PHONE + ".");
