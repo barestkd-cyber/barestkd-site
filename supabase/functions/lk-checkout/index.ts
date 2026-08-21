@@ -370,7 +370,16 @@ Deno.serve(async (req) => {
           status: "paid", tender_method: "card",
           confirmed_at: new Date().toISOString(), stripe_payment_intent: pi.id,
         }).eq("id", fSale);
-        if (!upd.error) await sendReceipt(fSale);
+        if (!upd.error) {
+          // The money landed, so the membership and the roster place are
+          // real now. Until this point they were pending on purpose: an
+          // abandoned checkout must not leave an active member behind.
+          await admin.from("memberships").update({ status: "active" })
+            .eq("sale_id", fSale).eq("status", "pending");
+          await admin.from("enrollments").update({ status: "active" })
+            .eq("sale_id", fSale).eq("status", "pending");
+          await sendReceipt(fSale);
+        }
       }
       return json({ ok: true, paid: true, receipt_url: `${SITE}/invoice/?t=${sale.data.view_token}` }, 200, cors);
     }
@@ -431,6 +440,19 @@ Deno.serve(async (req) => {
     }
 
     // ── idempotency: a resubmit returns the same invoice ───────────────────
+    // Little Kickers is one fixed session, so the plan cannot move; the
+    // tee can. Shirts are ledger lines, so a change in how many lines this
+    // sale has is exactly a change in what it costs.
+    const wantLines = 1 + (wantGray ? 1 : 0) + (wantShirt ? 1 : 0);
+    const priorLines = await admin.from("pos_sale_lines")
+      .select("id", { count: "exact", head: true }).eq("sale_id", saleId);
+    if (priorLines.count !== null && priorLines.count > 0 && priorLines.count !== wantLines) {
+      return json({
+        error: "Your selection changed. Please reload the page and start again.",
+        reload: true,
+      }, 409, cors);
+    }
+
     const existing = await admin.from("pos_sales").select("id,view_token,status,total_cents,stripe_payment_intent").eq("id", saleId).maybeSingle();
     if (existing.data) {
       // Already enrolled (a double submit, or a retry after a declined card).
@@ -440,7 +462,10 @@ Deno.serve(async (req) => {
       }
       if (secretKey && existing.data.stripe_payment_intent) {
         const pi0 = await stripe("payment_intents/" + encodeURIComponent(existing.data.stripe_payment_intent), secretKey, undefined, "GET");
-        if (pi0.status !== "succeeded" && pi0.status !== "canceled") {
+        // Retry a card that failed; do not hand back an intent that is
+        // mid-flight or already spent.
+        if (pi0.status === "requires_payment_method" || pi0.status === "requires_confirmation"
+            || pi0.status === "requires_action") {
           return json({ ok: true, client_secret: pi0.client_secret, payment_intent_id: pi0.id, sale_id: saleId, total_cents: existing.data.total_cents }, 200, cors);
         }
       }
@@ -547,6 +572,7 @@ Deno.serve(async (req) => {
     });
     (snap as Record<string, unknown>).ended_on = SESSION.end;
     (snap as Record<string, unknown>).sale_id = saleId;
+    (snap as Record<string, unknown>).status = "pending";
     const memIns = await admin.from("memberships").insert(snap).select("id").single();
     if (memIns.error) throw memIns.error;
     const membershipId = memIns.data.id as string;
@@ -607,7 +633,7 @@ Deno.serve(async (req) => {
 
     // 7. Class roster.
     const eIns = await admin.from("enrollments").insert({
-      student_id: studentId, program: "Little Kickers", status: "active", sale_id: saleId,
+      student_id: studentId, program: "Little Kickers", status: "pending", sale_id: saleId,
     });
     if (eIns.error) problems.push("roster: " + eIns.error.message);
 
@@ -660,10 +686,9 @@ Deno.serve(async (req) => {
     // returns the real message; the public path keeps the friendly one.
     console.error("[lk-checkout] failed:", e);
     const detail = (e as { message?: string })?.message || String(e);
-    const debug = reqBody.debug === true;
     return json({
       error: "Could not complete enrollment. Please try again or call us.",
-      ...(debug ? { detail } : {}),
+      // The detail is logged above, never returned to the caller.
     }, 500, cors);
   }
 });

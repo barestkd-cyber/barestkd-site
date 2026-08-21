@@ -270,13 +270,22 @@ Deno.serve(async (req) => {
         ? openByDow[dow]
         : (dow === 6 ? openSaturday : openWeekday);
       if (open === null) continue; // unreadable setting closes the day rather than opening it wrongly
+      // Taken slots are RETURNED, marked, not hidden. A day with everything
+      // sold used to vanish, which reads as "we don't teach then" rather than
+      // "that filled up". Showing them greyed keeps the weekly shape visible.
+      // Past slots are still dropped: nobody can book yesterday.
       const slots = BTKDPricing.privateSlotsForDay({
         openMinutes: open, firstClassMinutes: first, durationMin: DURATION_MIN,
       }).map((mins: number) => {
         const at = studioInstant(ymd, mins);
         return { mins, label: prettyTime(mins), iso: at.toISOString(), ms: at.getTime() };
-      }).filter((s: { ms: number; iso: string; mins: number }) => s.ms > nowMs && !takenIso.has(s.iso) && !blocked.has(dow + ":" + s.mins) && !staffTaken.has(ymd + ":" + s.mins))
-        .map((s: { mins: number; label: string; iso: string }) => ({ mins: s.mins, label: s.label, iso: s.iso }));
+      }).filter((s: { ms: number }) => s.ms > nowMs)
+        .map((s: { mins: number; label: string; iso: string }) => ({
+          mins: s.mins, label: s.label, iso: s.iso,
+          taken: takenIso.has(s.iso)
+            || blocked.has(dow + ":" + s.mins)
+            || staffTaken.has(ymd + ":" + s.mins),
+        }));
       if (slots.length) days.push({ ymd, label: prettyDay(ymd), slots });
     }
 
@@ -395,7 +404,10 @@ Deno.serve(async (req) => {
       .select("starts_at,pack_id,status").eq("sale_id", saleId).maybeSingle();
     const myHeldIso = mine.data && mine.data.status === "pending"
       ? new Date(String(mine.data.starts_at)).toISOString() : null;
-    const offered = days.some((d) => d.slots.some((s) => s.iso === slotAt.toISOString()))
+    // Taken slots now appear in `days` so the page can grey them, which means
+    // "is it in the list" is no longer the same question as "can it be
+    // booked". It must be present AND free, or already held by this shopper.
+    const offered = days.some((d) => d.slots.some((s) => s.iso === slotAt.toISOString() && !s.taken))
       || myHeldIso === slotAt.toISOString();
     if (!offered) {
       return json({ error: "That time is no longer available. Please pick another." }, 409, cors);

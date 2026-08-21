@@ -516,7 +516,7 @@ Deno.serve(async (req) => {
     const detail = (e as { message?: string })?.message || String(e);
     return json({
       error: "Could not complete the signup. Please try again or call us.",
-      ...(reqBody.debug === true ? { detail } : {}),
+      // The detail is logged above, never returned to the caller.
     }, 500, cors);
   }
 });

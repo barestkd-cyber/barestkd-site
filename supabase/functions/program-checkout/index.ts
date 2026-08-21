@@ -479,7 +479,16 @@ Deno.serve(async (req) => {
           status: "paid", tender_method: "card",
           confirmed_at: new Date().toISOString(), stripe_payment_intent: pi.id,
         }).eq("id", fSale);
-        if (!upd.error) await sendReceipt(fSale);
+        if (!upd.error) {
+          // The money landed, so the membership and the roster place are
+          // real now. Until this point they were pending on purpose: an
+          // abandoned checkout must not leave an active member behind.
+          await admin.from("memberships").update({ status: "active" })
+            .eq("sale_id", fSale).eq("status", "pending");
+          await admin.from("enrollments").update({ status: "active" })
+            .eq("sale_id", fSale).eq("status", "pending");
+          await sendReceipt(fSale);
+        }
       }
       return json({ ok: true, paid: true, receipt_url: `${SITE}/invoice/?t=${sale.data.view_token}` }, 200, cors);
     }
@@ -543,6 +552,19 @@ Deno.serve(async (req) => {
     }
 
     // Idempotency: a resubmit returns the SAME sale and a usable intent.
+    // Only reuse a payment that was priced for the SAME plan. Switching
+    // options after a decline used to hand back the old PaymentIntent,
+    // charging the old amount while the membership and the signed
+    // agreement kept the plan the buyer had moved off.
+    const priorMem = await admin.from("memberships")
+      .select("plan_code").eq("sale_id", saleId).limit(1).maybeSingle();
+    if (priorMem.data && priorMem.data.plan_code && priorMem.data.plan_code !== chosen.code) {
+      return json({
+        error: "Your selection changed. Please reload the page and start again.",
+        reload: true,
+      }, 409, cors);
+    }
+
     const existing = await admin.from("pos_sales")
       .select("id,view_token,status,total_cents,stripe_payment_intent").eq("id", saleId).maybeSingle();
     if (existing.data) {
@@ -696,6 +718,7 @@ Deno.serve(async (req) => {
     });
     (snap as Record<string, unknown>).payment_count = chosen.payment_count;
     (snap as Record<string, unknown>).sale_id = saleId;
+    (snap as Record<string, unknown>).status = "pending";
     const memIns = await admin.from("memberships").insert(snap).select("id").single();
     if (memIns.error) throw memIns.error;
     const membershipId = memIns.data.id as string;
@@ -775,6 +798,7 @@ Deno.serve(async (req) => {
         startedOn: today, createdBy: "program-checkout add-on (website)", override: null,
       });
       (aSnap as Record<string, unknown>).sale_id = saleId;
+      (aSnap as Record<string, unknown>).status = "pending";
       const aMem = await admin.from("memberships").insert(aSnap).select("id").single();
       if (aMem.error) { problems.push("add-on membership " + a.program + ": " + aMem.error.message); continue; }
       // The SAME signed document, filed against this membership too, so the
@@ -799,7 +823,7 @@ Deno.serve(async (req) => {
         product_id: null, membership_row: aSnap, membership_id: aMem.data.id,
       });
       const aEnr = await admin.from("enrollments").insert({
-        student_id: studentId, program: a.program, status: "active", sale_id: saleId,
+          student_id: studentId, program: a.program, status: "pending", sale_id: saleId,
       });
       if (aEnr.error) problems.push("add-on roster " + a.program + ": " + aEnr.error.message);
     }
@@ -809,7 +833,7 @@ Deno.serve(async (req) => {
 
     // 7. Class roster.
     const eIns = await admin.from("enrollments").insert({
-      student_id: studentId, program: cfg.program, status: "active", sale_id: saleId,
+      student_id: studentId, program: cfg.program, status: "pending", sale_id: saleId,
     });
     if (eIns.error) problems.push("roster: " + eIns.error.message);
 
@@ -852,10 +876,9 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("[program-checkout] failed:", e);
     const detail = (e as { message?: string })?.message || String(e);
-    const debug = reqBody.debug === true;
     return json({
       error: "Could not complete enrollment. Please try again or call us.",
-      ...(debug ? { detail } : {}),
+      // The detail is logged above, never returned to the caller.
     }, 500, cors);
   }
 });

@@ -33,6 +33,11 @@
   padding:9px 14px;font:inherit;font-weight:600;font-size:.93rem;cursor:pointer;color:inherit}
 .pl-slot:hover{border-color:var(--belt-red)}
 .pl-slot.on{background:var(--belt-red);border-color:var(--belt-red);color:#fff}
+/* Booked. Still shown, so a full day reads as "that filled up" rather than
+   "we don't teach then", but plainly not a thing you can click. */
+.pl-gone{background:#F2F3F5;border-color:#E4E6EA;color:#9AA1AA;
+  text-decoration:line-through;cursor:not-allowed}
+.pl-gone:hover{border-color:#E4E6EA}
 .pl-scroll{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:4px 14px}
 
 /* What they are buying. Two cards, the pack one carries the saving. */
@@ -223,7 +228,11 @@
     CFG.days.forEach(function (d, di) {
       h += '<div class="pl-day"><div class="pl-dayname">' + esc(d.label) + '</div><div class="pl-slots">';
       d.slots.forEach(function (s, si) {
-        h += '<button type="button" class="pl-slot" data-d="' + di + '" data-s="' + si + '">' + esc(s.label) + '</button>';
+        // Taken times stay on the page, greyed and unclickable, so the regular
+        // weekly shape is visible even on a day that is fully booked.
+        h += '<button type="button" class="pl-slot' + (s.taken ? ' pl-gone' : '') + '"'
+          + (s.taken ? ' disabled aria-label="' + esc(s.label) + ', already booked"' : '')
+          + ' data-d="' + di + '" data-s="' + si + '">' + esc(s.label) + '</button>';
       });
       h += '</div></div>';
     });
