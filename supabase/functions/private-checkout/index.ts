@@ -164,18 +164,43 @@ Deno.serve(async (req) => {
     // ── availability ────────────────────────────────────────────────────
     // Derived from the live class schedule: slots end where class begins.
     const today = todayCT();
+    // Give back slots held by checkouts that were abandoned or declined.
+    // Without this every dead attempt destroyed a lesson slot forever, and
+    // a script could have held the whole six-week window for free.
+    const holdMin = Math.max(5, Math.round(Number(S.private_hold_minutes)) || 20);
+    const expired = await admin.from("private_lessons")
+      .update({ status: "canceled", notes: "hold expired before payment" })
+      .eq("status", "pending")
+      .lt("created_at", new Date(Date.now() - holdMin * 60000).toISOString())
+      .select("starts_at");
+    // Clear any calendar row those holds left behind, so a dead checkout
+    // can never keep a slot shut.
+    for (const row of (expired.data ?? []) as Record<string, unknown>[]) {
+      const at = new Date(String(row.starts_at));
+      const eymd = at.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+      const ehm = at.toLocaleTimeString("en-GB", { timeZone: "America/Chicago", hour: "2-digit", minute: "2-digit", hour12: false });
+      await admin.from("calendar_events").delete()
+        .eq("created_by", "private-checkout@website").eq("event_date", eymd)
+        .eq("event_time", prettyTime(Number(ehm.slice(0, 2)) * 60 + Number(ehm.slice(3, 5))));
+    }
     const schedRes = await admin.from("schedule_template")
       .select("day, time_h, time_m, starts_on, ends_on");
-    const running = (r: Record<string, unknown>) =>
-      (!r.starts_on || String(r.starts_on) <= today) &&
-      (!r.ends_on || String(r.ends_on) >= today);
+    // Which classes are running ON A GIVEN DATE, not merely today. A term
+    // that starts inside the six-week horizon used to be ignored entirely,
+    // and the page would have sold lessons straight through those classes.
     // schedule_template.day is 0=Monday; JS getDay is 0=Sunday.
-    const firstClassByDow: Record<number, number> = {};
-    ((schedRes.data ?? []) as Record<string, unknown>[]).filter(running).forEach((r) => {
-      const dow = (Number(r.day) + 1) % 7;
-      const mins = Number(r.time_h) * 60 + Number(r.time_m);
-      if (firstClassByDow[dow] === undefined || mins < firstClassByDow[dow]) firstClassByDow[dow] = mins;
-    });
+    const schedRows = (schedRes.data ?? []) as Record<string, unknown>[];
+    const firstClassOn = (ymd: string, dow: number): number | undefined => {
+      let best: number | undefined;
+      schedRows.forEach((r) => {
+        if ((Number(r.day) + 1) % 7 !== dow) return;
+        if (r.starts_on && String(r.starts_on) > ymd) return;
+        if (r.ends_on && String(r.ends_on) < ymd) return;
+        const mins = Number(r.time_h) * 60 + Number(r.time_m);
+        if (best === undefined || mins < best) best = mins;
+      });
+      return best;
+    };
 
     // Standing weekly lessons Race already teaches. A recurring rule, not
     // fake bookings: those would expire and need topping up forever.
@@ -209,15 +234,26 @@ Deno.serve(async (req) => {
 
     const horizon = addDaysYmd(today, WEEKS_OUT * 7);
     // Closures that block private lessons, and everything already booked.
-    const [boRes, bookedRes] = await Promise.all([
+    const [boRes, staffRes, bookedRes] = await Promise.all([
       admin.from("calendar_events").select("event_date")
         .eq("type", "blackout").eq("blocks_privates", true).gte("event_date", today),
+      // Privates Race books himself in the CRM are calendar rows, not
+      // private_lessons rows. They were invisible here, so the page could
+      // sell a slot he had already promised to somebody.
+      admin.from("calendar_events").select("event_date,event_time")
+        .eq("type", "private").gte("event_date", today),
       admin.from("private_lessons").select("starts_at")
-        .in("status", ["booked", "completed"]).gte("starts_at", today + "T00:00:00Z"),
+        .in("status", ["pending", "booked", "completed"]).gte("starts_at", today + "T00:00:00Z"),
     ]);
     const closed = new Set(((boRes.data ?? []) as Record<string, unknown>[]).map((r) => String(r.event_date)));
     const takenIso = new Set(((bookedRes.data ?? []) as Record<string, unknown>[])
       .map((r) => new Date(String(r.starts_at)).toISOString()));
+    // "3:00 PM" on a date -> the same key the generated slots use.
+    const staffTaken = new Set<string>();
+    ((staffRes.data ?? []) as Record<string, unknown>[]).forEach((r) => {
+      const mins = BTKDPricing.minutesFromClock(String(r.event_time ?? ""));
+      if (mins !== null) staffTaken.add(String(r.event_date) + ":" + mins);
+    });
 
     const days: Array<{ ymd: string; label: string; slots: Array<{ mins: number; label: string; iso: string }> }> = [];
     const nowMs = Date.now();
@@ -226,7 +262,7 @@ Deno.serve(async (req) => {
       if (closed.has(ymd)) continue;
       const p = ymd.split("-").map(Number);
       const dow = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
-      const first = firstClassByDow[dow];
+      const first = firstClassOn(ymd, dow);
       if (first === undefined) continue; // no classes that day, so no "before class"
       // Per-day opening time when he has set one, otherwise the old
       // weekday/Saturday default so a missing day still works.
@@ -239,7 +275,7 @@ Deno.serve(async (req) => {
       }).map((mins: number) => {
         const at = studioInstant(ymd, mins);
         return { mins, label: prettyTime(mins), iso: at.toISOString(), ms: at.getTime() };
-      }).filter((s: { ms: number; iso: string; mins: number }) => s.ms > nowMs && !takenIso.has(s.iso) && !blocked.has(dow + ":" + s.mins))
+      }).filter((s: { ms: number; iso: string; mins: number }) => s.ms > nowMs && !takenIso.has(s.iso) && !blocked.has(dow + ":" + s.mins) && !staffTaken.has(ymd + ":" + s.mins))
         .map((s: { mins: number; label: string; iso: string }) => ({ mins: s.mins, label: s.label, iso: s.iso }));
       if (slots.length) days.push({ ymd, label: prettyDay(ymd), slots });
     }
@@ -293,8 +329,23 @@ Deno.serve(async (req) => {
       const net = ((pays.data ?? []) as Record<string, unknown>[])
         .reduce((a, p) => a + (p.kind === "refund" ? -Number(p.amount_cents) : Number(p.amount_cents)), 0);
       if (sale.data && net >= Number(sale.data.total_cents) && sale.data.status !== "paid") {
-        await admin.from("pos_sales").update({ status: "paid", confirmed_at: new Date().toISOString() }).eq("id", fSale);
-        await admin.from("private_lessons").update({ status: "booked" }).eq("sale_id", fSale);
+        await admin.from("pos_sales").update({ status: "paid", tender_method: "card", confirmed_at: new Date().toISOString() }).eq("id", fSale);
+        const lesson = await admin.from("private_lessons")
+          .update({ status: "booked" }).eq("sale_id", fSale)
+          .select("starts_at,student_name").maybeSingle();
+        // Now it is real, so now it goes on the wall calendar.
+        if (lesson.data) {
+          const at = new Date(String(lesson.data.starts_at));
+          const lymd = at.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+          const hm = at.toLocaleTimeString("en-GB", { timeZone: "America/Chicago", hour: "2-digit", minute: "2-digit", hour12: false });
+          const lmins = Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5));
+          const cal = await admin.from("calendar_events").insert({
+            type: "private", title: "Private · " + (lesson.data.student_name || "Private lesson"),
+            event_date: lymd, event_time: prettyTime(lmins),
+            created_by: "private-checkout@website",
+          });
+          if (cal.error) console.error("[private-checkout] calendar row failed:", fSale, cal.error);
+        }
         await sendReceipt(fSale);
       }
       return json({ ok: true, paid: true }, 200, cors);
@@ -323,7 +374,15 @@ Deno.serve(async (req) => {
 
     // The slot must still be one we actually offer. Trusting the posted time
     // would let a stale page book into a class, a closure, or the past.
-    const offered = days.some((d) => d.slots.some((s) => s.iso === slotAt.toISOString()));
+    // What this shopper is already holding, if anything. Their own pending
+    // hold must not make their own slot look taken, or a declined card
+    // could never be retried.
+    const mine = await admin.from("private_lessons")
+      .select("starts_at,pack_id,status").eq("sale_id", saleId).maybeSingle();
+    const myHeldIso = mine.data && mine.data.status === "pending"
+      ? new Date(String(mine.data.starts_at)).toISOString() : null;
+    const offered = days.some((d) => d.slots.some((s) => s.iso === slotAt.toISOString()))
+      || myHeldIso === slotAt.toISOString();
     if (!offered) {
       return json({ error: "That time is no longer available. Please pick another." }, 409, cors);
     }
@@ -332,6 +391,19 @@ Deno.serve(async (req) => {
     const existing = await admin.from("pos_sales")
       .select("id,status,total_cents,view_token,stripe_payment_intent").eq("id", saleId).maybeSingle();
     if (existing.data) {
+      // Only reuse this sale if it is still for the SAME lesson. A shopper
+      // who changes their time or picks the pack after a decline must not
+      // be handed the old payment: that charged the old amount for the old
+      // slot while the page showed the new one.
+      const sameSlot = mine.data
+        && new Date(String(mine.data.starts_at)).toISOString() === slotAt.toISOString();
+      const samePack = mine.data ? (!!mine.data.pack_id === wantPack) : false;
+      if (existing.data.status !== "paid" && (!sameSlot || !samePack)) {
+        return json({
+          error: "Your selection changed. Please reload the page and book again.",
+          reload: true,
+        }, 409, cors);
+      }
       const token = existing.data.view_token as string;
       if (existing.data.status === "paid") {
         return json({ ok: true, paid: true, receipt_url: SITE + "/invoice/?t=" + token }, 200, cors);
@@ -369,8 +441,17 @@ Deno.serve(async (req) => {
     // may be brand new people, so a miss creates the contact rather than
     // dropping the booking on the floor.
     let buyerId: string | null = null;
-    const found = await admin.from("contacts").select("id").ilike("email", email).limit(2);
-    if (found.data && found.data.length === 1) buyerId = found.data[0].id as string;
+    // Escaped: an address is a literal, not a LIKE pattern. Unescaped, a
+    // crafted "a_b@x.com" matched somebody else and filed the booking onto
+    // their record.
+    const emailPattern = email.replace(/([\\%_])/g, "\\$1");
+    const found = await admin.from("contacts").select("id,stripe_customer_id")
+      .ilike("email", emailPattern).limit(2);
+    let buyerHadCustomer = false;
+    if (found.data && found.data.length === 1) {
+      buyerId = found.data[0].id as string;
+      buyerHadCustomer = !!found.data[0].stripe_customer_id;
+    }
     if (!buyerId) {
       const made = await admin.from("contacts").insert({
         first_name: first, last_name: last, email, phone, brand: "btkd",
@@ -438,7 +519,7 @@ Deno.serve(async (req) => {
     const lessonIns = await admin.from("private_lessons").insert({
       contact_id: buyerId, pack_id: packId, sale_id: saleId,
       starts_at: slotAt.toISOString(), duration_min: DURATION_MIN,
-      status: "booked", student_name: student,
+      status: "pending", student_name: student,
       contact_name: (first + " " + last).trim(), phone, email, notes,
     });
     if (lessonIns.error) {
@@ -451,12 +532,9 @@ Deno.serve(async (req) => {
       return json({ error: "Someone just booked that time. Please pick another." }, 409, cors);
     }
 
-    // It also belongs on the CRM wall calendar, same as a staff-booked private.
-    const calIns = await admin.from("calendar_events").insert({
-      type: "private", title: "Private · " + student, event_date: ymd,
-      event_time: prettyTime(mins), created_by: "private-checkout@website",
-    });
-    if (calIns.error) problems.push("calendar: " + calIns.error.message);
+    // The wall calendar row is NOT written here: nothing is real until the
+    // card clears. It is written on the paid transition instead, so an
+    // abandoned checkout never leaves a lesson on his calendar.
     if (problems.length) console.error("[private-checkout] partial writes:", saleId, problems);
 
     if (!secretKey) {
@@ -470,7 +548,11 @@ Deno.serve(async (req) => {
     if (phone) cf.set("phone", phone);
     cf.set("metadata[contact_id]", buyerId);
     const cust = await stripe("customers", secretKey, cf);
-    await admin.from("contacts").update({ stripe_customer_id: cust.id }).eq("id", buyerId);
+    // Never overwrite an existing contact's Stripe customer: that would
+    // repoint a real member's saved cards at a stranger.
+    if (!buyerHadCustomer) {
+      await admin.from("contacts").update({ stripe_customer_id: cust.id }).eq("id", buyerId);
+    }
     await admin.from("pos_sales").update({ stripe_customer_id: cust.id }).eq("id", saleId);
 
     const f = new URLSearchParams();
@@ -496,9 +578,11 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("[private-checkout] failed:", e);
     const detail = (e as { message?: string })?.message || String(e);
+    // The detail goes to the logs, never to the caller: this endpoint is
+    // public and anyone could have asked for it with debug:true.
+    console.error("[private-checkout] detail:", detail);
     return json({
       error: "Could not complete the booking. Please try again or call us.",
-      ...(reqBody.debug === true ? { detail } : {}),
     }, 500, cors);
   }
 });
