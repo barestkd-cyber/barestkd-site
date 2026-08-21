@@ -37,8 +37,10 @@
   border-radius:12px;padding:14px;cursor:pointer;background:#fff}
 .pl-opt.on{border-color:var(--belt-red);background:#FFF6F6}
 .pl-opt input{margin-top:3px;width:18px;height:18px;flex:none}
-.pl-opt .t{font-weight:700}
-.pl-opt .d{font-size:.87rem;color:#5b6570;margin-top:3px;line-height:1.5}
+/* Both are spans, so they need to be told to stack: left inline, the note ran
+   on the same line as the title instead of under it. */
+.pl-opt .t{display:block;font-weight:700}
+.pl-opt .d{display:block;font-size:.87rem;color:#5b6570;margin-top:3px;line-height:1.5}
 .pl-opt .p{margin-left:auto;font-weight:700;white-space:nowrap}
 .pl-save{display:inline-block;background:#E4F5EE;color:#0B7A55;border-radius:6px;
   padding:2px 8px;font-size:.75rem;font-weight:700;margin-left:8px}
