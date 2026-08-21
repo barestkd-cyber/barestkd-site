@@ -287,7 +287,6 @@
       <!-- 2 ─ the student -->
       <div class="lkc-step">
         <h2>Who’s Enrolling</h2>
-        <p class="step-sub">Who's enrolling. If it's you, put your own details here.</p>
         <div class="form-field">
           <label for="lkc-sfirst">Student's first name</label>
           <input id="lkc-sfirst" type="text" autocomplete="off" required>
@@ -304,15 +303,17 @@
 
       <!-- 3 ─ the parent or guardian -->
       <div class="lkc-step">
-        <h2>Parent / Guardian</h2>
-        <p class="step-sub">A student under 18 needs a parent or guardian here. Enrolling yourself? These are just your details.</p>
-        <div class="form-field">
-          <label for="lkc-pfirst">Your first name</label>
-          <input id="lkc-pfirst" type="text" autocomplete="given-name" required>
-        </div>
-        <div class="form-field">
-          <label for="lkc-plast">Your last name</label>
-          <input id="lkc-plast" type="text" autocomplete="family-name" required>
+        <h2 id="lkc-contact-head">Parent / Guardian</h2>
+        <p class="step-sub" id="lkc-contact-sub">A student under 18 needs a parent or guardian here.</p>
+        <div id="lkc-contact-names">
+          <div class="form-field">
+            <label for="lkc-pfirst">Your first name</label>
+            <input id="lkc-pfirst" type="text" autocomplete="given-name" required>
+          </div>
+          <div class="form-field">
+            <label for="lkc-plast">Your last name</label>
+            <input id="lkc-plast" type="text" autocomplete="family-name" required>
+          </div>
         </div>
         <div class="form-field">
           <label for="lkc-email">Email</label>
@@ -747,6 +748,62 @@
   ["lkc-sfirst", "lkc-slast", "lkc-dob", "lkc-pfirst", "lkc-plast", "cbc-initials"].forEach(function (id) {
     document.addEventListener("input", function (e) { if (e.target && e.target.id === id) renderDoc(); });
   });
+
+  /* ── who is actually filling this in ─────────────────────────────────────
+     An adult enrolling themselves is the common case on a 13+ page. Asking
+     them to type their name twice, then explaining why, is worse than simply
+     not asking. The date of birth decides. */
+  var mirroredName = false;
+  function ageOnToday(v) {
+    var p = String(v || "").split("-").map(Number);
+    if (p.length !== 3 || !p[0]) return null;
+    // Studio time, so a late-night signup near a birthday is not a day out.
+    var t = new Date(new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" }) + "T00:00:00Z");
+    var b = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    if (isNaN(b.getTime())) return null;
+    var a = t.getUTCFullYear() - b.getUTCFullYear();
+    var m = t.getUTCMonth() - b.getUTCMonth();
+    if (m < 0 || (m === 0 && t.getUTCDate() < b.getUTCDate())) a--;
+    return (a >= 0 && a < 120) ? a : null;
+  }
+  function syncWhoPays() {
+    var age = ageOnToday($("lkc-dob").value);
+    var adult = age !== null && age >= 18;
+    var head = document.getElementById("lkc-contact-head");
+    var sub = document.getElementById("lkc-contact-sub");
+    var nameRow = document.getElementById("lkc-contact-names");
+    var signerLbl = document.querySelector('label[for="lkc-signer"]');
+    if (head) head.textContent = adult ? "Your Details" : "Parent / Guardian";
+    if (sub) {
+      sub.textContent = adult
+        ? "Where your receipt and any class updates go."
+        : "A student under 18 needs a parent or guardian here.";
+    }
+    if (signerLbl) signerLbl.textContent = adult ? "Signature name" : "Signature name (parent / guardian)";
+    var rel = $("lkc-rel");
+    if (rel && !rel.dataset.touched) rel.value = adult ? "Self" : "Parent";
+    if (!nameRow) return;
+    nameRow.style.display = adult ? "none" : "";
+    if (adult) {
+      // Carry the student name across so the contact record is still named,
+      // and so the required-field check has something to find.
+      $("lkc-pfirst").value = $("lkc-sfirst").value;
+      $("lkc-plast").value = $("lkc-slast").value;
+      mirroredName = true;
+    } else if (mirroredName) {
+      // Only clear what WE put there, never what they typed.
+      $("lkc-pfirst").value = "";
+      $("lkc-plast").value = "";
+      mirroredName = false;
+    }
+  }
+  ["lkc-dob", "lkc-sfirst", "lkc-slast"].forEach(function (id) {
+    var el = $(id);
+    if (el) el.addEventListener("input", syncWhoPays);
+  });
+  if ($("lkc-rel")) $("lkc-rel").addEventListener("input", function () { this.dataset.touched = "1"; });
+  syncWhoPays();
+
   var signerTouched = false;
   $("cbc-uniform").addEventListener("change", renderPrice);
 
