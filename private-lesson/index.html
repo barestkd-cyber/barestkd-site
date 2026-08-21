@@ -15,6 +15,10 @@
 <style>
 /* One narrow column at every width: this is a form, not a landing page. */
 .pl-col{max-width:640px;margin-inline:auto}
+/* Lead line, then the smaller prompt under it, matching how each option
+   card stacks its title and note. */
+.pl-lead{margin:0 0 4px;color:#5b6570}
+.pl-under{margin:0 0 22px;font-size:.87rem;color:#5b6570}
 .pl-step{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px}
 .pl-step > h2{margin:0 0 4px;font-size:1.15rem}
 .pl-step .step-sub{margin:0 0 14px;font-size:.9rem;color:#5b6570}
@@ -80,9 +84,8 @@
   <div class="container pl-col">
 
     <h1 style="margin:0 0 6px">Private Lessons</h1>
-    <p style="margin:0 0 22px;color:#5b6570">
-      30 minutes, one-on-one with Mr. Race Bares. Open times from our schedule:
-    </p>
+    <p class="pl-lead">30 minutes, one-on-one with Mr. Race Bares.</p>
+    <p class="pl-under">Open times from our schedule:</p>
 
     <div id="pl-live"></div>
 
