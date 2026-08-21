@@ -702,7 +702,7 @@
     CFG.options.forEach(function (o) {
       var line;
       if (o.billing_frequency === "one_time") {
-        line = esc(o.name) + " is a single payment of <b>" + money(o.pif_cents) + "</b> for the full twelve (12) month term.";
+        line = esc(o.name) + " is a single payment of <b>" + money(o.pif_cents) + "</b>.";
       } else {
         line = esc(o.name) + " is a down payment of <b>" + money(o.down_cents) + "</b> and a "
           + (o.billing_frequency === "weekly" ? "weekly" : "monthly") + " payment of <b>" + money(o.recurring_cents) + "</b>.";

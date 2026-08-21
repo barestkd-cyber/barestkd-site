@@ -224,7 +224,14 @@ type PlanRow = {
  * agreement uses. The docx keeps blanks; the numbers come from the catalog. */
 function optionLine(p: PlanRow, tpl: Tpl): string {
   if (p.billing_frequency === "one_time") {
-    return p.name + " is a " + String(tpl.fees.pifText).replace("{{pif}}", money(p.pif_cents || 0)).toLowerCase();
+    // Kickboxing, Jiu Jitsu and AMP'D templates carry no pifText because
+    // they are month-to-month with no paid-in-full option. Borrowing the
+    // Taekwondo wording would stamp "twelve (12) month term" onto a
+    // month-to-month agreement, and inventing wording is not ours to do,
+    // so state the amount and stop.
+    const pifText = tpl.fees && tpl.fees.pifText;
+    if (!pifText) return p.name + " is a single payment of " + money(p.pif_cents || 0) + ".";
+    return p.name + " is a " + String(pifText).replace("{{pif}}", money(p.pif_cents || 0)).toLowerCase();
   }
   const unit = p.billing_frequency === "weekly" ? "weekly" : "monthly";
   return p.name + " is a down payment of " + money(p.down_cents || 0)
@@ -236,7 +243,7 @@ function optionLine(p: PlanRow, tpl: Tpl): string {
  * one was selected, with initials and the agreed payment date. */
 function buildBodyText(ctx: {
   participant: string; dob: string; guardian: string; today: string;
-  options: PlanRow[]; chosen: PlanRow; payDate: string | null; tpl: Tpl;
+  options: PlanRow[]; chosen: PlanRow; payDate: string | null; addOnPayDate?: string | null; tpl: Tpl;
   addOns?: { program: string; monthlyCents: number }[];
   initials: string; signerName: string; signerRelationship: string;
 }): string {
@@ -271,11 +278,15 @@ function buildBodyText(ctx: {
   if (adds.length) {
     const names = adds.map((a) => a.program).join(" and ");
     const total = adds.reduce((t, a) => t + a.monthlyCents, 0);
+    // An add-on is monthly even when the primary is paid in full, so it
+    // cannot point at "the date above" when there is no date above. Say
+    // which day it comes out.
+    const when = ctx.payDate ?? ctx.addOnPayDate ?? null;
     out.push("");
     out.push("I am also enrolling in " + names + " for " + money(total)
-      + " per month, billed on the agreed payment date above under the same"
-      + " payment authorization, and cancellable on the same notice."
-      + "    Initials: " + ctx.initials);
+      + " per month, billed " + (when ? when : "on the same day each month")
+      + " under the same payment authorization, and cancellable on the same"
+      + " notice.    Initials: " + ctx.initials);
   }
   for (const line of tpl.feesTail as string[]) out.push(line);
   for (const sec of tpl.sections as Array<{ h: string; p: string[] }>) {
@@ -698,7 +709,7 @@ Deno.serve(async (req) => {
       addOns: pricedAddOns.map((a) => ({ program: a.program, monthlyCents: a.monthlyCents })),
       signerName, signerRelationship: signerRel,
     });
-    const agrIns = await admin.from("membership_agreements").insert({
+    const agreementRow = {
       membership_id: membershipId, contact_id: studentId, sale_id: saleId,
       template_key: cfg.tpl.key, template_version: cfg.tpl.version,
       document_title: cfg.tpl.title, program: cfg.program,
@@ -718,8 +729,11 @@ Deno.serve(async (req) => {
       signer_name: signerName, signer_relationship: signerRel, signer_initials: initials,
       signature_png: signature, signed_with_staff: "website checkout",
       user_agent: str(req.headers.get("User-Agent")).slice(0, 300),
-    });
-    if (agrIns.error) problems.push("agreement: " + agrIns.error.message);
+    };
+    const agrIns = await admin.from("membership_agreements").insert(agreementRow);
+    // Fatal on purpose. Taking the card with no contract of record is worse
+    // than refusing the sale, and this used to be swallowed into problems[].
+    if (agrIns.error) throw new Error("agreement could not be saved: " + agrIns.error.message);
 
     // 6. Ledger line.
     const lineRows: Record<string, unknown>[] = [{
@@ -763,6 +777,20 @@ Deno.serve(async (req) => {
       (aSnap as Record<string, unknown>).sale_id = saleId;
       const aMem = await admin.from("memberships").insert(aSnap).select("id").single();
       if (aMem.error) { problems.push("add-on membership " + a.program + ": " + aMem.error.message); continue; }
+      // The SAME signed document, filed against this membership too, so the
+      // add-on can show what was agreed. Not a second signature: the body
+      // text and signature are the ones they already gave, and that text
+      // already carries this add-on's priced line and initial.
+      const aAgr = await admin.from("membership_agreements").insert({
+        ...agreementRow,
+        membership_id: aMem.data.id,
+        program: a.program,
+        plan_code: a.code,
+        down_cents: 0,
+        recurring_cents: a.monthlyCents,
+        pif_cents: null,
+      });
+      if (aAgr.error) problems.push("add-on agreement " + a.program + ": " + aAgr.error.message);
       lineRows.push({
         sale_id: saleId, kind: "mem",
         label: a.program + " (added to " + cfg.label + ")",
