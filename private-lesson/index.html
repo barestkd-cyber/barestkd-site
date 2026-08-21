@@ -56,8 +56,10 @@
 .pl-cardload{color:#5b6570;font-size:13.5px}
 .pl-carderr{display:none;color:var(--belt-red);font-size:13.5px;margin-top:8px;font-weight:600}
 
+.pl-sum{margin-top:14px}
+.pl-line{display:flex;justify-content:space-between;padding:4px 0;font-size:.93rem;color:#5b6570}
 .pl-total{display:flex;justify-content:space-between;align-items:baseline;
-  border-top:2px solid var(--line);margin-top:14px;padding-top:12px;font-weight:700;font-size:1.1rem}
+  border-top:2px solid var(--line);margin-top:8px;padding-top:12px;font-weight:700;font-size:1.1rem}
 .pl-note{font-size:.87rem;color:#5b6570;line-height:1.6;margin-top:10px}
 .pl-err{display:none;background:#FFF6F6;border-left:4px solid var(--belt-red);
   padding:12px 14px;border-radius:0 10px 10px 0;font-size:.93rem;margin:0 0 14px;font-weight:600}
@@ -135,6 +137,7 @@
           <div class="pl-card" id="pl-card"><span class="pl-cardload">Loading the card field…</span></div>
           <div class="pl-carderr" id="pl-carderr"></div>
         </div>
+        <div class="pl-sum" id="pl-sum"></div>
         <div class="pl-total"><span>Total</span><span id="pl-total"></span></div>
         <button class="btn btn--primary pl-btn" id="pl-go" type="submit">Book and pay</button>
       </section>
@@ -232,10 +235,10 @@
     });
   }
 
-  // Prices come from the server with the card fee already in them, so what is
-  // shown here is exactly what the card is charged.
+  // The buttons carry the lesson price. Card processing is broken out at the
+  // bottom, next to the total, so the arithmetic is theirs to see.
   function renderOpts() {
-    var one = CFG.single_total_cents, pack = CFG.pack_total_cents, n = CFG.pack_size;
+    var one = CFG.rate_cents, pack = CFG.pack_cents, n = CFG.pack_size;
     var free = n - Math.round(CFG.pack_cents / CFG.rate_cents);
     var h = ""
       + '<label class="pl-opt on" data-pack="0"><input type="radio" name="plopt" checked>'
@@ -257,9 +260,17 @@
     });
   }
 
-  // The server already put the card fee into these, so this is the charge.
+  // Show the lesson and the processing charge as separate lines, the way every
+  // other checkout page does, rather than one blended number.
   function total() {
-    $("pl-total").textContent = money(wantPack ? CFG.pack_total_cents : CFG.single_total_cents);
+    var base = wantPack ? CFG.pack_cents : CFG.rate_cents;
+    var sum = wantPack ? CFG.pack_total_cents : CFG.single_total_cents;
+    var n = wantPack ? CFG.pack_size : 1;
+    $("pl-sum").innerHTML =
+      '<div class="pl-line"><span>' + (n === 1 ? "Lesson" : n + " lessons")
+        + '</span><span>' + money(base) + '</span></div>'
+      + '<div class="pl-line"><span>Card processing</span><span>' + money(sum - base) + '</span></div>';
+    $("pl-total").textContent = money(sum);
   }
 
   function loadStripeJs(cb) {
