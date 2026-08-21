@@ -305,6 +305,7 @@
       <div class="lkc-step">
         <h2 id="lkc-contact-head">Parent / Guardian</h2>
         <p class="step-sub" id="lkc-contact-sub">A student under 18 needs a parent or guardian here.</p>
+        <p class="step-sub" id="lkc-payer-hint" style="display:none">Only if someone else pays for you, like a parent. Leave blank otherwise.</p>
         <div id="lkc-contact-names">
           <div class="form-field">
             <label for="lkc-pfirst">Your first name</label>
@@ -753,7 +754,6 @@
      An adult enrolling themselves is the common case on a 13+ page. Asking
      them to type their name twice, then explaining why, is worse than simply
      not asking. The date of birth decides. */
-  var mirroredName = false;
   function ageOnToday(v) {
     var p = String(v || "").split("-").map(Number);
     if (p.length !== 3 || !p[0]) return null;
@@ -783,19 +783,16 @@
     var rel = $("lkc-rel");
     if (rel && !rel.dataset.touched) rel.value = adult ? "Self" : "Parent";
     if (!nameRow) return;
-    nameRow.style.display = adult ? "none" : "";
-    if (adult) {
-      // Carry the student name across so the contact record is still named,
-      // and so the required-field check has something to find.
-      $("lkc-pfirst").value = $("lkc-sfirst").value;
-      $("lkc-plast").value = $("lkc-slast").value;
-      mirroredName = true;
-    } else if (mirroredName) {
-      // Only clear what WE put there, never what they typed.
-      $("lkc-pfirst").value = "";
-      $("lkc-plast").value = "";
-      mirroredName = false;
-    }
+    // The field stays for adults: plenty of 18 and 19 year olds are still
+    // paid for by a parent. It just stops being compulsory.
+    $("lkc-pfirst").required = !adult;
+    $("lkc-plast").required = !adult;
+    var fl = document.querySelector('label[for="lkc-pfirst"]');
+    var ll = document.querySelector('label[for="lkc-plast"]');
+    if (fl) fl.textContent = adult ? "Payer\u2019s first name (optional)" : "Your first name";
+    if (ll) ll.textContent = adult ? "Payer\u2019s last name (optional)" : "Your last name";
+    var hint = document.getElementById("lkc-payer-hint");
+    if (hint) hint.style.display = adult ? "" : "none";
   }
   ["lkc-dob", "lkc-sfirst", "lkc-slast"].forEach(function (id) {
     var el = $(id);
@@ -952,7 +949,12 @@
       ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"], ["lkc-street", "your street address"], ["lkc-city", "your city"], ["lkc-zip", "your zip code"],
       ["cbc-initials", "your initials"], ["lkc-signer", "the signature name"], ["lkc-rel", "your relationship to the student"]];
     for (var i = 0; i < need.length; i++) {
-      if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
+      // Skip anything the form has marked optional, so an adult paying for
+      // themselves is not asked for a payer name they do not have.
+      var fld = $(need[i][0]);
+      if (fld.required === false && fld.hasAttribute("data-optional-ok")) continue;
+      if (fld.required === false && (need[i][0] === "lkc-pfirst" || need[i][0] === "lkc-plast")) continue;
+      if (!fld.value.trim()) { status("error", "Please enter " + need[i][1] + "."); fld.focus(); return; }
     }
     var pickedShirts = chosenShirts();
     for (var s = 0; s < pickedShirts.length; s++) {
@@ -974,7 +976,8 @@
         shirts: pickedShirts.map(function (x) { return { name: x.name, size: x.size }; }),
         student_first: $("lkc-sfirst").value.trim(), student_last: $("lkc-slast").value.trim(),
         student_dob: $("lkc-dob").value,
-        parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
+        parent_first: $("lkc-pfirst").value.trim() || $("lkc-sfirst").value.trim(),
+        parent_last: $("lkc-plast").value.trim() || $("lkc-slast").value.trim(),
         email: $("lkc-email").value.trim(), phone: $("lkc-phone").value.trim(),
         address: [$("lkc-street").value.trim(), $("lkc-city").value.trim(),
           ($("lkc-state").value.trim() + " " + $("lkc-zip").value.trim()).trim()].filter(Boolean).join(", "),
