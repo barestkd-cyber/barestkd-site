@@ -303,18 +303,15 @@
 
       <!-- 3 ─ the parent or guardian -->
       <div class="lkc-step">
-        <h2 id="lkc-contact-head">Parent / Guardian</h2>
-        <p class="step-sub" id="lkc-contact-sub">A student under 18 needs a parent or guardian here.</p>
-        <p class="step-sub" id="lkc-payer-hint" style="display:none">Only if someone else pays for you, like a parent. Leave blank otherwise.</p>
-        <div id="lkc-contact-names">
-          <div class="form-field">
-            <label for="lkc-pfirst">Your first name</label>
-            <input id="lkc-pfirst" type="text" autocomplete="given-name" required>
-          </div>
-          <div class="form-field">
-            <label for="lkc-plast">Your last name</label>
-            <input id="lkc-plast" type="text" autocomplete="family-name" required>
-          </div>
+        <h2>Parent / Guardian</h2>
+        <p class="step-sub">A student under 18 needs a parent or guardian here.</p>
+        <div class="form-field">
+          <label for="lkc-pfirst">Your first name</label>
+          <input id="lkc-pfirst" type="text" autocomplete="given-name" required>
+        </div>
+        <div class="form-field">
+          <label for="lkc-plast">Your last name</label>
+          <input id="lkc-plast" type="text" autocomplete="family-name" required>
         </div>
         <div class="form-field">
           <label for="lkc-email">Email</label>
@@ -769,36 +766,15 @@
   function syncWhoPays() {
     var age = ageOnToday($("lkc-dob").value);
     var adult = age !== null && age >= 18;
-    var head = document.getElementById("lkc-contact-head");
-    var sub = document.getElementById("lkc-contact-sub");
-    var nameRow = document.getElementById("lkc-contact-names");
-    var signerLbl = document.querySelector('label[for="lkc-signer"]');
-    if (head) head.textContent = adult ? "Your Details" : "Parent / Guardian";
-    if (sub) {
-      sub.textContent = adult
-        ? "Where your receipt and any class updates go."
-        : "A student under 18 needs a parent or guardian here.";
-    }
-    if (signerLbl) signerLbl.textContent = adult ? "Signature name" : "Signature name (parent / guardian)";
-    var rel = $("lkc-rel");
-    if (rel && !rel.dataset.touched) rel.value = adult ? "Self" : "Parent";
-    if (!nameRow) return;
-    // The field stays for adults: plenty of 18 and 19 year olds are still
-    // paid for by a parent. It just stops being compulsory.
+    // An adult may still be paid for by a parent, so the field stays put.
+    // It simply stops being compulsory once the student is 18.
     $("lkc-pfirst").required = !adult;
     $("lkc-plast").required = !adult;
-    var fl = document.querySelector('label[for="lkc-pfirst"]');
-    var ll = document.querySelector('label[for="lkc-plast"]');
-    if (fl) fl.textContent = adult ? "Payer\u2019s first name (optional)" : "Your first name";
-    if (ll) ll.textContent = adult ? "Payer\u2019s last name (optional)" : "Your last name";
-    var hint = document.getElementById("lkc-payer-hint");
-    if (hint) hint.style.display = adult ? "" : "none";
   }
   ["lkc-dob", "lkc-sfirst", "lkc-slast"].forEach(function (id) {
     var el = $(id);
     if (el) el.addEventListener("input", syncWhoPays);
   });
-  if ($("lkc-rel")) $("lkc-rel").addEventListener("input", function () { this.dataset.touched = "1"; });
   syncWhoPays();
 
   var signerTouched = false;
