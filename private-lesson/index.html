@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Book a Private Lesson | Bares Taekwondo Fitness | Tyler, TX</title>
-<meta name="description" content="Book a one-on-one private lesson with Mr. Bares at Bares Taekwondo Fitness in Tyler, TX.">
+<meta name="description" content="Book a one-on-one private lesson with Mr. Race Bares at Bares Taekwondo Fitness in Tyler, TX.">
 <link rel="canonical" href="https://www.barestkd.fit/private-lesson/">
 <meta name="robots" content="noindex">
 <link rel="icon" href="/assets/img/favicon.png">
@@ -79,7 +79,7 @@
 
     <h1 style="margin:0 0 6px">Private Lessons</h1>
     <p style="margin:0 0 22px;color:#5b6570">
-      30 minutes, one-on-one with Mr. Bares. Open times from our schedule:
+      30 minutes, one-on-one with Mr. Race Bares. Open times from our schedule:
     </p>
 
     <div id="pl-live"></div>
@@ -239,14 +239,17 @@
   // bottom, next to the total, so the arithmetic is theirs to see.
   function renderOpts() {
     var one = CFG.rate_cents, pack = CFG.pack_cents, n = CFG.pack_size;
-    var free = n - Math.round(CFG.pack_cents / CFG.rate_cents);
+    // "6 plus 1 free", never "7 lessons, 1 free": the second reads as though
+    // the free one might be an eighth.
+    var payFor = Math.round(CFG.pack_cents / CFG.rate_cents);
+    var free = n - payFor;
     var h = ""
       + '<label class="pl-opt on" data-pack="0"><input type="radio" name="plopt" checked>'
       + '<span><span class="t">One lesson</span></span>'
       + '<span class="p">' + money(one) + '</span></label>'
       + '<label class="pl-opt" data-pack="1"><input type="radio" name="plopt">'
-      + '<span><span class="t">' + n + ' lessons<span class="pl-save">' + free + ' free</span></span>'
-      + '<span class="d">We schedule the other ' + (n - 1) + ' with you.</span></span>'
+      + '<span><span class="t">' + payFor + ' lessons plus ' + free + ' free</span>'
+      + '<span class="d">' + n + ' in all. We schedule the other ' + (n - 1) + ' with you.</span></span>'
       + '<span class="p">' + money(pack) + '</span></label>';
     $("pl-opts").innerHTML = h;
     Array.prototype.forEach.call($("pl-opts").querySelectorAll(".pl-opt"), function (l) {
@@ -265,10 +268,12 @@
   function total() {
     var base = wantPack ? CFG.pack_cents : CFG.rate_cents;
     var sum = wantPack ? CFG.pack_total_cents : CFG.single_total_cents;
-    var n = wantPack ? CFG.pack_size : 1;
+    var payFor = Math.round(CFG.pack_cents / CFG.rate_cents);
+    var label = wantPack
+      ? payFor + " lessons plus " + (CFG.pack_size - payFor) + " free"
+      : "Lesson";
     $("pl-sum").innerHTML =
-      '<div class="pl-line"><span>' + (n === 1 ? "Lesson" : n + " lessons")
-        + '</span><span>' + money(base) + '</span></div>'
+      '<div class="pl-line"><span>' + label + '</span><span>' + money(base) + '</span></div>'
       + '<div class="pl-line"><span>Card processing</span><span>' + money(sum - base) + '</span></div>';
     $("pl-total").textContent = money(sum);
   }

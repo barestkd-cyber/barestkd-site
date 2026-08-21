@@ -484,7 +484,7 @@ Deno.serve(async (req) => {
     const calUrl = googleCalUrl({
       ymd, mins, minutes: DURATION_MIN,
       title: "Private lesson - Bares Taekwondo Fitness",
-      details: "Private lesson for " + student + ", " + DURATION_MIN + " minutes with Mr. Bares.",
+      details: "Private lesson for " + student + ", " + DURATION_MIN + " minutes with Mr. Race Bares.",
     });
 
     const saleIns = await admin.from("pos_sales").insert({
