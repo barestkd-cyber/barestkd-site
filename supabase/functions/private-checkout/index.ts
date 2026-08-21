@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
   let reqBody: Record<string, unknown> = {};
   try {
     const setRow = await admin.from("settings")
-      .select("private_page_live, private_rate_cents, private_pack_size, private_pack_pay_for, private_open_weekday, private_open_saturday, private_blocked_slots")
+      .select("private_page_live, private_rate_cents, private_pack_size, private_pack_pay_for, private_open_weekday, private_open_saturday, private_blocked_slots, private_open_hours")
       .limit(1).maybeSingle();
     const S = setRow.data ?? {};
     const pageLive = S.private_page_live === true;
@@ -180,6 +180,21 @@ Deno.serve(async (req) => {
     // Standing weekly lessons Race already teaches. A recurring rule, not
     // fake bookings: those would expire and need topping up forever.
     // Format: "Mon 4:00 PM, Thu 4:00 PM".
+    // "Mon 4:00 PM, Thu 4:00 PM" -> { dowNumber: minutes }. Anything it
+    // cannot read is skipped rather than guessed at.
+    const parseDayTimes = (raw: unknown): Record<number, number> => {
+      const out: Record<number, number> = {};
+      String(raw ?? "").split(",").forEach((piece) => {
+        const m = /^\s*([A-Za-z]{3})[a-z]*\s+(.+?)\s*$/.exec(piece);
+        if (!m) return;
+        const dow = DAYS.findIndex((d) => d.slice(0, 3).toLowerCase() === m[1].toLowerCase());
+        const mins = BTKDPricing.minutesFromClock(m[2]);
+        if (dow >= 0 && mins !== null) out[dow] = mins;
+      });
+      return out;
+    };
+    const openByDow = parseDayTimes(S.private_open_hours);
+
     const blocked = new Set<string>();
     String(S.private_blocked_slots ?? "").split(",").forEach((piece: string) => {
       const m = /^\s*([A-Za-z]{3})[a-z]*\s+(.+?)\s*$/.exec(piece);
@@ -213,7 +228,11 @@ Deno.serve(async (req) => {
       const dow = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
       const first = firstClassByDow[dow];
       if (first === undefined) continue; // no classes that day, so no "before class"
-      const open = dow === 6 ? openSaturday : openWeekday;
+      // Per-day opening time when he has set one, otherwise the old
+      // weekday/Saturday default so a missing day still works.
+      const open = openByDow[dow] !== undefined
+        ? openByDow[dow]
+        : (dow === 6 ? openSaturday : openWeekday);
       if (open === null) continue; // unreadable setting closes the day rather than opening it wrongly
       const slots = BTKDPricing.privateSlotsForDay({
         openMinutes: open, firstClassMinutes: first, durationMin: DURATION_MIN,

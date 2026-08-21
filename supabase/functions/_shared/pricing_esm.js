@@ -521,12 +521,12 @@ const BTKDPricing = (function () {
    *   privateSlotsForDay({ openMinutes, firstClassMinutes, durationMin })
    *     -> [minutesFromMidnight, ...]   (ascending)
    *
-   * The owner's rule, verbatim: "availability which is our open hours
-   * before the start time of our classes". So slots are laid out BACKWARDS
-   * from the first class of the day, which is why his own Monday and
-   * Thursday 4:00 PM lessons land exactly against the 4:30 class. Laying
-   * them forwards from opening instead would leave a ragged gap before
-   * class and would not match the lessons he already teaches.
+   * The owner's rule: "all open hours before classes start ... so if im
+   * open at 230 on wednesday then lets start there". Slots run FORWARD from
+   * the door opening, and the last one is whichever still ENDS by the time
+   * class begins. Any leftover minutes sit between the last lesson and
+   * class, where they are useful, rather than before the first lesson,
+   * where they would just be a late start.
    *
    * A day with no classes has no "before class" to speak of and returns
    * nothing, rather than guessing at an all-day availability he never
@@ -540,8 +540,8 @@ const BTKDPricing = (function () {
     var open = Math.round(Number(opts.openMinutes));
     if (!isFinite(first) || !isFinite(open) || first <= open) return [];
     var out = [];
-    for (var t = first - dur; t >= open; t -= dur) out.push(t);
-    return out.reverse();
+    for (var t = open; t + dur <= first; t += dur) out.push(t);
+    return out;
   }
 
   /* "3:15 PM" / "15:15" -> 915. Returns null on anything it cannot read, so
