@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign your agreement | Bares Taekwondo Fitness</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/img/favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<!--
+  Sign a membership agreement from a link.
+
+  THE DOCUMENT IS NOT BUILT HERE. It was frozen in the CRM when the invite was
+  created, and this page renders exactly that HTML. There is no pricing, no
+  catalog and no template logic on this page, which is the point: what is read
+  here cannot differ from what the studio sent.
+
+  The ?t= token is the only gate; it grants this one document and nothing else.
+  Everything else lives in the agreement-sign function, which is also the only
+  thing that writes the signed agreement.
+-->
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:#EEF1F4;font-family:Arial,Helvetica,sans-serif;color:#1A1D23}
+  .wrap{max-width:640px;margin:0 auto;padding:18px 10px 40px}
+  .card{background:#fff;border:1px solid #E2E6EB;border-radius:14px;padding:20px 18px;margin-bottom:14px;box-shadow:0 2px 10px rgba(16,18,22,.06)}
+  .load,.err{background:#fff;border:1px solid #E2E6EB;border-radius:14px;padding:34px 20px;text-align:center;color:#6A727E;font-size:14px;line-height:1.6}
+  .err b{display:block;color:#1A1D23;font-size:16px;margin-bottom:6px}
+  .intro h1{font-size:19px;margin:0 0 6px}
+  .intro p{font-size:13.5px;color:#6A727E;line-height:1.6;margin:0}
+
+  /* The frozen document. These class names come from the CRM's renderer and
+     have to keep matching it, or a stored agreement would print differently
+     from the one that was signed. */
+  .agr-scroll{max-height:58vh;overflow-y:auto;border:1px solid #E2E6EB;border-radius:12px;background:#fff;padding:18px 20px;-webkit-overflow-scrolling:touch}
+  .agr-doc{font-family:'Times New Roman',Times,serif;color:#111;font-size:13px;line-height:1.5}
+  .agr-hd{text-align:center;margin-bottom:14px}
+  .agr-ent{font-weight:700;font-size:13.5px}
+  .agr-dba{font-size:12px;color:#333}
+  .agr-title{font-weight:700;font-size:17px;margin-top:9px;padding-bottom:6px;border-bottom:1px solid #111}
+  .agr-fields{width:100%;border-collapse:collapse;margin:12px 0 4px}
+  .agr-fields td{padding:3px 0;vertical-align:bottom}
+  .agr-fl{white-space:nowrap;padding-right:10px!important;color:#333}
+  .agr-fv{border-bottom:1px solid #111;width:100%;font-weight:700}
+  .agr-blank{display:inline-block;min-height:1em}
+  .agr-h{font-weight:700;font-size:13.5px;margin:16px 0 5px;letter-spacing:.3px}
+  .agr-p{margin:0 0 9px;text-align:justify}
+  .agr-sel{font-weight:700}
+  .agr-fees{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:12.5px}
+  .agr-fees td{border:1px solid #999;padding:5px 8px}
+  .agr-fees tr.on td{background:#FEF9C3;font-weight:700}
+  .agr-ol{white-space:nowrap}
+  .agr-ot{width:100%}
+  .agr-mark{color:#047857;font-weight:700}
+  .agr-signed{margin-top:14px;padding-top:10px;border-top:1px solid #111}
+  .agr-sig{display:block;max-width:280px;max-height:90px}
+  .agr-sigline{border-bottom:1px solid #111;height:44px;max-width:280px}
+  .agr-sigmeta{font-size:11.5px;color:#333;margin-top:4px}
+
+  .lbl{display:block;font-size:12.5px;font-weight:700;color:#6A727E;margin:14px 0 5px}
+  .in{width:100%;font:inherit;font-size:15px;padding:12px 12px;border:1.5px solid #D9DEE3;border-radius:10px;background:#fff}
+  .in:focus{outline:none;border-color:#15171C}
+  .padlbl{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:700;color:#6A727E;margin:16px 0 5px}
+  .padlbl button{background:none;border:none;font:inherit;font-size:12.5px;font-weight:700;color:#c8102e;cursor:pointer;padding:0}
+  .pad{width:100%;height:160px;border:1.5px dashed #D9DEE3;border-radius:10px;background:#fff;touch-action:none;display:block;cursor:crosshair}
+  .go{display:block;width:100%;background:#15171C;color:#fff;border:none;border-radius:10px;padding:16px;font-size:15.5px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:16px}
+  .go[disabled]{opacity:.5;cursor:default}
+  .msg{color:#c8102e;font-size:13px;font-weight:600;margin-top:10px;min-height:1px;line-height:1.5}
+  .fine{font-size:12px;color:#6A727E;line-height:1.6;margin-top:12px}
+  .done{background:#E4F5EE;border:1px solid #BFE6D6;color:#0B6B4A;border-radius:12px;padding:22px 18px;text-align:center;font-size:15px;font-weight:700;line-height:1.6}
+  .done span{display:block;font-weight:400;font-size:13.5px;margin-top:8px}
+  .foot{text-align:center;font-size:11.5px;color:#98A0AB;line-height:1.7;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="root"><div class="load">Loading your agreement…</div></div>
+  <div class="foot">
+    Bares Taekwondo Fitness · 1901 Deerbrook Dr, Tyler, TX 75703<br>
+    Questions? Call <a href="tel:+19035612966" style="color:#98A0AB">903-561-2966</a>
+  </div>
+</div>
+
+<script>
+(function () {
+  var FN = 'https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/agreement-sign';
+  var token = (new URLSearchParams(location.search).get('t') || '').trim();
+  var root = document.getElementById('root');
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fail(title, msg) {
+    root.innerHTML = '<div class="err"><b>' + esc(title) + '</b>' + esc(msg) + '</div>';
+  }
+  function post(body) {
+    return fetch(FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ token: token }, body)),
+      cache: 'no-store'
+    }).then(function (r) { return r.json().catch(function () { return { error: 'server' }; }); });
+  }
+
+  if (!/^[0-9a-f]{32}$/i.test(token)) {
+    fail('Agreement not found', 'This link looks incomplete. Ask the studio to send it again.');
+    return;
+  }
+
+  post({ action: 'view' }).then(function (d) {
+    if (!d || d.error) {
+      // The function distinguishes "already signed" from "expired" from
+      // "never valid", and each deserves a different thing to do next.
+      if (d && d.message) { fail(d.error === 'signed' ? 'Already signed' : 'This link is no longer active', d.message); return; }
+      fail('Agreement not found', 'Ask the studio to send the link again.');
+      return;
+    }
+    document.title = d.title + ' | Bares Taekwondo Fitness';
+    render(d);
+  }).catch(function () {
+    fail('Could not load your agreement', 'Check your connection and try again, or call the studio.');
+  });
+
+  function render(d) {
+    root.innerHTML =
+      '<div class="card intro"><h1>' + esc(d.title) + '</h1>'
+      + '<p>Please read this through. Everything is already filled in for you. '
+      + 'When you are happy with it, type your name, sign at the bottom, and submit.</p></div>'
+      // The document HTML was generated by the CRM, frozen at send time, and
+      // is inserted exactly as stored so it reads identically to the copy the
+      // studio has on file.
+      + '<div class="card"><div class="agr-scroll">' + d.html + '</div></div>'
+      + '<div class="card">'
+      + '<label class="lbl" for="signer">' + (d.is_minor
+          ? 'Parent or guardian signing for ' + esc(d.participant_name || 'this student')
+          : 'Your full name, as it should appear') + '</label>'
+      + '<input class="in" id="signer" autocomplete="name" value="' + esc(d.signer_hint || '') + '">'
+      + (d.is_minor
+          ? '<label class="lbl" for="rel">Your relationship to them</label>'
+            + '<input class="in" id="rel" placeholder="Mother, father, guardian" autocomplete="off">'
+          : '')
+      + '<div class="padlbl"><span>Sign here</span><button type="button" id="clr">Clear</button></div>'
+      + '<canvas class="pad" id="pad"></canvas>'
+      + '<button class="go" id="go">Sign and submit</button>'
+      + '<div class="msg" id="msg"></div>'
+      + '<div class="fine">Submitting this counts as your signature and files the '
+      + 'agreement with the studio. You will not be charged anything on this page.</div>'
+      + '</div>';
+    padInit();
+    document.getElementById('clr').addEventListener('click', function () { PAD.reset(); });
+    document.getElementById('go').addEventListener('click', submit);
+  }
+
+  /* Signature pad. Pointer events cover mouse, pen and touch in one path,
+     and the backing store is sized to the device so the stroke is not blurry
+     on a phone. */
+  var PAD = { dirty: false, reset: function () {} };
+  function padInit() {
+    var cv = document.getElementById('pad');
+    if (!cv) return;
+    var ratio = window.devicePixelRatio || 1;
+    var rect = cv.getBoundingClientRect();
+    cv.width = Math.round(rect.width * ratio);
+    cv.height = Math.round(rect.height * ratio);
+    var ctx = cv.getContext('2d');
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
+    var drawing = false;
+    function at(e) { var r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+    cv.addEventListener('pointerdown', function (e) {
+      drawing = true; PAD.dirty = true; cv.setPointerCapture(e.pointerId);
+      var p = at(e); ctx.beginPath(); ctx.moveTo(p[0], p[1]); e.preventDefault();
+    });
+    cv.addEventListener('pointermove', function (e) {
+      if (!drawing) return; var p = at(e); ctx.lineTo(p[0], p[1]); ctx.stroke(); e.preventDefault();
+    });
+    cv.addEventListener('pointerup', function () { drawing = false; });
+    cv.addEventListener('pointerleave', function () { drawing = false; });
+    PAD.reset = function () { ctx.clearRect(0, 0, cv.width, cv.height); PAD.dirty = false; };
+    PAD.png = function () { return cv.toDataURL('image/png'); };
+  }
+
+  var sending = false;
+  function submit() {
+    if (sending) return;
+    var msg = document.getElementById('msg');
+    var go = document.getElementById('go');
+    var signer = (document.getElementById('signer').value || '').trim();
+    var relEl = document.getElementById('rel');
+    var rel = relEl ? (relEl.value || '').trim() : '';
+    msg.textContent = '';
+    if (!signer) { msg.textContent = 'Type your name above.'; document.getElementById('signer').focus(); return; }
+    if (!PAD.dirty) { msg.textContent = 'Sign in the box before submitting.'; return; }
+    sending = true; go.disabled = true; go.textContent = 'Filing your agreement…';
+    post({ action: 'sign', signer_name: signer, signer_relationship: rel, signature_png: PAD.png() })
+      .then(function (d) {
+        if (!d || !d.ok) {
+          sending = false; go.disabled = false; go.textContent = 'Sign and submit';
+          msg.textContent = (d && (d.message || d.error)) || 'Could not save that. Please try again.';
+          return;
+        }
+        root.innerHTML = '<div class="card"><div class="done">Thank you, that is signed.'
+          + '<span>The studio has your agreement on file. There is nothing else to do.</span></div></div>';
+        window.scrollTo(0, 0);
+      })
+      .catch(function () {
+        sending = false; go.disabled = false; go.textContent = 'Sign and submit';
+        msg.textContent = 'Could not reach the studio. Check your connection and try again.';
+      });
+  }
+})();
+</script>
+</body>
+</html>
