@@ -440,7 +440,7 @@
   function fmtMDY(ymd) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || "")); return m ? (m[2] + "-" + m[3] + "-" + m[1]) : ""; }
 
   fetch(FN, { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } })
-    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (r) { if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j && j.closed ? j.error : String(r.status)); }); return r.json(); })
     .then(function (cfg) {
       CFG = cfg;
       if ((cfg.shirts || []).length) renderShirts();
@@ -452,8 +452,8 @@
       renderOptions();
       renderPrice(); renderDoc();
     })
-    .catch(function () {
-      $("cbc-options").textContent = "Enrollment isn't loading right now. Call 903-561-2966.";
+    .catch(function (e) {
+      $("cbc-options").textContent = (e && /closed right now/.test(e.message)) ? e.message : "Enrollment isn't loading right now. Call 903-561-2966.";
       $("lkc-pay").disabled = true;
     });
 

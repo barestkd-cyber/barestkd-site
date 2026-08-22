@@ -136,6 +136,7 @@ const SITE = "https://www.barestkd.fit";
 const ALLOWED_ORIGINS = [
   "https://www.barestkd.fit",
   "https://barestkd.fit",
+  "https://crm.barestkd.fit",   // the CRM registry reads this page's GET
   "http://localhost:8080",
   "http://127.0.0.1:8080",
 ];
@@ -247,6 +248,12 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+  // ── the page switch (CRM → Checkout pages → Memberships) ─────────────────
+  // A missing row means live, so a page never disappears because nobody has
+  // registered it yet. finalize is exempt: money already moving must land.
+  const pageRow = await admin.from("checkout_pages").select("live").eq("slug", "little-kickers").maybeSingle();
+  const pageLive = !pageRow.data || pageRow.data.live !== false;
+  const closedMsg = "Little Kickers" + " enrollment is closed right now. Call 903-561-2966.";
 
   // ── the cohort: the sellable session, else the next draft one ───────────
   const sesRes = await admin.from("program_sessions")
@@ -309,6 +316,7 @@ Deno.serve(async (req) => {
   let reqBody: Record<string, unknown> = {};
   try {
     if (req.method === "GET") {
+      if (!pageLive) return json({ error: closedMsg, closed: true }, 503, cors);
       return json({
         enrollment_open: ENROLLMENT_OPEN,
         opens_text: SESSION.opensText,
@@ -335,6 +343,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     reqBody = body;
     if (str(body.hp)) return json({ ok: true }, 200, cors); // honeypot: swallow silently
+    if (!pageLive && str(body.action) !== "finalize") return json({ error: closedMsg, closed: true }, 503, cors);
     const secretKey = Deno.env.get("STRIPE_SECRET_KEY");
 
     // ── finalize: the card cleared in the browser, so verify with STRIPE and
