@@ -451,6 +451,44 @@ const BTKDPricing = (function () {
   // Half-up rounding on a non-negative float that is conceptually cents.
   function roundHalfUpCents(x) { return Math.floor(x + 0.5); }
 
+  /* ─── the pass-through card fee ────────────────────────────────────────────
+   * Owner rule (2026-08-15, final): the customer pays the tuition plus
+   * Stripe's cut, and the studio nets the tuition. GROSSED UP since
+   * 2026-08-22 on his instruction.
+   *
+   * The distinction is not pedantry. Stripe charges its percentage on the
+   * TOTAL it collects, and the total includes the fee. Charging the fee on
+   * the subtotal instead therefore always falls short:
+   *
+   *     $60 seat, 2.9% + 30c
+   *     on the subtotal:  fee 2.04, total 62.04, Stripe takes 2.10 -> nets 59.94
+   *     grossed up:       fee 2.10, total 62.10, Stripe takes 2.10 -> nets 60.00
+   *
+   * Six cents a seat, on every card payment in the system.
+   *
+   * Solved as: the smallest total T where T minus Stripe's cut still covers
+   * the base. The closed form gets within a cent, so the answer is walked to
+   * the true minimum rather than trusted from a float. Rounding is modelled
+   * half-up, which is what Stripe does.
+   *
+   * Returns the FEE, not the total, because that is what every caller stores.
+   */
+  function cardFeeCents(baseCents, bps, flatCents) {
+    var base = Math.round(Number(baseCents) || 0);
+    var rate = Math.round(Number(bps) || 0);
+    var flat = Math.round(Number(flatCents) || 0);
+    if (base <= 0) return 0;
+    if (!rate && !flat) return 0;
+    // A rate at or above 100% has no total that nets the base; nothing sane
+    // is configured that way, and guessing would be worse than refusing.
+    if (rate >= 10000) return 0;
+    var nets = function (t) { return t - (roundHalfUpCents(t * rate / 10000) + flat); };
+    var total = Math.ceil((base + flat) * 10000 / (10000 - rate));
+    while (total > base && nets(total - 1) >= base) total--;
+    while (nets(total) < base) total++;
+    return total - base;
+  }
+
   /* Split `total` integer cents across `weights` pro-rata, largest-remainder,
    * so the parts always sum to exactly `total`. Zero/empty weights → zeros.
    * Used for the invoice discount, and by the UI to show per-line tax that
@@ -755,6 +793,7 @@ const BTKDPricing = (function () {
     minutesFromClock: minutesFromClock,
     nextBillOn: nextBillOn,
     allocateCents: allocateCents,
+    cardFeeCents: cardFeeCents,
     // exposed for the UI and for tests
     householdRank: householdRank,
     familyPosition: familyPosition,

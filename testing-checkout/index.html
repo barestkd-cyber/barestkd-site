@@ -313,6 +313,26 @@
     });
 
   /* ---- the schedule ----------------------------------------------------- */
+  /* The pass-through card fee, GROSSED UP: Stripe charges its percentage on
+     the TOTAL it collects, and the total includes the fee, so a fee worked
+     out on the subtotal always falls short. This is the smallest total that
+     still nets the studio the price on the page. Byte-identical on every
+     checkout page and in BTKDPricing.cardFeeCents; tests/checkout-copy.test.js
+     fails if any copy drifts. */
+  function cardFeeCents(baseCents, bps, flatCents) {
+    var base = Math.round(Number(baseCents) || 0);
+    var rate = Math.round(Number(bps) || 0);
+    var flat = Math.round(Number(flatCents) || 0);
+    if (base <= 0) return 0;
+    if (!rate && !flat) return 0;
+    if (rate >= 10000) return 0;
+    var nets = function (t) { return t - (Math.floor(t * rate / 10000 + 0.5) + flat); };
+    var total = Math.ceil((base + flat) * 10000 / (10000 - rate));
+    while (total > base && nets(total - 1) >= base) total--;
+    while (nets(total) < base) total++;
+    return total - base;
+  }
+
   function renderSchedule() {
     $("tst-sched").innerHTML = CFG.groups.map(function (g) {
       var when = g.pretty_day + (g.start_time ? " at " + g.start_time : "");
@@ -485,7 +505,7 @@
         + (picked ? money(c) : "-") + "</span></div>";
     });
     var fee = base > 0
-      ? Math.round(base * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents
+      ? cardFeeCents(base, CFG.admin_fee_bps, CFG.admin_fee_flat_cents)
       : 0;
     rows.push('<div class="tst-line"><span>Card processing</span><span class="amt">' + money(fee) + "</span></div>");
     $("tst-lines").innerHTML = rows.join("");

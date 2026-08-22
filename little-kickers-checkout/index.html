@@ -426,6 +426,26 @@
 
   /* yyyy-mm-dd → parts, without new Date(str) (that parses as UTC and reads a
      day early in Central - enough to print the wrong class date). */
+  /* The pass-through card fee, GROSSED UP: Stripe charges its percentage on
+     the TOTAL it collects, and the total includes the fee, so a fee worked
+     out on the subtotal always falls short. This is the smallest total that
+     still nets the studio the price on the page. Byte-identical on every
+     checkout page and in BTKDPricing.cardFeeCents; tests/checkout-copy.test.js
+     fails if any copy drifts. */
+  function cardFeeCents(baseCents, bps, flatCents) {
+    var base = Math.round(Number(baseCents) || 0);
+    var rate = Math.round(Number(bps) || 0);
+    var flat = Math.round(Number(flatCents) || 0);
+    if (base <= 0) return 0;
+    if (!rate && !flat) return 0;
+    if (rate >= 10000) return 0;
+    var nets = function (t) { return t - (Math.floor(t * rate / 10000 + 0.5) + flat); };
+    var total = Math.ceil((base + flat) * 10000 / (10000 - rate));
+    while (total > base && nets(total - 1) >= base) total--;
+    while (nets(total) < base) total++;
+    return total - base;
+  }
+
   function ymdParts(ymd) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
     return m ? [+m[1], +m[2], +m[3]] : null;
@@ -453,7 +473,7 @@
     var gray = $("lkc-gray").checked && CFG.gray_tee_available;
     var taxable = (shirt ? CFG.tshirt_cents : 0) + (gray ? CFG.gray_tee_cents : 0);
     var base = CFG.price_cents + taxable;
-    var fee = base > 0 ? Math.round(base * CFG.admin_fee_bps / 10000) + CFG.admin_fee_flat_cents : 0;
+    var fee = cardFeeCents(base, CFG.admin_fee_bps, CFG.admin_fee_flat_cents);
     var tax = Math.floor(taxable * CFG.tax_rate + 0.5);
     return { shirt: shirt, gray: gray, fee: fee, tax: tax, total: base + fee + tax };
   }

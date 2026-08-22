@@ -219,4 +219,65 @@ for (const page of PAGES) {
   });
 }
 
+/* ── the card fee is one number, computed the same way in fourteen places ──
+ * Static checkout pages load no module, so each carries its own copy of the
+ * gross-up. A copy that drifts would quote a different price from the server
+ * that charges it, which the customer would see as the page lying. */
+{
+  const PAGES = ['ampd-checkout', 'cubs-checkout', 'jiu-jitsu-checkout', 'juniors-checkout',
+    'kickboxing-checkout', 'little-kickers-checkout', 'teens-adults-checkout', 'testing-checkout'];
+  const FNS = ['cubs-checkout', 'lk-checkout', 'private-checkout', 'program-checkout', 'testing-checkout'];
+
+  // The engine is the reference. Everything else has to match it.
+  const engine = require(path.join(SITE, '..', 'BaresCRM', 'pricing.js')).cardFeeCents;
+  const amounts = [];
+  for (let b = 1; b <= 30000; b += 11) amounts.push(b);
+  [119900, 25749, 10904, 6000, 5000, 7000, 50].forEach((b) => amounts.push(b));
+
+  let helperSrc = null;
+  PAGES.forEach((dir) => {
+    const html = fs.readFileSync(path.join(SITE, dir, 'index.html'), 'utf8');
+    const m = /function cardFeeCents\(baseCents, bps, flatCents\)\s*\{[\s\S]*?\n  \}/.exec(html);
+    test(dir + ': carries the grossed-up card fee', () => {
+      assert.ok(m, 'no cardFeeCents helper on the page');
+      assert.ok(!/Math\.round\(base \* CFG\.admin_fee_bps/.test(html),
+        'the old subtotal formula is still here');
+    });
+    if (!m) return;
+    // Byte-identical, not merely equivalent: one canonical text is the only
+    // way eight hand-edited copies stay the same over time.
+    test(dir + ': its copy of the fee helper is byte-identical to the others', () => {
+      if (helperSrc === null) helperSrc = m[0];
+      assert.strictEqual(m[0], helperSrc, 'this copy has drifted from the others');
+    });
+    test(dir + ': and computes what the pricing engine computes', () => {
+      const f = new Function('return (' + m[0].replace('function cardFeeCents', 'function') + ')')();
+      const wrong = amounts.filter((b) => f(b, 290, 30) !== engine(b, 290, 30));
+      assert.strictEqual(wrong.length, 0,
+        'disagrees with BTKDPricing.cardFeeCents on ' + wrong.length + ' amounts, e.g. ' + wrong[0]);
+    });
+  });
+
+  FNS.forEach((name) => {
+    const p = path.join(SITE, 'supabase', 'functions', name, 'index.ts');
+    const ts = fs.readFileSync(p, 'utf8');
+    test('fn ' + name + ': charges the grossed-up fee', () => {
+      assert.ok(!/Math\.round\(baseCents \* bps \/ 10000\) \+ flat/.test(ts),
+        'the old subtotal formula is still here');
+      assert.ok(/while \(nets\(total\) < baseCents\) total\+\+;/.test(ts),
+        'the gross-up is missing');
+    });
+    test('fn ' + name + ': and its arithmetic matches the engine', () => {
+      const m = /const nets = \(t: number\)[\s\S]*?return total - baseCents;/.exec(ts);
+      assert.ok(m, 'could not read the fee body');
+      const f = new Function(
+        'function f(baseCents,bps,flat){ if(baseCents<=0)return 0; if(!bps&&!flat)return 0;'
+        + ' if(bps>=10000)return 0; ' + m[0].replace('(t: number)', '(t)') + ' } return f;')();
+      const wrong = amounts.filter((b) => f(b, 290, 30) !== engine(b, 290, 30));
+      assert.strictEqual(wrong.length, 0,
+        'server would charge a different fee from the page on ' + wrong.length + ' amounts');
+    });
+  });
+}
+
 console.log('\n' + passed + ' passed');

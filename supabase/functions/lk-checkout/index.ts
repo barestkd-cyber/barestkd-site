@@ -196,7 +196,18 @@ const fmtMDY = (ymd: string) => { const p = ymd.split("-"); return p.length === 
  * pre-fee pre-tax base, plus the flat part. Never taxed. */
 function adminFeeCents(baseCents: number, bps: number, flat: number): number {
   if (baseCents <= 0) return 0;
-  return Math.round(baseCents * bps / 10000) + flat;
+  // GROSSED UP (owner, 2026-08-22). Stripe charges its percentage on the
+  // TOTAL it collects, and the total includes this fee, so working the fee
+  // out on the subtotal always left the studio short. Same implementation
+  // as BTKDPricing.cardFeeCents; kept local so this file has no new import.
+  if (baseCents <= 0) return 0;
+  if (!bps && !flat) return 0;
+  if (bps >= 10000) return 0;
+  const nets = (t: number) => t - (Math.floor(t * bps / 10000 + 0.5) + flat);
+  let total = Math.ceil((baseCents + flat) * 10000 / (10000 - bps));
+  while (total > baseCents && nets(total - 1) >= baseCents) total--;
+  while (nets(total) < baseCents) total++;
+  return total - baseCents;
 }
 
 /* Freeze the agreement into plain text - the document of record stored with
