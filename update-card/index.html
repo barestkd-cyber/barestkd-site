@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Update your card | Bares Taekwondo Fitness</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/img/favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
+<!--
+  Add or replace the card the studio keeps on file.
+
+  No token in the URL: a parent types their name and address and the studio
+  matches it. The only thing anybody can do here is GIVE the studio a card -
+  nothing can be read, charged or removed - which is what makes an open door
+  safe to leave open.
+
+  The page never says whether an address was recognised. A page that answers
+  "we don't have you" is a way to test whether a family trains here.
+
+  The card is typed into Stripe's own iframe and confirmed by the browser
+  against Stripe. It never touches this page or our server.
+-->
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:#EEF1F4;font-family:Montserrat,Arial,Helvetica,sans-serif;color:#1A1D23}
+  .wrap{max-width:520px;margin:0 auto;padding:24px 14px 48px}
+  .card{background:#fff;border:1px solid #E2E6EB;border-radius:16px;padding:24px 20px;box-shadow:0 2px 12px rgba(16,18,22,.06)}
+  h1{font-family:'Archivo Black',system-ui,sans-serif;font-size:24px;margin:0 0 8px;line-height:1.2}
+  .lede{font-size:14.5px;color:#5A626E;line-height:1.6;margin:0 0 20px}
+  label{display:block;font-size:12.5px;font-weight:700;color:#5A626E;margin:14px 0 5px;letter-spacing:.02em}
+  input{width:100%;font:inherit;font-size:16px;padding:13px 13px;border:1.5px solid #D9DEE3;border-radius:11px;background:#fff}
+  input:focus{outline:none;border-color:#15171C}
+  .cardbox{border:1.5px solid #D9DEE3;border-radius:11px;padding:14px 13px;background:#fff;min-height:50px}
+  .cardbox.StripeElement--focus{border-color:#15171C}
+  .go{display:block;width:100%;background:#15171C;color:#fff;border:none;border-radius:11px;padding:16px;font:700 15.5px/1 inherit;cursor:pointer;margin-top:20px}
+  .go[disabled]{opacity:.5;cursor:default}
+  .err{color:#c8102e;font-size:13px;font-weight:600;margin-top:10px;min-height:1px;line-height:1.5}
+  .fine{font-size:12.5px;color:#6A727E;line-height:1.6;margin-top:14px}
+  .done{text-align:center;padding:14px 0}
+  .done .tick{width:62px;height:62px;border-radius:50%;background:#15171C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 18px}
+  .done h2{font-family:'Archivo Black',system-ui,sans-serif;font-size:21px;margin:0 0 10px}
+  .done p{font-size:14.5px;color:#5A626E;line-height:1.6;margin:0 0 8px}
+  .hp{position:absolute;left:-9999px}
+  .foot{text-align:center;font-size:11.5px;color:#98A0AB;line-height:1.7;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="root">
+    <h1>Update your card</h1>
+    <p class="lede">This replaces nothing until you press save, and nothing is
+      charged today. Use the name and email address the studio has for you.</p>
+
+    <label for="nm">Your name</label>
+    <input id="nm" autocomplete="name" placeholder="Carlton Allen">
+
+    <label for="em">Your email</label>
+    <input id="em" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com">
+
+    <label for="cardbox">Card details</label>
+    <div class="cardbox" id="cardbox"><span style="color:#6A727E;font-size:13.5px">Loading secure card field…</span></div>
+
+    <input class="hp" id="hp" tabindex="-1" autocomplete="off" aria-hidden="true" placeholder="Leave this empty">
+
+    <button class="go" id="go">Save my card</button>
+    <div class="err" id="err"></div>
+    <p class="fine">Your card is held securely by Stripe. The studio only ever
+      sees the last four digits, and can charge it for your membership and
+      anything you buy at the desk.</p>
+  </div>
+  <div class="foot">
+    Bares Taekwondo Fitness · 1901 Deerbrook Dr, Tyler, TX 75703<br>
+    Questions? Call <a href="tel:+19035612966" style="color:#98A0AB">903-561-2966</a>
+  </div>
+</div>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+(function () {
+  var FN = 'https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/card-setup';
+  var root = document.getElementById('root');
+  var err = document.getElementById('err');
+  var go = document.getElementById('go');
+  var stripe = null, card = null, busy = false;
+
+  function post(body) {
+    return fetch(FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      cache: 'no-store'
+    }).then(function (r) { return r.json().catch(function () { return { error: 'server' }; }); });
+  }
+  function fail(msg) {
+    err.textContent = msg;
+    busy = false; go.disabled = false; go.textContent = 'Save my card';
+  }
+
+  // The card field is mounted before anybody is identified, so the page is
+  // ready to type into rather than making them wait after filling the form.
+  post({ action: 'config' }).then(function (d) {
+    if (!d || !d.publishable_key) { fail('Card saving is unavailable right now. Please call the studio.'); return; }
+    stripe = Stripe(d.publishable_key);
+    card = stripe.elements().create('card', {
+      style: { base: { fontSize: '16px', color: '#1A1D23', fontFamily: 'Montserrat, Arial, sans-serif' } }
+    });
+    document.getElementById('cardbox').innerHTML = '';
+    card.mount('#cardbox');
+    card.on('change', function (e) { err.textContent = (e.error && e.error.message) || ''; });
+  });
+
+  go.addEventListener('click', function () {
+    if (busy) return;
+    var name = document.getElementById('nm').value.trim();
+    var email = document.getElementById('em').value.trim();
+    err.textContent = '';
+    if (!name) { document.getElementById('nm').focus(); return fail('Please give your name.'); }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { document.getElementById('em').focus(); return fail('Please check your email address.'); }
+    if (!stripe || !card) return fail('The card field is still loading. Give it a moment.');
+
+    busy = true; go.disabled = true; go.textContent = 'Saving…';
+    post({ name: name, email: email, hp: document.getElementById('hp').value })
+      .then(function (d) {
+        if (!d || !d.client_secret) return fail((d && d.error) || 'Something went wrong. Please call the studio.');
+        // Stripe confirms this, not us. A card that fails validation never
+        // leaves the iframe.
+        return stripe.confirmCardSetup(d.client_secret, {
+          payment_method: { card: card, billing_details: { name: name, email: email } }
+        }).then(function (res) {
+          if (res.error || !res.setupIntent || res.setupIntent.status !== 'succeeded') {
+            return fail((res.error && res.error.message) || 'That card was not accepted.');
+          }
+          root.innerHTML = '<div class="done"><div class="tick">&#10003;</div>'
+            + '<h2>Your card is saved</h2>'
+            + '<p>Thank you. Nothing was charged today.</p>'
+            + '<p style="font-size:13px;color:#6A727E">Your card is held securely by Stripe. '
+            + 'The studio only ever sees the last four digits.</p></div>';
+          window.scrollTo(0, 0);
+        });
+      })
+      .catch(function () { fail('Could not reach the studio. Check your connection and try again.'); });
+  });
+})();
+</script>
+</body>
+</html>
