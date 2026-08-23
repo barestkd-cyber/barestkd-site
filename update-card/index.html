@@ -88,6 +88,17 @@
   var err = document.getElementById('err');
   var go = document.getElementById('go');
   var stripe = null, card = null, busy = false;
+  // The link says which profile sent it and who it went to. Without one there
+  // is nothing to fall back on when the typed address matches nobody, and no
+  // way to tell a real visitor from somebody probing which addresses the
+  // studio knows.
+  var token = (new URLSearchParams(location.search).get('t') || '').trim();
+  if (!/^[0-9a-f]{32}$/i.test(token)) {
+    root.innerHTML = '<h1>Link not valid</h1>'
+      + '<p class="lede">This link looks incomplete. Ask the studio to send it '
+      + 'again, or call <a href="tel:+19035612966" style="color:#15171C">903-561-2966</a>.</p>';
+    return;
+  }
 
   function post(body) {
     return fetch(FN, {
@@ -125,7 +136,7 @@
     if (!stripe || !card) return fail('The card field is still loading. Give it a moment.');
 
     busy = true; go.disabled = true; go.textContent = 'Saving…';
-    post({ name: name, email: email, hp: document.getElementById('hp').value })
+    post({ token: token, name: name, email: email, hp: document.getElementById('hp').value })
       .then(function (d) {
         if (!d || !d.client_secret) return fail((d && d.error) || 'Something went wrong. Please call the studio.');
         // Stripe confirms this, not us. A card that fails validation never
