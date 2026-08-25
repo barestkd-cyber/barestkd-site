@@ -450,7 +450,7 @@ Deno.serve(async (req) => {
       : null;
 
     const saleIns = await admin.from("pos_sales").insert({
-      id: saleId, buyer_contact_id: buyerId, sale_date: today,
+      id: saleId, buyer_contact_id: buyerId, payer_name: parentName || null, sale_date: today,
       staff_email: "testing-checkout@website", brand: "btkd",
       tender_method: null, status: "unpaid",
       subtotal_cents: totals.subtotalCents, discount_cents: 0,

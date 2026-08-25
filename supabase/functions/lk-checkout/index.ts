@@ -550,7 +550,7 @@ Deno.serve(async (req) => {
     //    Unpaid: the money arrives through create-checkout → stripe-webhook,
     //    which marks it paid and emails the receipt.
     const saleIns = await admin.from("pos_sales").insert({
-      id: saleId, buyer_contact_id: studentId, sale_date: today,
+      id: saleId, buyer_contact_id: studentId, payer_name: guardianName || null, sale_date: today,
       staff_email: "lk-checkout@website", brand: "btkd",
       tender_method: null, status: "unpaid",
       subtotal_cents: totals.subtotalCents, discount_cents: 0,

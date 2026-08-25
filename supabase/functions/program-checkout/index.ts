@@ -694,7 +694,7 @@ Deno.serve(async (req) => {
       : "After today, your " + (chosen.billing_frequency === "weekly" ? "weekly" : "monthly")
         + " payment is " + money(chosen.recurring_cents || 0) + ", due " + payDate + ".";
     const saleIns = await admin.from("pos_sales").insert({
-      id: saleId, buyer_contact_id: studentId, sale_date: today,
+      id: saleId, buyer_contact_id: studentId, payer_name: guardianName || null, sale_date: today,
       staff_email: "program-checkout@website", brand: "btkd",
       tender_method: null, status: "unpaid",
       subtotal_cents: totals.subtotalCents, discount_cents: 0,
