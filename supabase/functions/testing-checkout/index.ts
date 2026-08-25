@@ -391,9 +391,25 @@ Deno.serve(async (req) => {
     // with duplicates of people already on it. Match on email only when it is
     // unambiguous; otherwise leave the buyer null and let the receipt carry
     // the address.
+    // Each kid, matched once: an exact SINGLE name match only, because a
+    // loose match would write one student\u0027s record onto another\u0027s. The
+    // result feeds the sale lines, the signup census, and the buyer
+    // fallback below, so all three always agree about who was here.
+    const seatIds: (string | null)[] = [];
+    for (const st of seats) {
+      const m = await admin.from("contacts").select("id")
+        .ilike("first_name", st.first).ilike("last_name", st.last).limit(2);
+      seatIds.push((m.data ?? []).length === 1 ? (m.data![0].id as string) : null);
+    }
+
     let buyerId: string | null = null;
     const buyerMatch = await admin.from("contacts").select("id").ilike("email", email).limit(2);
     if ((buyerMatch.data ?? []).length === 1) buyerId = buyerMatch.data![0].id as string;
+    // The payer\u0027s email usually matches nobody: the contact is the KID and
+    // kids carry no email (2026-08-24: three real sales, all orphaned, all
+    // invisible on every profile). The first registered kid is the family
+    // the sale belongs to, and beats an invoice attached to nobody.
+    if (!buyerId) buyerId = seatIds.find((x) => x) ?? null;
 
     const parentName = (parentFirst + " " + parentLast).trim();
     const noteLines = seats.map((s) =>
@@ -445,12 +461,14 @@ Deno.serve(async (req) => {
     const token = saleIns.data.view_token as string;
 
     // -- ledger line detail --------------------------------------------------
-    const lineRows = seats.map((s) => ({
+    const lineRows = seats.map((s, i) => ({
       sale_id: saleId, kind: "event",
       label: "Belt testing - " + s.first + " " + s.last + " (" + String(s.group.label) + ")",
       qty: 1, unit_cents: s.cents, discount_cents: 0,
       taxable: TESTING_TAXABLE, line_total_cents: s.cents,
-      student_contact_id: null, product_id: null,
+      // The kid the line is FOR, so the invoice shows on their profile
+      // (and on every sibling named on the same sale).
+      student_contact_id: seatIds[i], product_id: null,
       membership_row: null, membership_id: null,
     }));
     const lIns = await admin.from("pos_sale_lines").insert(lineRows);
