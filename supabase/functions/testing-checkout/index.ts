@@ -507,14 +507,39 @@ Deno.serve(async (req) => {
     }
     // Card on file, same as every other rail (owner's locked model): attach a
     // customer so this card can be charged again later by staff.
-    const cf = new URLSearchParams();
-    cf.set("name", parentName);
-    cf.set("email", email);
-    if (phone) cf.set("phone", phone);
-    if (buyerId) cf.set("metadata[contact_id]", buyerId);
-    const cust = await stripe("customers", secretKey, cf);
-    if (buyerId) await admin.from("contacts").update({ stripe_customer_id: cust.id }).eq("id", buyerId);
-    await admin.from("pos_sales").update({ stripe_customer_id: cust.id }).eq("id", saleId);
+    // The card belongs to the family\u0027s GUARDIAN, never to a kid. Find the
+    // guardian holding the payer\u0027s email: reuse their Stripe customer if
+    // they have one, adopt the new one onto them if they do not. The old
+    // block minted a fresh customer every time (Tessa Wingfield ended up
+    // with two, and her Monday card was invisible on her profile) and
+    // stamped it onto the buyer CONTACT, which with the first-kid buyer
+    // fallback would file the family card on a child\u0027s record.
+    let custId: string | null = null;
+    let payerGuardianId: string | null = null;
+    const gm = await admin.from("guardian_emails").select("guardian_id").ilike("email", email).limit(2);
+    if ((gm.data ?? []).length === 1) {
+      payerGuardianId = gm.data![0].guardian_id as string;
+      const g = await admin.from("guardians").select("stripe_customer_id")
+        .eq("id", payerGuardianId).maybeSingle();
+      custId = (g.data?.stripe_customer_id as string | null) ?? null;
+    }
+    if (!custId) {
+      const cf = new URLSearchParams();
+      cf.set("name", parentName);
+      cf.set("email", email);
+      if (phone) cf.set("phone", phone);
+      if (payerGuardianId) cf.set("metadata[guardian_id]", payerGuardianId);
+      const cust = await stripe("customers", secretKey, cf);
+      custId = cust.id as string;
+      // Adopt onto the guardian, guarded so a concurrent write is never
+      // overwritten. A customer with no guardian to land on stays reachable
+      // through the sale row, same as before.
+      if (payerGuardianId) {
+        await admin.from("guardians").update({ stripe_customer_id: custId })
+          .eq("id", payerGuardianId).is("stripe_customer_id", null);
+      }
+    }
+    await admin.from("pos_sales").update({ stripe_customer_id: custId }).eq("id", saleId);
 
     const f = new URLSearchParams();
     f.set("amount", String(totals.totalCents));
@@ -522,7 +547,7 @@ Deno.serve(async (req) => {
     f.set("payment_method_types[]", "card");
     f.set("description", "Belt testing - " + seats.map((s) => s.first + " " + s.last).join(", "));
     f.set("receipt_email", email);
-    f.set("customer", cust.id);
+    f.set("customer", custId);
     f.set("setup_future_usage", "off_session");
     f.set("metadata[sale_id]", saleId);
     f.set("metadata[source]", "testing-checkout");
