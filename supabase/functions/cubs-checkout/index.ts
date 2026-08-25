@@ -34,6 +34,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import BTKDPricing from "../_shared/pricing_esm.js";
+import { familyCustomer, findOrCreateGuardian } from "../_shared/family.ts";
 import CUBS_TEMPLATE from "../_shared/cubs_agreement.js";
 
 const PROGRAM = "Cubs";
@@ -470,18 +471,33 @@ Deno.serve(async (req) => {
 
     // 2. The guardian, name and all.
     const guardianName = (parentFirst + " " + parentLast).trim();
-    const gIns = await admin.from("student_guardians").insert({
-      student_id: studentId, email, name: guardianName, label: "parent",
-    });
-    if (gIns.error) problems.push("guardian row: " + gIns.error.message);
+    // The payer becomes (or already is) a real guardians PERSON, linked to
+    // the student (_shared/family.ts). The old inserts wrote legacy
+    // name/email link rows with no guardian person behind them - data the
+    // CRM\u0027s guardian UI cannot see. The legacy insert survives only for
+    // the case find-or-create refuses: two guardians sharing one address.
+    const gId = await findOrCreateGuardian(admin,
+      { name: guardianName, email, phone, studentId, label: "parent" });
+    if (!gId) {
+      const gIns = await admin.from("student_guardians").insert({
+        student_id: studentId, email, name: guardianName, label: "parent",
+      });
+      if (gIns.error) problems.push("guardian row: " + gIns.error.message);
+    }
 
     if (guardian2 && (guardian2.name || guardian2.email || guardian2.phone)) {
-      const g2Ins = await admin.from("student_guardians").insert({
-        student_id: studentId, label: "guardian",
-        name: guardian2.name || null, email: guardian2.email || null,
-        phone: guardian2.phone || null, address: guardian2.address || null,
-      });
-      if (g2Ins.error) problems.push("second guardian: " + g2Ins.error.message);
+      const g2Id = guardian2.email
+        ? await findOrCreateGuardian(admin, { name: guardian2.name || guardian2.email,
+            email: guardian2.email, phone: guardian2.phone, studentId, label: "guardian" })
+        : null;   // no email = nothing to match a person on; keep the legacy row
+      if (!g2Id) {
+        const g2Ins = await admin.from("student_guardians").insert({
+          student_id: studentId, label: "guardian",
+          name: guardian2.name || null, email: guardian2.email || null,
+          phone: guardian2.phone || null, address: guardian2.address || null,
+        });
+        if (g2Ins.error) problems.push("second guardian: " + g2Ins.error.message);
+      }
     }
     if (extraPeople.length) {
       const epIns = await admin.from("student_contacts").insert(
@@ -495,7 +511,7 @@ Deno.serve(async (req) => {
       : "After today, your " + (chosen.billing_frequency === "weekly" ? "weekly" : "monthly")
         + " payment is " + money(chosen.recurring_cents || 0) + ", due " + payDate + ".";
     const saleIns = await admin.from("pos_sales").insert({
-      id: saleId, buyer_contact_id: studentId, payer_name: guardianName || null, sale_date: today,
+      id: saleId, buyer_contact_id: studentId, payer_name: guardianName || null, payer_email: email || null, sale_date: today,
       staff_email: "cubs-checkout@website", brand: "btkd",
       tender_method: null, status: "unpaid",
       subtotal_cents: totals.subtotalCents, discount_cents: 0,
@@ -610,13 +626,11 @@ Deno.serve(async (req) => {
     if (!secretKey) {
       return json({ ok: true, receipt_url: `${SITE}/invoice/?t=${token}`, total_cents: totals.totalCents }, 200, cors);
     }
-    const cf = new URLSearchParams();
-    cf.set("name", guardianName);
-    cf.set("email", email);
-    if (phone) cf.set("phone", phone);
-    cf.set("metadata[contact_id]", studentId);
-    const cust = await stripe("customers", secretKey, cf);
-    await admin.from("contacts").update({ stripe_customer_id: cust.id }).eq("id", studentId);
+    // Whose card it is: the family\u0027s guardian, one shared answer for all
+    // five checkouts (_shared/family.ts). The old block minted a customer
+    // per sale and stamped it on the KID\u0027s contact row.
+    const fam = await familyCustomer(admin, stripe, secretKey,
+      { email, name: guardianName, phone, studentId });
 
     const f = new URLSearchParams();
     f.set("amount", String(totals.totalCents));
@@ -624,7 +638,7 @@ Deno.serve(async (req) => {
     f.set("payment_method_types[]", "card");
     f.set("description", "Cubs (" + chosen.name + ") - " + studentFirst + " " + studentLast);
     f.set("receipt_email", email);
-    f.set("customer", cust.id);
+    f.set("customer", fam.custId);
     f.set("setup_future_usage", "off_session");
     f.set("metadata[sale_id]", saleId);
     f.set("metadata[source]", "cubs-checkout");

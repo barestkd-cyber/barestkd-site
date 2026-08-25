@@ -27,6 +27,7 @@
 // ===========================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import BTKDPricing from "../_shared/pricing_esm.js";
+import { familyCustomer } from "../_shared/family.ts";
 
 const SITE = "https://www.barestkd.fit";
 const TAX_RATE = 0.0825;
@@ -516,7 +517,7 @@ Deno.serve(async (req) => {
       tender_method: null, status: "unpaid",
       subtotal_cents: totals.subtotalCents, discount_cents: 0,
       admin_fee_cents: fee, tax_cents: totals.taxCents, total_cents: totals.totalCents,
-      receipt_email: email, calendar_url: calUrl,
+      payer_email: email, calendar_url: calUrl,
       customer_note: wantPack
         ? ("Private lessons for " + student + ". First lesson " + when + ". "
           + packSize + " lessons prepaid, " + (packSize - 1) + " left to schedule - "
@@ -579,18 +580,12 @@ Deno.serve(async (req) => {
         receipt_url: SITE + "/invoice/?t=" + token }, 200, cors);
     }
 
-    const cf = new URLSearchParams();
-    cf.set("name", (first + " " + last).trim());
-    cf.set("email", email);
-    if (phone) cf.set("phone", phone);
-    cf.set("metadata[contact_id]", buyerId);
-    const cust = await stripe("customers", secretKey, cf);
-    // Never overwrite an existing contact's Stripe customer: that would
-    // repoint a real member's saved cards at a stranger.
-    if (!buyerHadCustomer) {
-      await admin.from("contacts").update({ stripe_customer_id: cust.id }).eq("id", buyerId);
-    }
-    await admin.from("pos_sales").update({ stripe_customer_id: cust.id }).eq("id", saleId);
+    // Whose card it is: one shared answer (_shared/family.ts). An adult
+    // paying for themselves keeps their own customer (case 1, adopt-only,
+    // never overwriting); a parent lands on their guardian person.
+    const fam = await familyCustomer(admin, stripe, secretKey,
+      { email, name: (first + " " + last).trim(), phone, studentId: buyerId });
+    await admin.from("pos_sales").update({ stripe_customer_id: fam.custId }).eq("id", saleId);
 
     const f = new URLSearchParams();
     f.set("amount", String(totals.totalCents));
@@ -600,7 +595,7 @@ Deno.serve(async (req) => {
       ? ("Private lesson pack (" + packSize + ") - " + student)
       : ("Private lesson - " + student + ", " + when));
     f.set("receipt_email", email);
-    f.set("customer", cust.id);
+    f.set("customer", fam.custId);
     f.set("setup_future_usage", "off_session");
     f.set("metadata[sale_id]", saleId);
     f.set("metadata[source]", "private-checkout");

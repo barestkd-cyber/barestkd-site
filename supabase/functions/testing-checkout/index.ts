@@ -28,6 +28,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import BTKDPricing from "../_shared/pricing_esm.js";
+import { familyCustomer } from "../_shared/family.ts";
 
 const SITE = "https://www.barestkd.fit";
 const TAX_RATE = 0.0825;
@@ -456,7 +457,7 @@ Deno.serve(async (req) => {
       subtotal_cents: totals.subtotalCents, discount_cents: 0,
       admin_fee_cents: fee, tax_cents: totals.taxCents,
       total_cents: totals.totalCents,
-      receipt_email: email,
+      payer_email: email,
       calendar_url: calUrl,
       // What the PARENT reads on their receipt. Without this the only email
       // they get is a total, and never says which day to show up.
@@ -528,32 +529,12 @@ Deno.serve(async (req) => {
     // with two, and her Monday card was invisible on her profile) and
     // stamped it onto the buyer CONTACT, which with the first-kid buyer
     // fallback would file the family card on a child\u0027s record.
-    let custId: string | null = null;
-    let payerGuardianId: string | null = null;
-    const gm = await admin.from("guardian_emails").select("guardian_id").ilike("email", email).limit(2);
-    if ((gm.data ?? []).length === 1) {
-      payerGuardianId = gm.data![0].guardian_id as string;
-      const g = await admin.from("guardians").select("stripe_customer_id")
-        .eq("id", payerGuardianId).maybeSingle();
-      custId = (g.data?.stripe_customer_id as string | null) ?? null;
-    }
-    if (!custId) {
-      const cf = new URLSearchParams();
-      cf.set("name", parentName);
-      cf.set("email", email);
-      if (phone) cf.set("phone", phone);
-      if (payerGuardianId) cf.set("metadata[guardian_id]", payerGuardianId);
-      const cust = await stripe("customers", secretKey, cf);
-      custId = cust.id as string;
-      // Adopt onto the guardian, guarded so a concurrent write is never
-      // overwritten. A customer with no guardian to land on stays reachable
-      // through the sale row, same as before.
-      if (payerGuardianId) {
-        await admin.from("guardians").update({ stripe_customer_id: custId })
-          .eq("id", payerGuardianId).is("stripe_customer_id", null);
-      }
-    }
-    await admin.from("pos_sales").update({ stripe_customer_id: custId }).eq("id", saleId);
+    // Whose card it is: the shared answer (_shared/family.ts), which this
+    // function\u0027s local version graduated into. Unknown payers now become
+    // real guardians people linked to the first registered kid.
+    const fam = await familyCustomer(admin, stripe, secretKey,
+      { email, name: parentName, phone, studentId: buyerId });
+    await admin.from("pos_sales").update({ stripe_customer_id: fam.custId }).eq("id", saleId);
 
     const f = new URLSearchParams();
     f.set("amount", String(totals.totalCents));
@@ -561,7 +542,7 @@ Deno.serve(async (req) => {
     f.set("payment_method_types[]", "card");
     f.set("description", "Belt testing - " + seats.map((s) => s.first + " " + s.last).join(", "));
     f.set("receipt_email", email);
-    f.set("customer", custId);
+    f.set("customer", fam.custId);
     f.set("setup_future_usage", "off_session");
     f.set("metadata[sale_id]", saleId);
     f.set("metadata[source]", "testing-checkout");
