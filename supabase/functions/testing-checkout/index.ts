@@ -410,6 +410,20 @@ Deno.serve(async (req) => {
     // invisible on every profile). The first registered kid is the family
     // the sale belongs to, and beats an invoice attached to nobody.
     if (!buyerId) buyerId = seatIds.find((x) => x) ?? null;
+    // Third path: the single GUARDIAN holding the payer\u0027s email. Typo-proof,
+    // because a parent types their own email right even when they fumble the
+    // kid\u0027s name (2026-08-25: "Cade Louos" filed a fully-known family as a
+    // walk-in while Lindsay\u0027s email sat correct on her guardian row). Files
+    // under her first linked kid, which lands the invoice in the right
+    // family even when no seat matched.
+    if (!buyerId) {
+      const bg = await admin.from("guardian_emails").select("guardian_id").ilike("email", email).limit(2);
+      if ((bg.data ?? []).length === 1) {
+        const kid = await admin.from("student_guardians").select("student_id")
+          .eq("guardian_id", bg.data![0].guardian_id).limit(1);
+        if ((kid.data ?? []).length === 1) buyerId = kid.data![0].student_id as string;
+      }
+    }
 
     const parentName = (parentFirst + " " + parentLast).trim();
     const noteLines = seats.map((s) =>
