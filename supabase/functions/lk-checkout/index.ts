@@ -568,7 +568,10 @@ Deno.serve(async (req) => {
     const saleIns = await admin.from("pos_sales").insert({
       id: saleId, buyer_contact_id: studentId, payer_name: guardianName || null, payer_email: email || null, sale_date: today,
       staff_email: "lk-checkout@website", brand: "btkd",
-      tender_method: null, status: "unpaid",
+      // pending_payment, not unpaid: an abandoned checkout must not leave a
+      // debt on anybody\u0027s profile (owner 2026-08-25). Payment flips it
+      // paid; the sweep abandons it after 24h.
+      tender_method: null, status: "pending_payment",
       subtotal_cents: totals.subtotalCents, discount_cents: 0,
       admin_fee_cents: fee, tax_cents: totals.taxCents,
       total_cents: totals.totalCents,
