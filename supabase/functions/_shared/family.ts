@@ -42,6 +42,18 @@ export async function findOrCreateGuardian(
   const gm = await admin.from("guardian_emails").select("guardian_id").ilike("email", email).limit(2);
   if ((gm.data ?? []).length === 1) {
     guardianId = gm.data![0].guardian_id as string;
+    // Backfill the NAME onto a guardian that has none. The Spark import left 22
+    // nameless rows holding only an email; matching one by address and walking
+    // away meant a parent who had just typed her name at checkout still showed
+    // as "guardian unknown" (Cecilia Sakong, 2026-08-26). Guarded so a real
+    // name is never overwritten by a different payer using the same address.
+    if (args.name) {
+      const cur = await admin.from("guardians").select("name").eq("id", guardianId).maybeSingle();
+      if (!String(cur.data?.name ?? "").trim()) {
+        await admin.from("guardians").update({ name: args.name }).eq("id", guardianId).is("name", null);
+        await admin.from("guardians").update({ name: args.name }).eq("id", guardianId).eq("name", "");
+      }
+    }
   } else if ((gm.data ?? []).length === 0) {
     const gIns = await admin.from("guardians")
       .insert({ name: args.name || email, phones: args.phone ? [args.phone] : [] })
