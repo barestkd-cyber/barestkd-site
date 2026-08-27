@@ -361,7 +361,7 @@
         try {
           navigator.sendBeacon && navigator.sendBeacon(
             "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/card-reject?src=private-lesson",
-            JSON.stringify({ code: pmRes.error.code || "", message: pmRes.error.message || "" }));
+            JSON.stringify({ code: pmRes.error.code || "", message: pmRes.error.message || "", who: (function(){ var g=function(i){var e=document.getElementById(i);return e && e.value ? String(e.value).trim() : "";}; return { parent: (g("lkc-pfirst")+" "+g("lkc-plast")).trim() || (g("tst-pfirst")+" "+g("tst-plast")).trim() || (g("pl-first")+" "+g("pl-last")).trim() || g("lkc-signer"), student: (g("lkc-sfirst")+" "+g("lkc-slast")).trim() || g("pl-student"), email: g("lkc-email") || g("tst-email") || g("pl-email"), phone: g("lkc-phone") || g("tst-phone") || g("pl-phone") }; })() }));
         } catch (e2) {}
         return;
       }
