@@ -545,7 +545,12 @@ Deno.serve(async (req) => {
 
     // -- payment, taken on this page ---------------------------------------
     if (!secretKey) {
-      return json({ ok: true, receipt_url: SITE + "/invoice/?t=" + token, total_cents: totals.totalCents }, 200, cors);
+      // A missing key is OUR failure, not a completed enrollment. This used
+      // to answer ok with a receipt and no client_secret, which the page
+      // treats as done - so a key problem would have told every family they
+      // were enrolled while charging nobody (2026-08-26).
+      console.error("[testing-checkout] STRIPE_SECRET_KEY missing - refusing to imply enrollment");
+      return json({ error: "Card payments are not available right now. Please call 903-561-2966 and we will finish this for you." }, 503, cors);
     }
     // Card on file, same as every other rail (owner's locked model): attach a
     // customer so this card can be charged again later by staff.

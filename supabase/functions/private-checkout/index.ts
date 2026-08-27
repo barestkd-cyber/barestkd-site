@@ -603,8 +603,12 @@ Deno.serve(async (req) => {
     if (problems.length) console.error("[private-checkout] partial writes:", saleId, problems);
 
     if (!secretKey) {
-      return json({ ok: true, sale_id: saleId, total_cents: totals.totalCents,
-        receipt_url: SITE + "/invoice/?t=" + token }, 200, cors);
+      // A missing key is OUR failure, not a completed booking. Answering ok
+      // with a receipt and no client_secret reads to the page as done, so a
+      // key problem would have told every customer they were booked while
+      // charging nobody (2026-08-26).
+      console.error("[private-checkout] STRIPE_SECRET_KEY missing - refusing to imply a booking");
+      return json({ error: "Card payments are not available right now. Please call 903-561-2966 and we will finish this for you." }, 503, cors);
     }
 
     // Whose card it is: one shared answer (_shared/family.ts). An adult

@@ -911,7 +911,12 @@ Deno.serve(async (req) => {
     //    setup_future_usage: the buyer just signed up for recurring payments,
     //    so the card must be chargeable later without them present.
     if (!secretKey) {
-      return json({ ok: true, receipt_url: `${SITE}/invoice/?t=${token}`, total_cents: totals.totalCents }, 200, cors);
+      // A missing key is OUR failure, not a completed enrollment. This used
+      // to answer ok with a receipt and no client_secret, which the page
+      // treats as done - so a key problem would have told every family they
+      // were enrolled while charging nobody (2026-08-26).
+      console.error("[program-checkout] STRIPE_SECRET_KEY missing - refusing to imply enrollment");
+      return json({ error: "Card payments are not available right now. Please call 903-561-2966 and we will finish this for you." }, 503, cors);
     }
     // Whose card it is: the family\u0027s guardian, one shared answer for all
     // five checkouts (_shared/family.ts). The old block minted a customer

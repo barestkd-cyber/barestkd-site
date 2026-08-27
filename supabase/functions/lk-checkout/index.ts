@@ -712,9 +712,12 @@ Deno.serve(async (req) => {
     //    form and this returns the intent for the browser to confirm.
     //    The amount comes from the totals computed above, never the client.
     if (!secretKey) {
-      // No Stripe configured: fall back to the invoice link so the enrollment
-      // is not lost, and they can be taken payment another way.
-      return json({ ok: true, receipt_url: `${SITE}/invoice/?t=${token}`, total_cents: totals.totalCents }, 200, cors);
+      // A missing key is OUR failure, not a completed enrollment. The old
+      // fallback answered ok with a receipt and no client_secret, which the
+      // page treats as done - so a key problem would have told every family
+      // they were enrolled while charging nobody (2026-08-26).
+      console.error("[lk-checkout] STRIPE_SECRET_KEY missing - refusing to imply enrollment");
+      return json({ error: "Card payments are not available right now. Please call 903-561-2966 and we will finish this for you." }, 503, cors);
     }
     // Card on file, same as every other rail (owner's locked model): attach
     // a customer so this card can be charged again later by staff.
