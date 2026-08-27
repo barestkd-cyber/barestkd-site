@@ -663,7 +663,11 @@ Deno.serve(async (req) => {
       first_name: studentFirst, last_name: studentLast,
       segment: "lead", member_role: "student",
       source: "website-" + slug + "-checkout", entered_on: today,
-      dob, email, phone, address,
+      dob, address,
+      // An ADULT enrolling themselves owns these; for a minor they are the
+      // guardian's and belong on the guardian, not on the child.
+      email: needsGuardian ? null : email,
+      phone: needsGuardian ? null : phone,
     }).select("id").single();
     if (contactIns.error) throw contactIns.error;
     const studentId = contactIns.data.id as string;

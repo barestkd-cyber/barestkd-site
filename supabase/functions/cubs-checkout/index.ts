@@ -464,7 +464,11 @@ Deno.serve(async (req) => {
       first_name: studentFirst, last_name: studentLast,
       segment: "lead", member_role: "student",
       source: "website-cubs-checkout", entered_on: today,
-      dob, email, phone, address,
+      dob, address,
+      // NOT email or phone: those belong to the PARENT, who is collected
+      // in the guardian block below and gets them there. Putting them on
+      // the child made familyCustomer read the kid as the payer and file
+      // the family card on a four-year-old (Cody Mogle, 2026-08-26).
     }).select("id").single();
     if (contactIns.error) throw contactIns.error;
     const studentId = contactIns.data.id as string;
