@@ -415,7 +415,34 @@ Deno.serve(async (req) => {
           return json({ ok: true, client_secret: pi0.client_secret, payment_intent_id: pi0.id, sale_id: saleId, total_cents: existing.data.total_cents }, 200, cors);
         }
       }
-      return json({ ok: true, receipt_url: `${SITE}/invoice/?t=${existing.data.view_token}`, total_cents: existing.data.total_cents }, 200, cors);
+      // NOT "ok" with a receipt and no way to pay. The page reads a missing
+      // client_secret as a finished sale, so this branch used to tell an
+      // unpaid customer they were enrolled - which is how a family was told
+      // their son had a place after three failed attempts (2026-08-26).
+      //
+      // An unpaid sale with no usable intent gets a FRESH one, so the retry
+      // does what the customer is trying to do: pay.
+      if (secretKey) {
+        try {
+          const rf = new URLSearchParams();
+          rf.set("amount", String(existing.data.total_cents));
+          rf.set("currency", "usd");
+          rf.set("payment_method_types[]", "card");
+          rf.set("metadata[sale_id]", saleId);
+          rf.set("metadata[source]", "RETRY_SRC");
+          const rpi = await stripe("payment_intents", secretKey, rf);
+          const st = await admin.from("pos_sales")
+            .update({ stripe_payment_intent: rpi.id }).eq("id", saleId);
+          if (st.error) console.error("retry intent stamp failed", saleId, st.error);
+          return json({ ok: true, client_secret: rpi.client_secret, payment_intent_id: rpi.id,
+            sale_id: saleId, total_cents: existing.data.total_cents }, 200, cors);
+        } catch (e) {
+          console.error("retry intent failed", saleId, e);
+        }
+      }
+      // Payments genuinely unavailable: say so plainly rather than implying
+      // the enrollment went through.
+      return json({ error: "We could not start the payment. Please call 903-561-2966 and we will finish this for you." }, 503, cors);
     }
 
     // ── price it OURSELVES with the engine the POS uses ────────────────────
@@ -650,7 +677,11 @@ Deno.serve(async (req) => {
     f.set("metadata[sale_id]", saleId);
     f.set("metadata[source]", "cubs-checkout");
     const pi = await stripe("payment_intents", secretKey, f);
-    await admin.from("pos_sales").update({ stripe_payment_intent: pi.id, stripe_customer_id: fam.custId }).eq("id", saleId);
+    const piStamp = await admin.from("pos_sales")
+      .update({ stripe_payment_intent: pi.id, stripe_customer_id: fam.custId }).eq("id", saleId);
+    // Checked, because when this failed silently the retry could not
+    // find the intent and told the customer they were enrolled instead.
+    if (piStamp.error) console.error("payment intent stamp FAILED", saleId, piStamp.error);
 
     return json({
       ok: true,

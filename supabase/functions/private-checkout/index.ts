@@ -457,7 +457,31 @@ Deno.serve(async (req) => {
           }, 200, cors);
         }
       }
-      return json({ ok: true, receipt_url: SITE + "/invoice/?t=" + token }, 200, cors);
+      // NOT "ok" with a receipt and no way to pay: the page treats a missing
+      // client_secret as a finished sale and would tell an unpaid customer
+      // they were done (2026-08-26, cubs-checkout, a family told their son
+      // was enrolled after three failed attempts). Make a fresh intent so
+      // the retry does what they came to do.
+      if (secretKey) {
+        try {
+          const rf = new URLSearchParams();
+          rf.set("amount", String(existing.data.total_cents));
+          rf.set("currency", "usd");
+          rf.set("payment_method_types[]", "card");
+          rf.set("metadata[sale_id]", saleId);
+          rf.set("metadata[source]", "private-checkout");
+          const rpi = await stripe("payment_intents", secretKey, rf);
+          const st = await admin.from("pos_sales")
+            .update({ stripe_payment_intent: rpi.id }).eq("id", saleId);
+          if (st.error) console.error("retry intent stamp failed", saleId, st.error);
+          return json({ ok: true, client_secret: rpi.client_secret, payment_intent_id: rpi.id,
+            sale_id: saleId, total_cents: existing.data.total_cents,
+            receipt_url: SITE + "/invoice/?t=" + token }, 200, cors);
+        } catch (e) {
+          console.error("retry intent failed", saleId, e);
+        }
+      }
+      return json({ error: "We could not start the payment. Please call 903-561-2966 and we will finish this for you." }, 503, cors);
     }
 
     // Money, from the engine. The page never sends an amount.
@@ -603,7 +627,10 @@ Deno.serve(async (req) => {
     f.set("metadata[sale_id]", saleId);
     f.set("metadata[source]", "private-checkout");
     const pi = await stripe("payment_intents", secretKey, f);
-    await admin.from("pos_sales").update({ stripe_payment_intent: pi.id }).eq("id", saleId);
+    const piStamp = await admin.from("pos_sales")
+      .update({ stripe_payment_intent: pi.id }).eq("id", saleId);
+    // Checked: a silent failure here is what let the retry claim success.
+    if (piStamp.error) console.error("payment intent stamp FAILED", saleId, piStamp.error);
 
     return json({
       ok: true, client_secret: pi.client_secret, payment_intent_id: pi.id,
