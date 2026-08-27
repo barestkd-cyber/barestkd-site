@@ -516,7 +516,7 @@ Deno.serve(async (req) => {
     //    the guardian IS the contact channel, same as the trial funnel.
     const contactIns = await admin.from("contacts").insert({
       first_name: studentFirst, last_name: studentLast,
-      segment: "active", member_role: "student",
+      segment: "lead", member_role: "student",
       source: "website-lk-checkout", entered_on: today,
       dob, email, phone, address,
     }).select("id").single();
