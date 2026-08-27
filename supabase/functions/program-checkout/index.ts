@@ -901,7 +901,7 @@ Deno.serve(async (req) => {
     f.set("metadata[sale_id]", saleId);
     f.set("metadata[source]", "program-checkout");
     const pi = await stripe("payment_intents", secretKey, f);
-    await admin.from("pos_sales").update({ stripe_payment_intent: pi.id, stripe_customer_id: cust.id }).eq("id", saleId);
+    await admin.from("pos_sales").update({ stripe_payment_intent: pi.id, stripe_customer_id: fam.custId }).eq("id", saleId);
 
     return json({
       ok: true,
