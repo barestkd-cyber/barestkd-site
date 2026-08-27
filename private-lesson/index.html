@@ -334,7 +334,7 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  $("pl-form").addEventListener("submit", function (ev) {
+  $("pl-form").addEventListener("submit", async function (ev) {
     ev.preventDefault();
     if (busy) return;
     showErr("");
@@ -345,6 +345,31 @@
     if (!first || !last) { showErr("We need your first and last name."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr("That email does not look right."); return; }
     if (!phone) { showErr("We need a phone number in case we have to reach you."); return; }
+
+    // The card is checked HERE, before a single record is written. Not a
+    // charge: createPaymentMethod only asks Stripe to validate the entry and
+    // hand back a token. A bad card stops at this line and creates nothing
+    // (2026-08-26 - a parent was fully enrolled with a signed agreement after
+    // her card entry was rejected at this step).
+    if (!CARD) { showErr("The card field has not loaded yet. Give it a moment or reload the page."); return; }
+    var PM = null;
+    try {
+      var pmRes = await STRIPE.createPaymentMethod({ type: "card", card: CARD });
+      if (pmRes.error) {
+        cardErr(pmRes.error.message || "Please check the card details.");
+        showErr(pmRes.error.message || "Please check the card details and try again.");
+        try {
+          navigator.sendBeacon && navigator.sendBeacon(
+            "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/card-reject?src=private-lesson",
+            JSON.stringify({ code: pmRes.error.code || "", message: pmRes.error.message || "" }));
+        } catch (e2) {}
+        return;
+      }
+      PM = pmRes.paymentMethod;
+    } catch (e1) {
+      showErr("Could not check the card. Please try again.");
+      return;
+    }
 
     busy = true;
     $("pl-go").disabled = true;
@@ -366,7 +391,7 @@
         window.location.href = res.j.receipt_url;
         return null;
       }
-      return STRIPE.confirmCardPayment(res.j.client_secret, { payment_method: { card: CARD } })
+      return STRIPE.confirmCardPayment(res.j.client_secret, { payment_method: PM.id })
         .then(function (r2) {
           if (r2.error) throw new Error(r2.error.message);
           return post({ action: "finalize", sale_id: SALE_ID, payment_intent_id: r2.paymentIntent.id });

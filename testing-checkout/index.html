@@ -551,7 +551,7 @@
   /* ---- submit ----------------------------------------------------------- */
   $("tst-addstu").addEventListener("click", addStudent);
 
-  $("tst-form").addEventListener("submit", function (e) {
+  $("tst-form").addEventListener("submit", async function (e) {
     e.preventDefault();
     if ($("tst-hp").value.trim() !== "") return;                 // honeypot
     if (!CFG || !SALE_ID) { status("error", "Reload the page and try again."); return; }
@@ -570,7 +570,31 @@
       }
       if (!s.rank) { status("error", "Pick the current belt for " + (s.first.trim() || ("student " + (j + 1))) + "."); return; }
     }
+    // The card is checked HERE, before a single record is written. Not a
+    // charge: createPaymentMethod only asks Stripe to validate the entry
+    // and hand back a token. A bad card stops at this line and creates
+    // nothing (2026-08-26 - a parent was fully enrolled with a signed
+    // agreement after her card entry was rejected at this step).
     if (!CARD) { status("error", "The card field has not loaded yet. Give it a moment or reload the page."); return; }
+    status("", "Checking your card…");
+    var PM = null;
+    try {
+      var pmRes = await STRIPE.createPaymentMethod({ type: "card", card: CARD });
+      if (pmRes.error) {
+        if (typeof cardErr === "function") cardErr(pmRes.error.message || "Please check the card details.");
+        status("error", pmRes.error.message || "Please check the card details and try again.");
+        try {
+          navigator.sendBeacon && navigator.sendBeacon(
+            "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/card-reject?src=testing-checkout",
+            JSON.stringify({ code: pmRes.error.code || "", message: pmRes.error.message || "" }));
+        } catch (e2) {}
+        return;
+      }
+      PM = pmRes.paymentMethod;
+    } catch (e1) {
+      status("error", "Could not check the card. Please try again.");
+      return;
+    }
 
     var btn = $("tst-pay");
     btn.disabled = true; btn.textContent = "Working…";
@@ -601,7 +625,7 @@
         if (res.j.paid) return { paid: true, receipt: res.j.receipt_url };
         if (!res.j.client_secret) { location.href = res.j.receipt_url; return { redirected: true }; }
         status("", "Charging your card…");
-        return STRIPE.confirmCardPayment(res.j.client_secret, { payment_method: { card: CARD } })
+        return STRIPE.confirmCardPayment(res.j.client_secret, { payment_method: PM.id })
           .then(function (r2) {
             if (r2.error) throw new Error(r2.error.message || "Your card was declined.");
             status("", "Confirming…");
