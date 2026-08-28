@@ -154,6 +154,27 @@ async function sendReceipt(saleId: string): Promise<void> {
   }
 }
 
+
+/* Brand and last four of the card that paid, wherever Stripe put them on
+ * this object. Missing is normal (cash, ACH) and returns nulls rather than
+ * guessing. Same walk the stripe-webhook uses. */
+function cardBits(obj: Record<string, unknown>): { card_brand: string | null; card_last4: string | null } {
+  const seen = new Set<unknown>();
+  const walk = (o: unknown, depth: number): Record<string, unknown> | null => {
+    if (!o || typeof o !== "object" || depth > 5 || seen.has(o)) return null;
+    seen.add(o);
+    const rec = o as Record<string, unknown>;
+    if (typeof rec.last4 === "string" && typeof rec.brand === "string") return rec;
+    for (const v of Object.values(rec)) { const hit = walk(v, depth + 1); if (hit) return hit; }
+    return null;
+  };
+  const c = walk(obj, 0);
+  return {
+    card_brand: c && typeof c.brand === "string" ? String(c.brand).slice(0, 32) : null,
+    card_last4: c && /^[0-9]{4}$/.test(String(c.last4)) ? String(c.last4) : null,
+  };
+}
+
 Deno.serve(async (req) => {
   const cors = corsHeaders(req.headers.get("Origin"));
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -356,6 +377,7 @@ Deno.serve(async (req) => {
       if (!dupe.data || !dupe.data.length) {
         await admin.from("pos_payments").insert({
           sale_id: fSale, kind: "charge", amount_cents: amt, method: "card",
+          ...cardBits(pi),
           stripe_object_id: pi.id, note: "Card payment (private lesson booking)",
         });
       }
