@@ -449,6 +449,53 @@ Deno.serve(async (req) => {
       seatIds.push((m.data ?? []).length === 1 ? (m.data![0].id as string) : null);
     }
 
+    // Second pass, family-scoped (owner, 2026-08-27). The payer\u0027s email
+    // picks the FAMILY - it cannot pick a person, since a guardian\u0027s
+    // address sits on every kid - and the typed name then only chooses among
+    // a handful of relatives instead of the whole roll. "Josh Nannen" finds
+    // Joshua Nannen; "Florence Patrick Larano" finds Patrick Larano. Inside
+    // the family we can be generous where the global matcher must not be:
+    // a stranger can never be reached from this family\u0027s email. The rule
+    // stays exactly-one-candidate-or-nothing; two candidates means no link.
+    if (seatIds.some((x) => !x)) {
+      const norm = (v: unknown) => String(v ?? "").toLowerCase().replace(/[^a-z]/g, "");
+      const circle = new Map<string, { first: string; last: string }>();
+      const own = await admin.from("contacts").select("id,first_name,last_name").ilike("email", email);
+      for (const c of (own.data ?? []) as Record<string, any>[]) {
+        circle.set(String(c.id), { first: String(c.first_name ?? ""), last: String(c.last_name ?? "") });
+      }
+      const gm2 = await admin.from("guardian_emails").select("guardian_id").ilike("email", email);
+      const gids = (gm2.data ?? []).map((r: Record<string, unknown>) => String(r.guardian_id));
+      if (gids.length) {
+        const famKids = await admin.from("student_guardians")
+          .select("student_id,contacts:student_id(first_name,last_name)").in("guardian_id", gids);
+        for (const k of (famKids.data ?? []) as Record<string, any>[]) {
+          if (k.contacts) circle.set(String(k.student_id),
+            { first: String(k.contacts.first_name ?? ""), last: String(k.contacts.last_name ?? "") });
+        }
+      }
+      for (let i = 0; i < seats.length; i++) {
+        if (seatIds[i]) continue;
+        const wantLast = norm(seats[i].last);
+        // Every word of the typed first name gets a chance: "Florence
+        // Patrick" carries the goes-by name in its second token.
+        const tokens = String(seats[i].first).toLowerCase().split(/\s+/)
+          .map((t) => t.replace(/[^a-z]/g, "")).filter(Boolean);
+        const hits: string[] = [];
+        for (const [id, c] of circle) {
+          if (norm(c.last) !== wantLast) continue;
+          const cf = norm(c.first);
+          // Equal, or a prefix either way (Josh->Joshua, Joshua->Josh).
+          // Prefixes need 3+ letters so an initial cannot match anyone.
+          const ok = tokens.some((t) => t === cf
+            || (t.length >= 3 && cf.startsWith(t))
+            || (cf.length >= 3 && t.startsWith(cf)));
+          if (ok) hits.push(id);
+        }
+        if (hits.length === 1) seatIds[i] = hits[0];
+      }
+    }
+
     let buyerId: string | null = null;
     const buyerMatch = await admin.from("contacts").select("id").ilike("email", email).limit(2);
     if ((buyerMatch.data ?? []).length === 1) buyerId = buyerMatch.data![0].id as string;
