@@ -690,6 +690,9 @@ Deno.serve(async (req) => {
       agreed_payment_date: null,
       signer_name: signerName, signer_relationship: signerRel,
       signature_png: signature, signed_with_staff: "website checkout",
+      // Stamped here because the column has no default: without it the CRM
+      // showed website agreements as signed-on-(nothing) (found 2026-08-30).
+      signed_at: new Date().toISOString(),
       user_agent: str(req.headers.get("User-Agent")).slice(0, 300),
     });
     if (agrIns.error) problems.push("agreement: " + agrIns.error.message);
