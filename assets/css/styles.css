@@ -9,9 +9,9 @@
      Body text = live rgba(75,76,83). Backgrounds = white / #f2f2f2 light gray. */
   --ink: #1a1a1a;          /* near-black — headings / primary text */
   --paper: #ffffff;        /* white — main background (live content bg) */
-  --belt-red: #e9292d;     /* live brand red — primary action color */
-  --belt-red-dark: #c81f23;/* darker red for hover (live hover is black; kept on-theme) */
-  --belt-gold: #c8992e;    /* minor accent: belt-stripe divider + focus ring */
+  --belt-red: #EA0000;     /* Brand Red — sampled from BARES in the wordmark (ruling 2026-08-30) */
+  --belt-red-dark: #B80000;/* darker red for hover (live hover is black; kept on-theme) */
+  --belt-gold: #F3B700;    /* Brand Gold — sampled from the bear patch lettering (ruling 2026-08-30) */
   --mat-gray: #f2f2f2;     /* light gray section background (live) */
 
   --ink-soft: #4b4c53;     /* live muted body-text gray */
@@ -552,7 +552,7 @@ p { margin: 0 0 1rem; max-width: 66ch; }
 .schedule-class { display: flex; flex-direction: column; gap: 1px; padding: 0.55rem 0.7rem; border-radius: 8px; background: var(--mat-gray); }
 .schedule-class__time { font-weight: 800; font-size: 0.9rem; color: var(--ink); }
 .schedule-class__name { font-weight: 700; }
-.schedule-class[data-p="Taekwondo"] .schedule-class__name { color: #e9292d; }
+.schedule-class[data-p="Taekwondo"] .schedule-class__name { color: var(--belt-red); }
 .schedule-class[data-p="Cubs"] .schedule-class__name { color: #d9660a; }
 .schedule-class[data-p="Kickboxing"] .schedule-class__name { color: #1565c0; }
 .schedule-class[data-p="Jiu Jitsu"] .schedule-class__name { color: #6d4c41; }
