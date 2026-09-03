@@ -231,9 +231,14 @@ Deno.serve(async (req) => {
     const pageLive = setRow.data?.testing_page_live === true;
 
     const today = todayCT();
+    // Which testings are offered is a DECISION, not a date comparison. This
+    // used to be .gte("test_date", today), so adding future dates put them on
+    // sale immediately and a testing closed itself the day it passed - which
+    // left people who still owed for it with no way to pay (owner,
+    // 2026-09-03). signups_open is set per testing in the CRM.
     const groupsRes = await admin.from("testing_dates")
       .select("id,label,test_date,start_time,applies_to,fee_cents,fee_addl_cents,signup_by,program,sort_order")
-      .gte("test_date", today).order("sort_order");
+      .eq("signups_open", true).order("sort_order");
     const groups = groupsRes.data ?? [];
 
     const psRes = await admin.from("pricing_settings").select("key,value_cents");
