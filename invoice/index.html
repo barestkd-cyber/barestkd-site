@@ -38,6 +38,14 @@
   .cardbox{border:2px solid #D9DEE3;border-radius:10px;padding:14px 13px;background:#fff;min-height:50px;margin:10px 0}
   .cardbox.StripeElement--focus{border-color:#15171C}
   .cardload{color:#6A727E;font-size:13px;line-height:1.5}
+  .amtrow{margin:0 0 12px}
+  .amtrow label{display:block;font-size:13px;color:#6A727E;margin-bottom:6px}
+  .amtwrap{display:flex;align-items:center;border:2px solid #D9DEE3;border-radius:10px;padding:0 13px;background:#fff}
+  .amtwrap:focus-within{border-color:#15171C}
+  .amtwrap span{color:#6A727E;font-size:16px;margin-right:4px}
+  .amtwrap input{flex:1;border:none;outline:none;font-size:17px;font-weight:700;padding:13px 0;font-family:inherit;color:#1A1D23;background:transparent;min-width:0}
+  .amtnote{font-size:12px;color:#6A727E;margin-top:6px}
+  .amterr{font-size:12.5px;color:#C0152A;margin-top:6px;display:none}
   .testnote{font-size:12px;color:#6A727E;background:#F4F6F8;border-radius:8px;padding:8px 10px;margin-bottom:10px}
   .testnote:empty{display:none}
   .callrow{display:flex;gap:9px;margin-top:10px}
@@ -136,6 +144,11 @@
         '<p>Your card details go straight to Stripe. We never see or store them.</p>' +
         '<div class="cardbox" id="cardbox"><div class="cardload">Loading secure card field…</div></div>' +
         '<div class="testnote" id="testnote"></div>' +
+        (st.allow_partial ?
+          '<div class="amtrow"><label for="payamt">Amount to pay today</label>' +
+          '<div class="amtwrap"><span>$</span><input id="payamt" type="text" inputmode="decimal" value="' + (st.balance_cents/100).toFixed(2) + '"></div>' +
+          '<div class="amtnote">Paying part of it is fine. The rest stays on this invoice and you can come back to it.</div>' +
+          '<div class="amterr" id="amterr"></div></div>' : '') +
         '<button class="paybtn" id="paybtn" disabled>Pay ' + due + '</button>' +
         '<div class="payerr" id="payerr"></div>' +
         '<div class="callrow"><a href="tel:+19035612966">Call the studio</a>' +
@@ -187,12 +200,54 @@
             ' Please call the studio and we can take payment over the phone.</div>';
         });
 
+      // What they are paying. Only consulted when this invoice allows a
+      // partial; otherwise the server charges the full balance regardless.
+      var amtEl = document.getElementById('payamt');
+      var amtErr = document.getElementById('amterr');
+      var MIN_CENTS = 500;
+
+      function askedCents() {
+        if (!st.allow_partial || !amtEl) return null;
+        var raw = String(amtEl.value || '').replace(/[$,\s]/g, '');
+        if (!raw) return 'empty';
+        var n = Number(raw);
+        if (!isFinite(n)) return 'bad';
+        var cents = Math.round(n * 100);
+        if (cents < MIN_CENTS) return 'low';
+        if (cents > st.balance_cents) return 'high';
+        return cents;
+      }
+
+      // Keep the button honest about what it is about to charge.
+      if (amtEl) {
+        amtEl.addEventListener('input', function () {
+          var a = askedCents();
+          if (typeof a === 'number') {
+            btn.textContent = 'Pay $' + (a / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            amtErr.style.display = 'none';
+          } else {
+            btn.textContent = 'Pay ' + due;
+          }
+        });
+      }
+
       btn.addEventListener('click', function () {
         if (!CARD) return;
+        var asked = askedCents();
+        if (typeof asked === 'string') {
+          var msg = asked === 'high' ? 'That is more than the ' + due + ' still owed on this invoice.'
+            : asked === 'low' ? 'The smallest payment we can take online is $5.00.'
+            : 'Enter the amount you would like to pay.';
+          amtErr.textContent = msg; amtErr.style.display = 'block';
+          amtEl.focus();
+          return;
+        }
         btn.disabled = true; btn.textContent = 'Charging…'; err.textContent = '';
         fetch(CHECKOUT, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ t: token, action: 'intent' })
+          body: JSON.stringify(asked === null
+            ? { t: token, action: 'intent' }
+            : { t: token, action: 'intent', amount_cents: asked })
         })
           .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
           .then(function (res) {
@@ -213,7 +268,11 @@
             location.href = location.pathname + '?t=' + token + '&paid=1';
           })
           .catch(function (e) {
-            btn.disabled = false; btn.textContent = 'Pay ' + due;
+            btn.disabled = false;
+            var a2 = askedCents();
+            btn.textContent = (typeof a2 === 'number' && a2 !== st.balance_cents)
+              ? 'Pay $' + (a2 / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+              : 'Pay ' + due;
             err.textContent = (e && e.message) || 'Could not take the payment. Please try again or call the studio.';
           });
       });
