@@ -405,6 +405,24 @@ const BTKDPricing = (function () {
     };
   }
 
+  /* When a brand-new membership first bills: one full cycle after it starts.
+   * Weekly counts seven days. Monthly keeps the day of the month and clamps
+   * to the last day of shorter ones, so a membership started on the 31st
+   * bills on the 30th in April instead of skipping the month. A one-time
+   * plan has no next time and returns null.
+   *
+   * Shared with the POS on purpose: the desk sees this date on the screen
+   * before it saves, and what it sees has to be what is saved. */
+  function firstBillOn(startedOn, frequency) {
+    if (!startedOn) return null;
+    if (frequency === 'weekly') {
+      var t = ymdToUTC(startedOn);
+      return t == null ? null : utcToYmd(t + 7 * DAY_MS);
+    }
+    if (frequency === 'monthly') return nextBillOn(startedOn, startedOn);
+    return null;
+  }
+
   /* Builds the memberships row from a calculation result. The snapshot is taken
    * ONCE at creation and never re-derived — a later price change to the
    * pricing_plans catalog must not alter an existing membership. */
@@ -429,6 +447,14 @@ const BTKDPricing = (function () {
       explanation: calc.explanation || null,
       pricing_version: calc.pricingVersion || null,
       recommended_cents: calc.finalRecurringCents,
+      // How many payments in total. The catalog knows a contract plan is
+      // twelve; charge-due reads this to stop billing when the term is
+      // done. It was never written until 2026-09-05, so every contract
+      // ever sold was open-ended. null = bills until somebody cancels.
+      // A 0 is the desk saying "ongoing" out loud, and outranks the plan.
+      payment_count: opts.paymentCount != null
+        ? (Number(opts.paymentCount) > 0 ? Number(opts.paymentCount) : null)
+        : (calc.paymentCount != null ? Number(calc.paymentCount) : null),
       created_by: opts.createdBy || null
     };
 
@@ -440,6 +466,21 @@ const BTKDPricing = (function () {
       row.override_at = override.at || null;
       // recommended_cents keeps the engine's recommendation for comparison
     }
+
+    /* When it next bills. Without this a membership is invisible to the
+     * billing engine, which is how two live memberships sat for weeks
+     * billing nobody (2026-09-05). Below the override on purpose: whether
+     * there IS a next payment follows the price actually agreed, not the
+     * catalog's. A named date wins; otherwise one full cycle after the
+     * start, and a one-time plan has no next time and stays null.
+     * A DEFAULT, not a rule - the desk and the profile editor both move it. */
+    if (opts.nextBillOn) {
+      row.next_bill_on = opts.nextBillOn;
+    } else if (row.final_recurring_cents > 0) {
+      var d = firstBillOn(row.started_on, row.billing_frequency);
+      if (d) row.next_bill_on = d;
+    }
+
     return row;
   }
 
@@ -792,6 +833,7 @@ const BTKDPricing = (function () {
     privateSlotsForDay: privateSlotsForDay,
     minutesFromClock: minutesFromClock,
     nextBillOn: nextBillOn,
+    firstBillOn: firstBillOn,
     allocateCents: allocateCents,
     cardFeeCents: cardFeeCents,
     // exposed for the UI and for tests
