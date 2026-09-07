@@ -364,7 +364,8 @@ Deno.serve(async (req) => {
       if (!UUID_RE.test(fSale) || !piId.startsWith("pi_")) return json({ error: "Bad request" }, 400, cors);
       if (!secretKey) return json({ error: "Payments are not configured." }, 503, cors);
 
-      const pi = await stripe("payment_intents/" + encodeURIComponent(piId), secretKey, undefined, "GET");
+      const pi = await stripe("payment_intents/" + encodeURIComponent(piId)
+          + "?expand[]=latest_charge.payment_method_details", secretKey, undefined, "GET");
       if (pi.status !== "succeeded") return json({ error: "That payment did not complete." }, 409, cors);
       if (str(pi.metadata?.sale_id).toLowerCase() !== fSale) {
         return json({ error: "That payment is for a different booking." }, 409, cors);
@@ -469,7 +470,8 @@ Deno.serve(async (req) => {
         return json({ ok: true, paid: true, receipt_url: SITE + "/invoice/?t=" + token }, 200, cors);
       }
       if (existing.data.stripe_payment_intent && secretKey) {
-        const pi = await stripe("payment_intents/" + encodeURIComponent(String(existing.data.stripe_payment_intent)),
+        const pi = await stripe("payment_intents/" + encodeURIComponent(String(existing.data.stripe_payment_intent)
+          + "?expand[]=latest_charge.payment_method_details"),
           secretKey, undefined, "GET");
         if (pi?.client_secret) {
           return json({

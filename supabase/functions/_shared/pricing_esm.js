@@ -405,6 +405,24 @@ const BTKDPricing = (function () {
     };
   }
 
+  /* How many payments a NEW membership still owes after today's.
+   *
+   * Due today is the down payment plus the first recurring payment, so one
+   * of a plan's payments is always already collected by the time the
+   * membership row is written. charge-due counts paid installments against
+   * this number, and an installment only ever covers an automatic charge -
+   * never the one taken at the counter. Storing the catalogue's twelve
+   * would take twelve MORE, which is thirteen payments on a twelve-payment
+   * plan (owner caught this on a live enrolment, 2026-09-07).
+   *
+   * null = no fixed term, bills until cancelled.
+   * 0    = the term is complete; there is nothing left to bill. */
+  function paymentsRemaining(calc) {
+    var total = calc && calc.paymentCount != null ? Number(calc.paymentCount) : null;
+    if (total == null || !isFinite(total)) return null;
+    return Math.max(0, Math.round(total) - 1);
+  }
+
   /* When a brand-new membership first bills: one full cycle after it starts.
    * Weekly counts seven days. Monthly keeps the day of the month and clamps
    * to the last day of shorter ones, so a membership started on the 31st
@@ -447,14 +465,15 @@ const BTKDPricing = (function () {
       explanation: calc.explanation || null,
       pricing_version: calc.pricingVersion || null,
       recommended_cents: calc.finalRecurringCents,
-      // How many payments in total. The catalog knows a contract plan is
-      // twelve; charge-due reads this to stop billing when the term is
-      // done. It was never written until 2026-09-05, so every contract
-      // ever sold was open-ended. null = bills until somebody cancels.
-      // A 0 is the desk saying "ongoing" out loud, and outranks the plan.
-      payment_count: opts.paymentCount != null
-        ? (Number(opts.paymentCount) > 0 ? Number(opts.paymentCount) : null)
-        : (calc.paymentCount != null ? Number(calc.paymentCount) : null),
+      // How many payments are LEFT to collect automatically - the plan's
+      // term minus the one taken today. charge-due reads this to stop
+      // billing when the term is done. Nothing wrote it until 2026-09-05,
+      // so every contract ever sold was open-ended; it then briefly held
+      // the plan's full count, which is one payment too many.
+      // A caller that names the field owns the answer, null included.
+      payment_count: Object.prototype.hasOwnProperty.call(opts, 'paymentCount')
+        ? (opts.paymentCount == null ? null : Math.max(0, Math.round(Number(opts.paymentCount))))
+        : paymentsRemaining(calc),
       created_by: opts.createdBy || null
     };
 
@@ -474,7 +493,10 @@ const BTKDPricing = (function () {
      * catalog's. A named date wins; otherwise one full cycle after the
      * start, and a one-time plan has no next time and stays null.
      * A DEFAULT, not a rule - the desk and the profile editor both move it. */
-    if (opts.nextBillOn) {
+    if (row.payment_count === 0) {
+      // Paid in full at the counter over one term. Nothing left to bill.
+      row.next_bill_on = null;
+    } else if (opts.nextBillOn) {
       row.next_bill_on = opts.nextBillOn;
     } else if (row.final_recurring_cents > 0) {
       var d = firstBillOn(row.started_on, row.billing_frequency);
@@ -834,6 +856,7 @@ const BTKDPricing = (function () {
     minutesFromClock: minutesFromClock,
     nextBillOn: nextBillOn,
     firstBillOn: firstBillOn,
+    paymentsRemaining: paymentsRemaining,
     allocateCents: allocateCents,
     cardFeeCents: cardFeeCents,
     // exposed for the UI and for tests

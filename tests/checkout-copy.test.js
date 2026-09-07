@@ -39,10 +39,10 @@ const path = require('path');
 const assert = require('assert');
 
 const SITE = path.join(__dirname, '..');
-let passed = 0;
+let passed = 0, failed = 0;
 function test(name, fn) {
   try { fn(); console.log('  ok   ' + name); passed++; }
-  catch (e) { console.error('  FAIL ' + name + '\n       ' + (e && e.message)); process.exitCode = 1; }
+  catch (e) { console.error('  FAIL ' + name + '\n       ' + (e && e.message)); failed++; process.exitCode = 1; }
 }
 
 const TERMS = {
@@ -280,4 +280,7 @@ for (const page of PAGES) {
   });
 }
 
-console.log('\n' + passed + ' passed');
+// A count of passes alone reads green whatever happened, and exiting 0
+// means a CI check or a skimmed last line never sees a failure. Two suites
+// sat red for weeks behind exactly that (2026-09-07).
+console.log('\n' + passed + ' passed' + (failed ? ', ' + failed + ' FAILED' : ''));

@@ -16,10 +16,10 @@ const assert = require('assert');
 const SITE = path.join(__dirname, '..');
 const CRM = path.join(SITE, '..', 'BaresCRM');
 
-let passed = 0;
+let passed = 0, failed = 0;
 function test(name, fn) {
   try { fn(); console.log('  ok   ' + name); passed++; }
-  catch (e) { console.error('  FAIL ' + name + '\n       ' + (e && e.message)); process.exitCode = 1; }
+  catch (e) { console.error('  FAIL ' + name + '\n       ' + (e && e.message)); failed++; process.exitCode = 1; }
 }
 
 const fnSrc = fs.readFileSync(path.join(SITE, 'supabase', 'functions', 'cubs-checkout', 'index.ts'), 'utf8');
@@ -56,8 +56,14 @@ test('the function prices from the catalog, never from the client', () => {
 
 test('the card is saved for the recurring payments the buyer just signed up for', () => {
   assert.ok(/setup_future_usage/.test(fnSrc), 'card not saved for off-session use');
-  assert.ok(/stripe\("customers", secretKey/.test(fnSrc), 'no Stripe customer created');
   assert.ok(/stripe_customer_id/.test(fnSrc), 'customer id not stored');
+  // Creating the customer moved into _shared/family.ts when guardians became
+  // people (2026-08-22): one family, one Stripe customer, whether the payer
+  // is a contact or a guardian. This test looked for it here for two weeks
+  // after it left, and failed silently the whole time.
+  const famSrc = fs.readFileSync(path.join(SITE, 'supabase', 'functions', '_shared', 'family.ts'), 'utf8');
+  assert.ok(/stripeCall\("customers", secretKey/.test(famSrc), 'no Stripe customer created');
+  assert.ok(/resolveFamilyCustomer|export async function/.test(famSrc), 'family.ts exports nothing to call');
 });
 
 test('guardian, initials, signature, and agreement box are all hard requirements', () => {
@@ -103,4 +109,7 @@ test('function source: braces balanced', () => {
   assert.strictEqual(d, 0);
 });
 
-console.log('\n' + passed + ' passed');
+// A count of passes alone reads green whatever happened, and exiting 0
+// means a CI check or a skimmed last line never sees a failure. Two suites
+// sat red for weeks behind exactly that (2026-09-07).
+console.log('\n' + passed + ' passed' + (failed ? ', ' + failed + ' FAILED' : ''));

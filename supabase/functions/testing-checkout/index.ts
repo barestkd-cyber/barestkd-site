@@ -296,7 +296,8 @@ Deno.serve(async (req) => {
         return json({ error: "Bad payment reference." }, 400, cors);
       }
 
-      const pi = await stripe("payment_intents/" + encodeURIComponent(piId), secretKey, undefined, "GET");
+      const pi = await stripe("payment_intents/" + encodeURIComponent(piId)
+          + "?expand[]=latest_charge.payment_method_details", secretKey, undefined, "GET");
       if (pi.status !== "succeeded") return json({ error: "That payment did not complete." }, 409, cors);
       if (str(pi.metadata?.sale_id).toLowerCase() !== fSale) {
         return json({ error: "That payment is for a different signup." }, 409, cors);
@@ -393,7 +394,8 @@ Deno.serve(async (req) => {
         return json({ ok: true, paid: true, receipt_url: SITE + "/invoice/?t=" + existing.data.view_token }, 200, cors);
       }
       if (secretKey && existing.data.stripe_payment_intent) {
-        const pi0 = await stripe("payment_intents/" + encodeURIComponent(existing.data.stripe_payment_intent),
+        const pi0 = await stripe("payment_intents/" + encodeURIComponent(existing.data.stripe_payment_intent)
+          + "?expand[]=latest_charge.payment_method_details",
           secretKey, undefined, "GET");
         if (pi0.status !== "succeeded" && pi0.status !== "canceled") {
           return json({

@@ -497,7 +497,8 @@ Deno.serve(async (req) => {
       const piId = str(body.payment_intent_id);
       if (!UUID_RE.test(fSale) || !piId.startsWith("pi_")) return json({ error: "Bad payment reference." }, 400, cors);
 
-      const pi = await stripe("payment_intents/" + encodeURIComponent(piId), secretKey, undefined, "GET");
+      const pi = await stripe("payment_intents/" + encodeURIComponent(piId)
+          + "?expand[]=latest_charge.payment_method_details", secretKey, undefined, "GET");
       if (pi.status !== "succeeded") return json({ error: "That payment did not complete." }, 409, cors);
       if (str(pi.metadata?.sale_id).toLowerCase() !== fSale) return json({ error: "That payment is for a different enrollment." }, 409, cors);
       const amt = Number(pi.amount_received ?? pi.amount ?? 0);
@@ -615,7 +616,8 @@ Deno.serve(async (req) => {
         return json({ ok: true, paid: true, receipt_url: `${SITE}/invoice/?t=${existing.data.view_token}` }, 200, cors);
       }
       if (secretKey && existing.data.stripe_payment_intent) {
-        const pi0 = await stripe("payment_intents/" + encodeURIComponent(existing.data.stripe_payment_intent), secretKey, undefined, "GET");
+        const pi0 = await stripe("payment_intents/" + encodeURIComponent(existing.data.stripe_payment_intent)
+          + "?expand[]=latest_charge.payment_method_details", secretKey, undefined, "GET");
         if (pi0 && (pi0.status === "requires_payment_method" || pi0.status === "requires_confirmation" || pi0.status === "requires_action")) {
           return json({ ok: true, client_secret: pi0.client_secret, payment_intent_id: pi0.id, sale_id: saleId, total_cents: existing.data.total_cents }, 200, cors);
         }

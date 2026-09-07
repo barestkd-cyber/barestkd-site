@@ -23,10 +23,10 @@ const assert = require('assert');
 const SITE = path.join(__dirname, '..');
 const CRM = path.join(SITE, '..', 'BaresCRM');
 
-let passed = 0;
+let passed = 0, failed = 0;
 function test(name, fn) {
   try { fn(); console.log('  ok   ' + name); passed++; }
-  catch (e) { console.error('  FAIL ' + name + '\n       ' + (e && e.message)); process.exitCode = 1; }
+  catch (e) { console.error('  FAIL ' + name + '\n       ' + (e && e.message)); failed++; process.exitCode = 1; }
 }
 
 /* ── the vendored copies ────────────────────────────────────────────────────*/
@@ -83,23 +83,35 @@ const buildBodyText = eval('(' + lift('buildBodyText') + ')');
 
 const P = require(path.join(CRM, 'pricing.js'));
 
-test('money: session only — $109 + $3.46 card fee, no tax', () => {
+// The card fee is GROSSED UP (2026-08-22): the total is the smallest one
+// that nets the asking price after Stripe takes its cut, so the studio
+// actually receives the sticker price. The old formula charged the fee on
+// the base and always fell a few cents short - $109 netted $108.90.
+// netsExactly() re-derives that below rather than trusting the number.
+const stripeTakes = (total) => Math.floor(total * 290 / 10000 + 0.5) + 30;
+const netsExactly = (base, fee) =>
+  assert.strictEqual(base + fee - stripeTakes(base + fee), base,
+    'a $' + (base / 100).toFixed(2) + ' sale with a ' + fee + 'c fee does not net the asking price');
+
+test('money: session only — $109 + $3.56 grossed-up card fee, no tax', () => {
   const fee = adminFeeCents(10900, 290, 30);
-  assert.strictEqual(fee, 346, 'fee: ' + fee);
+  assert.strictEqual(fee, 356, 'fee: ' + fee);
+  netsExactly(10900, fee);
   const t = P.invoiceTotals({ lines: [{ cents: 10900, taxable: false }], discountCents: 0, adminFeeCents: fee, taxRate: 0.0825 });
   assert.strictEqual(t.taxCents, 0, 'the session fee must never be taxed');
-  assert.strictEqual(t.totalCents, 11246, 'total: ' + t.totalCents);
+  assert.strictEqual(t.totalCents, 11256, 'total: ' + t.totalCents);
 });
 
 test('money: with the shirt — fee on the pre-tax base, tax on the shirt only', () => {
   const fee = adminFeeCents(10900 + 2500, 290, 30);
-  assert.strictEqual(fee, 419, 'fee: ' + fee); // round(13400*.029)=389 (+30)
+  assert.strictEqual(fee, 431, 'fee: ' + fee);
+  netsExactly(13400, fee);
   const t = P.invoiceTotals({
     lines: [{ cents: 10900, taxable: false }, { cents: 2500, taxable: true }],
     discountCents: 0, adminFeeCents: fee, taxRate: 0.0825,
   });
   assert.strictEqual(t.taxCents, 206, 'tax: ' + t.taxCents); // 2500*.0825=206.25 → 206
-  assert.strictEqual(t.totalCents, 10900 + 2500 + 419 + 206, 'total: ' + t.totalCents);
+  assert.strictEqual(t.totalCents, 10900 + 2500 + 431 + 206, 'total: ' + t.totalCents);
   // The fee itself is never in the tax base.
   const noFee = P.invoiceTotals({ lines: [{ cents: 10900, taxable: false }, { cents: 2500, taxable: true }], discountCents: 0, adminFeeCents: 0, taxRate: 0.0825 });
   assert.strictEqual(noFee.taxCents, t.taxCents, 'adding the fee changed the tax');
@@ -111,21 +123,23 @@ test('money: gray tee rides at half price — tax on the discounted price', () =
   const grayNow = Math.round(2500 * (10000 - 5000) / 10000);
   assert.strictEqual(grayNow, 1250, 'half of $25 is $12.50');
   const fee = adminFeeCents(10900 + 1250, 290, 30);
-  assert.strictEqual(fee, 382, 'fee: ' + fee); // round(12150*.029)=352 (+30)
+  assert.strictEqual(fee, 394, 'fee: ' + fee);
+  netsExactly(12150, fee);
   const t = P.invoiceTotals({ lines: [{ cents: 10900, taxable: false }, { cents: 1250, taxable: true }], discountCents: 0, adminFeeCents: fee, taxRate: 0.0825 });
   assert.strictEqual(t.taxCents, 103, 'tax: ' + t.taxCents); // 1250*.0825=103.125 → 103
-  assert.strictEqual(t.totalCents, 10900 + 1250 + 382 + 103, 'total: ' + t.totalCents);
+  assert.strictEqual(t.totalCents, 10900 + 1250 + 394 + 103, 'total: ' + t.totalCents);
 });
 
 test('money: both shirts — white full price, gray half, one tax rounding', () => {
   const fee = adminFeeCents(10900 + 2500 + 1250, 290, 30);
-  assert.strictEqual(fee, 455, 'fee: ' + fee); // round(14650*.029)=425 (+30)
+  assert.strictEqual(fee, 468, 'fee: ' + fee);
+  netsExactly(14650, fee);
   const t = P.invoiceTotals({
     lines: [{ cents: 10900, taxable: false }, { cents: 2500, taxable: true }, { cents: 1250, taxable: true }],
     discountCents: 0, adminFeeCents: fee, taxRate: 0.0825,
   });
   assert.strictEqual(t.taxCents, 309, 'tax: ' + t.taxCents); // 3750*.0825=309.375 → 309
-  assert.strictEqual(t.totalCents, 14650 + 455 + 309, 'total: ' + t.totalCents);
+  assert.strictEqual(t.totalCents, 14650 + 468 + 309, 'total: ' + t.totalCents);
 });
 
 test('the frozen body_text is the whole executed document', () => {
@@ -163,4 +177,7 @@ test('function source: braces balanced, idempotency + fee + roster present', () 
   assert.ok(/--no-verify-jwt/.test(fnSrc), 'deploy note lost the --no-verify-jwt flag');
 });
 
-console.log('\n' + passed + ' passed');
+// A count of passes alone reads green whatever happened, and exiting 0
+// means a CI check or a skimmed last line never sees a failure. Two suites
+// sat red for weeks behind exactly that (2026-09-07).
+console.log('\n' + passed + ' passed' + (failed ? ', ' + failed + ' FAILED' : ''));
