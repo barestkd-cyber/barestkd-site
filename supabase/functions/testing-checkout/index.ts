@@ -236,10 +236,26 @@ Deno.serve(async (req) => {
     // sale immediately and a testing closed itself the day it passed - which
     // left people who still owed for it with no way to pay (owner,
     // 2026-09-03). signups_open is set per testing in the CRM.
-    const groupsRes = await admin.from("testing_dates")
-      .select("id,label,test_date,start_time,applies_to,fee_cents,fee_addl_cents,signup_by,program,sort_order")
-      .eq("signups_open", true).order("sort_order");
+    // WHICH TESTING. cycle_ref is the event key - "aug-2026", "nov-2026" -
+    // one per testing, four dates each. Naming it in the URL opens that
+    // testing specifically, finished or not, so a past one keeps a permanent
+    // address (owner, 2026-09-09: "I might do some testing stuff two weeks
+    // after testing's over and need to access that app in that specific
+    // testing"). Without it the page behaves as it always did.
+    const wantEvent = (new URL(req.url).searchParams.get("t") ?? "").trim();
+
+    let q = admin.from("testing_dates")
+      .select("id,label,test_date,start_time,applies_to,fee_cents,fee_addl_cents,signup_by,program,sort_order,cycle_ref,signups_open");
+    // A named testing is shown whether or not it is still selling; seats are
+    // still gated below by signups_open, so looking is not buying.
+    q = wantEvent ? q.eq("cycle_ref", wantEvent) : q.eq("signups_open", true);
+    const groupsRes = await q.order("test_date").order("sort_order");
     const groups = groupsRes.data ?? [];
+
+    // Is this testing actually taking money? For a named one, only if its
+    // dates are open. This is what the buy button hangs off.
+    const sellingNow = !wantEvent
+      || groups.some((g: Record<string, unknown>) => g.signups_open === true);
 
     const psRes = await admin.from("pricing_settings").select("key,value_cents");
     const settings: Record<string, number> = {};
@@ -250,6 +266,10 @@ Deno.serve(async (req) => {
     if (req.method === "GET") {
       return json({
         page_live: pageLive,
+        // Which testing this is, and whether it is still selling. A named
+        // past testing renders as a record of what happened, not a form.
+        testing: wantEvent || null,
+        selling: pageLive && sellingNow,
         // Publishable keys are meant to be public; this is how the page boots
         // Stripe.js with nothing hardcoded, so test and live follow the
         // secrets and there is nothing to forget at go-live.
@@ -336,6 +356,12 @@ Deno.serve(async (req) => {
 
     // -- a new signup ------------------------------------------------------
     if (!pageLive) return json({ error: "Testing signups are not open right now." }, 503, cors);
+    // A named testing loads for looking at. Buying into one that has closed
+    // is a different thing, and this is the only place it can be stopped -
+    // the group check below validates against the same list the URL chose.
+    if (!sellingNow) {
+      return json({ error: "That testing has finished and is no longer taking signups." }, 409, cors);
+    }
 
     const saleId = str(body.sale_id).toLowerCase();
     if (!UUID_RE.test(saleId)) return json({ error: "Bad signup id. Reload the page." }, 400, cors);
