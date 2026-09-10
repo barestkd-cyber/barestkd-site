@@ -225,7 +225,12 @@ for (const page of PAGES) {
  * that charges it, which the customer would see as the page lying. */
 {
   const PAGES = ['ampd-checkout', 'cubs-checkout', 'jiu-jitsu-checkout', 'juniors-checkout',
-    'kickboxing-checkout', 'little-kickers-checkout', 'teens-adults-checkout', 'testing-checkout'];
+    'kickboxing-checkout', 'little-kickers-checkout', 'teens-adults-checkout', 'testing-checkout',
+    // The gear shop. Its SERVER side is deliberately absent from FNS below:
+    // it imports BTKDPricing.cardFeeCents from the vendored engine instead of
+    // carrying a copy, which is the better arrangement and is checked on its
+    // own further down.
+    'shop'];
   const FNS = ['cubs-checkout', 'lk-checkout', 'private-checkout', 'program-checkout', 'testing-checkout'];
 
   // The engine is the reference. Everything else has to match it.
@@ -257,6 +262,36 @@ for (const page of PAGES) {
         'disagrees with BTKDPricing.cardFeeCents on ' + wrong.length + ' amounts, e.g. ' + wrong[0]);
     });
   });
+
+  // The shop function is the one that does it properly: it imports the engine
+  // rather than keeping a fifteenth hand-maintained copy of the gross-up.
+  // Pin that, so nobody "fixes" it later by pasting the helper back in.
+  {
+    const ts = fs.readFileSync(path.join(SITE, 'supabase', 'functions', 'shop', 'index.ts'), 'utf8');
+    test('fn shop: uses the pricing engine rather than its own copy of the fee', () => {
+      assert.ok(/import BTKDPricing from "\.\.\/_shared\/pricing_esm\.js"/.test(ts),
+        'the shop function should import the engine');
+      assert.ok(/BTKDPricing\.cardFeeCents\(/.test(ts), 'it does not call the engine fee');
+      assert.ok(!/function cardFeeCents\(/.test(ts), 'a local copy of the fee helper has crept in');
+    });
+    test('fn shop: grosses the fee up on goods PLUS tax', () => {
+      // The whole point of feeFor(): price once with a zero fee, then gross up
+      // on that total, because Stripe takes its cut of the tax as well.
+      assert.ok(/adminFeeCents:\s*0/.test(ts), 'no zero-fee pass to get the tax from');
+      assert.ok(/cardFeeCents\(\s*preFee\.totalCents/.test(ts),
+        'the fee base must be the pre-fee TOTAL, not the subtotal');
+    });
+    test('fn shop: never lets the browser name a price', () => {
+      assert.ok(!/body\.(unit_cents|amount|price|total)/.test(ts),
+        'the client must send variant ids and quantities only');
+      assert.ok(/Number\(v\.list_cents\)/.test(ts), 'prices must be re-derived from shop_variants');
+    });
+    test('fn shop: an abandoned checkout leaves no debt', () => {
+      assert.ok(/status:\s*"pending_payment"/.test(ts), 'the sale must start pending_payment, never unpaid');
+      assert.ok(/shop-checkout@website/.test(ts),
+        'staff_email must end in -checkout@website so the hourly sweep abandons it');
+    });
+  }
 
   FNS.forEach((name) => {
     const p = path.join(SITE, 'supabase', 'functions', name, 'index.ts');

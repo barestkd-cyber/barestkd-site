@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Gear Shop | Bares Taekwondo Fitness</title>
+<style>
+  :root{
+    --red:#EA0000; --gold:#F3B700; --ink:#141414; --muted:#6B7076;
+    --line:#E4E0D6; --bg:#F8F6F0; --card:#fff; --go:#2E8B57;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:'Montserrat',system-ui,-apple-system,'Segoe UI',sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:22px 16px 80px}
+  header{text-align:center;padding:10px 0 18px;border-bottom:4px solid var(--gold)}
+  header h1{margin:8px 0 2px;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase}
+  header p{margin:0;color:var(--muted);font-size:.85rem}
+  .notice{background:#FFF8E6;border:1px solid #E8D080;border-left:4px solid var(--gold);
+          border-radius:8px;padding:13px 15px;margin:20px 0;font-size:.88rem;line-height:1.5}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        padding:16px;margin:14px 0}
+  .card h2{margin:0 0 4px;font-size:1.05rem}
+  .sub{color:var(--muted);font-size:.84rem;line-height:1.5;margin:0 0 10px}
+  .piece{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid #F0ECE4}
+  .piece:first-of-type{border-top:0}
+  .piece img{width:54px;height:54px;object-fit:contain;background:#fff;
+             border:1px solid var(--line);border-radius:8px;flex:none}
+  .piece .nm{font-weight:600;font-size:.93rem}
+  .piece .pr{color:var(--muted);font-size:.82rem;margin-top:1px}
+  .picks{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  select,input,textarea{font:inherit;padding:9px 10px;border:1px solid var(--line);
+        border-radius:7px;background:#fff;color:var(--ink);max-width:100%}
+  select{min-width:120px}
+  label.fld{display:block;margin:10px 0 0;font-size:.82rem;color:var(--muted)}
+  label.fld input,label.fld textarea{width:100%;margin-top:4px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:560px){ .row2{grid-template-columns:1fr} }
+  .tot{display:flex;justify-content:space-between;padding:5px 0;font-size:.9rem}
+  .tot.big{font-weight:700;font-size:1.05rem;border-top:1px solid var(--line);
+           margin-top:6px;padding-top:10px}
+  button.pay{width:100%;margin-top:14px;padding:14px;border:0;border-radius:9px;
+        background:var(--red);color:#fff;font-weight:700;font-size:1rem;
+        letter-spacing:.04em;text-transform:uppercase;cursor:pointer}
+  button.pay:disabled{background:#C9C6C0;cursor:not-allowed}
+  .add{padding:8px 13px;border:1px solid var(--line);border-radius:7px;background:#fff;
+       font-size:.83rem;font-weight:600;cursor:pointer}
+  .add.on{background:var(--go);border-color:var(--go);color:#fff}
+  .bb{display:inline-block;background:#EEE9F7;color:#5B3E9B;border-radius:5px;
+      padding:1px 6px;font-size:.7rem;font-weight:700;margin-left:6px;vertical-align:middle}
+  .err{background:#FBE9E9;border:1px solid #E9B7B7;color:#8A1F1F;border-radius:8px;
+       padding:11px 13px;margin:12px 0;font-size:.87rem}
+  .lead{color:var(--muted);font-size:.78rem;margin-top:3px}
+  #cardbox{border:1px solid var(--line);border-radius:7px;padding:12px;background:#fff;margin-top:6px}
+  .done{text-align:center;padding:30px 10px}
+  .done h2{color:var(--go)}
+  .hp{position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Gear Shop</h1>
+    <p>Bares Taekwondo Fitness</p>
+  </header>
+
+  <div id="boot" class="sub" style="text-align:center;padding:30px 0">Loading the shop...</div>
+  <div id="closed" hidden></div>
+  <div id="app" hidden>
+    <div class="notice" id="notice"></div>
+
+    <div class="card" id="packCard">
+      <h2 id="packName">Beginner Gear Package</h2>
+      <p class="sub" id="packNote"></p>
+      <div id="packPieces"></div>
+      <div class="tot big"><span>Package</span><span id="packTotal">-</span></div>
+      <button class="add" id="packBtn" type="button" style="margin-top:10px">Add the package</button>
+    </div>
+
+    <div class="card" id="extraCard">
+      <h2>Also available on its own</h2>
+      <p class="sub">Anything above can be bought singly too. Pick a size and add it.</p>
+      <div id="extraPieces"></div>
+    </div>
+
+    <div class="card">
+      <h2>Your order</h2>
+      <div id="cart"><p class="sub">Nothing added yet.</p></div>
+      <div id="totals" hidden>
+        <div class="tot"><span>Subtotal</span><span id="tSub">-</span></div>
+        <div class="tot"><span>Sales tax</span><span id="tTax">-</span></div>
+        <div class="tot"><span>Card processing</span><span id="tFee">-</span></div>
+        <div class="tot big"><span>Total</span><span id="tTot">-</span></div>
+      </div>
+      <p class="sub" id="cadence" style="margin-top:10px"></p>
+    </div>
+
+    <div class="card">
+      <h2>Who it is for</h2>
+      <div class="row2">
+        <label class="fld">Student first name<input id="sFirst" autocomplete="off"></label>
+        <label class="fld">Student last name<input id="sLast" autocomplete="off"></label>
+      </div>
+      <div class="row2" style="margin-top:8px">
+        <label class="fld">Your first name<input id="bFirst" autocomplete="given-name"></label>
+        <label class="fld">Your last name<input id="bLast" autocomplete="family-name"></label>
+      </div>
+      <div class="row2" style="margin-top:8px">
+        <label class="fld">Email<input id="bEmail" type="email" autocomplete="email"></label>
+        <label class="fld">Phone<input id="bPhone" type="tel" autocomplete="tel"></label>
+      </div>
+      <label class="fld">Anything we should know (optional)<textarea id="bNote" rows="2"></textarea></label>
+      <input class="hp" id="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    </div>
+
+    <div class="card">
+      <h2>Payment</h2>
+      <p class="sub">Paid now by card. We will have your gear ready at the school.</p>
+      <div id="cardbox"></div>
+      <div id="payErr"></div>
+      <button class="pay" id="payBtn" type="button" disabled>Pay</button>
+    </div>
+  </div>
+
+  <div id="done" class="done" hidden>
+    <h2>Thank you</h2>
+    <p class="sub" id="doneMsg"></p>
+    <div id="receipt"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/shop";
+  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5";
+  var CFG = null, STRIPE = null, CARD = null;
+  var CART = [];                 // { variant_id, qty, from_package, label, cents }
+  var SALE_ID = (self.crypto && self.crypto.randomUUID) ? self.crypto.randomUUID() : null;
+
+  function $(id) { return document.getElementById(id); }
+  function money(c) { return "$" + (Number(c) / 100).toFixed(2); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[m];
+    });
+  }
+
+  /* The card fee, grossed up: the smallest total that still nets the asking
+     price after Stripe takes its percentage OF THAT TOTAL. Byte-identical to
+     the copy on every other checkout page and to BTKDPricing.cardFeeCents,
+     which the copy lint pins, because a page that quotes a different number
+     from the server that charges it reads as the page lying. */
+  function cardFeeCents(baseCents, bps, flatCents) {
+    var base = Math.round(Number(baseCents) || 0);
+    var rate = Math.round(Number(bps) || 0);
+    var flat = Math.round(Number(flatCents) || 0);
+    if (base <= 0) return 0;
+    if (!rate && !flat) return 0;
+    if (rate >= 10000) return 0;
+    var nets = function (t) { return t - (Math.floor(t * rate / 10000 + 0.5) + flat); };
+    var total = Math.ceil((base + flat) * 10000 / (10000 - rate));
+    while (total > base && nets(total - 1) >= base) total--;
+    while (nets(total) < base) total++;
+    return total - base;
+  }
+
+  /* Gear is all taxable, and the fee grosses up on goods PLUS tax because
+     Stripe's cut lands on the tax too. Same order the server uses. */
+  function totals() {
+    var sub = CART.reduce(function (a, x) { return a + x.cents * x.qty; }, 0);
+    var tax = Math.floor(sub * CFG.tax_rate + 0.5);
+    var fee = cardFeeCents(sub + tax, CFG.admin_fee_bps, CFG.admin_fee_flat_cents);
+    return { sub: sub, tax: tax, fee: fee, total: sub + tax + fee };
+  }
+
+  /* ---- rendering the catalogue ------------------------------------------ */
+  function sizesOf(p) {
+    var out = [], seen = {};
+    p.variants.forEach(function (v) { if (v.size && !seen[v.size]) { seen[v.size] = 1; out.push(v.size); } });
+    return out;
+  }
+  function colorsOf(p) {
+    var out = [], seen = {};
+    p.variants.forEach(function (v) { if (v.color && !seen[v.color]) { seen[v.color] = 1; out.push(v.color); } });
+    return out;
+  }
+  function priceFrom(p) {
+    return Math.min.apply(null, p.variants.map(function (v) { return v.cents; }));
+  }
+
+  function pieceHtml(p, prefix) {
+    var sizes = sizesOf(p), colors = colorsOf(p);
+    // No badge on the product name. The restriction is on ONE COLOUR, and a
+    // badge up here read as though the whole piece were black belts only.
+    // The colour option carries it instead, where it is true.
+    var h = '<div class="piece" data-pid="' + esc(p.id) + '">'
+      + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="">' : '<div style="width:54px"></div>')
+      + '<div style="flex:1">'
+      + '<div class="nm">' + esc(p.title) + '</div>'
+      + '<div class="pr">' + money(priceFrom(p)) + (p.logo ? ' with the school logo' : '') + '</div>'
+      + (p.lead_time_text ? '<div class="lead">' + esc(p.lead_time_text) + '</div>' : '')
+      + '<div class="picks">';
+    if (sizes.length > 1 || (sizes.length === 1 && colors.length)) {
+      h += '<select id="' + prefix + '-s-' + esc(p.id) + '">'
+        + (sizes.length > 1 ? '<option value="">Size...</option>' : '')
+        + sizes.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('')
+        + '</select>';
+    }
+    if (colors.length > 1) {
+      h += '<select id="' + prefix + '-c-' + esc(p.id) + '"><option value="">Colour...</option>'
+        + colors.map(function (c) {
+            var bb = p.variants.some(function (v) { return v.color === c && v.black_belt_only; });
+            return '<option value="' + esc(c) + '">' + esc(c) + (bb ? ' (black belts only)' : '') + '</option>';
+          }).join('')
+        + '</select>';
+    }
+    // EVERY piece is addable on its own, package members included: somebody
+    // who split a shin guard should not have to buy the whole set again
+    // (owner, 2026-09-09).
+    h += '<button class="add" type="button" data-add="' + esc(p.id) + '">'
+      + (prefix === 'p' ? 'Add just this' : 'Add') + '</button>';
+    h += '</div></div></div>';
+    return h;
+  }
+
+  function pickVariant(p, prefix) {
+    var sizes = sizesOf(p), colors = colorsOf(p);
+    var sEl = $(prefix + '-s-' + p.id), cEl = $(prefix + '-c-' + p.id);
+    var wantS = sEl ? sEl.value : (sizes[0] || "");
+    var wantC = cEl ? cEl.value : (colors[0] || "");
+    if (sizes.length && !wantS) return { err: "Pick a size for the " + p.title + "." };
+    if (colors.length > 1 && !wantC) return { err: "Pick a colour for the " + p.title + "." };
+    var v = p.variants.filter(function (x) {
+      return (!sizes.length || x.size === wantS) && (colors.length <= 1 || x.color === wantC);
+    })[0];
+    if (!v) return { err: "That size and colour is not available for the " + p.title + "." };
+    return { v: v, label: p.title + [wantS, wantC].filter(Boolean).map(function (t) { return " " + t; }).join(",") };
+  }
+
+  /* ---- the cart --------------------------------------------------------- */
+  function addToCart(p, prefix, fromPackage) {
+    var got = pickVariant(p, prefix);
+    if (got.err) return got.err;
+    var found = null;
+    CART.forEach(function (x) { if (x.variant_id === got.v.id) found = x; });
+    if (found) found.qty += 1;
+    else CART.push({ variant_id: got.v.id, qty: 1, from_package: !!fromPackage,
+                     label: got.label, cents: got.v.cents });
+    return null;
+  }
+  function renderCart() {
+    if (!CART.length) {
+      $("cart").innerHTML = '<p class="sub">Nothing added yet.</p>';
+      $("totals").hidden = true;
+      $("payBtn").disabled = true;
+      $("payBtn").textContent = "Pay";
+      return;
+    }
+    $("cart").innerHTML = CART.map(function (x, i) {
+      return '<div class="tot"><span>' + esc(x.label) + (x.qty > 1 ? ' x' + x.qty : '')
+        + ' <button class="add" type="button" data-rm="' + i + '" style="padding:2px 8px;font-size:.75rem">remove</button></span>'
+        + '<span>' + money(x.cents * x.qty) + '</span></div>';
+    }).join("");
+    var t = totals();
+    $("tSub").textContent = money(t.sub);
+    $("tTax").textContent = money(t.tax);
+    $("tFee").textContent = money(t.fee);
+    $("tTot").textContent = money(t.total);
+    $("totals").hidden = false;
+    $("payBtn").disabled = false;
+    $("payBtn").textContent = "Pay " + money(t.total);
+  }
+
+  /* ---- boot ------------------------------------------------------------- */
+  function boot() {
+    fetch(FN, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        $("boot").hidden = true;
+        if (!res.ok || res.j.closed) {
+          $("closed").hidden = false;
+          $("closed").innerHTML = '<div class="err">' + esc(res.j.error || "The shop is not open right now.") + '</div>';
+          return;
+        }
+        CFG = res.j;
+        $("app").hidden = false;
+        $("notice").textContent = CFG.notice || "";
+        $("packName").textContent = CFG.package_name || "Beginner Gear Package";
+        $("packNote").textContent = CFG.package_note || "";
+        $("cadence").textContent = CFG.cadence_text || "";
+
+        if (!CFG.package.length) { $("packCard").hidden = true; }
+        else {
+          $("packPieces").innerHTML = CFG.package.map(function (p) { return pieceHtml(p, "p"); }).join("");
+          var sum = CFG.package.reduce(function (a, p) { return a + priceFrom(p); }, 0);
+          $("packTotal").textContent = money(sum);
+        }
+        if (!CFG.extras.length) { $("extraCard").hidden = true; }
+        else { $("extraPieces").innerHTML = CFG.extras.map(function (p) { return pieceHtml(p, "x"); }).join(""); }
+
+        wire();
+        loadStripe();
+      })
+      .catch(function () {
+        $("boot").hidden = true;
+        $("closed").hidden = false;
+        $("closed").innerHTML = '<div class="err">We could not load the shop. Please call 903-561-2966.</div>';
+      });
+  }
+
+  function wire() {
+    $("packBtn").addEventListener("click", function () {
+      // Resolve EVERY piece before adding any of it. Adding what it could and
+      // reporting the rest left a half package in the basket and quietly bumped
+      // an already-chosen piece to two, which is not what anybody meant.
+      var picked = [], err = null;
+      for (var i = 0; i < CFG.package.length; i++) {
+        var got = pickVariant(CFG.package[i], "p");
+        if (got.err) { err = got.err; break; }
+        picked.push(got);
+      }
+      if (err) { showErr(err); return; }
+      showErr(null);
+      picked.forEach(function (got) {
+        var found = null;
+        CART.forEach(function (x) { if (x.variant_id === got.v.id) found = x; });
+        if (found) found.qty += 1;
+        else CART.push({ variant_id: got.v.id, qty: 1, from_package: true,
+                         label: got.label, cents: got.v.cents });
+      });
+      renderCart();
+    });
+    // One handler for both lists. A package piece bought on its own is NOT
+    // from_package: it is a single item, and the order line should say so.
+    function singleAdd(list, prefix) {
+      return function (ev) {
+        var id = ev.target && ev.target.getAttribute && ev.target.getAttribute("data-add");
+        if (!id) return;
+        var p = list().filter(function (x) { return x.id === id; })[0];
+        if (!p) return;
+        showErr(addToCart(p, prefix, false));
+        renderCart();
+      };
+    }
+    $("extraPieces").addEventListener("click", singleAdd(function () { return CFG.extras; }, "x"));
+    $("packPieces").addEventListener("click", singleAdd(function () { return CFG.package; }, "p"));
+    $("cart").addEventListener("click", function (ev) {
+      var i = ev.target && ev.target.getAttribute && ev.target.getAttribute("data-rm");
+      if (i === null || i === undefined) return;
+      CART.splice(Number(i), 1);
+      renderCart();
+    });
+    $("payBtn").addEventListener("click", pay);
+  }
+
+  function showErr(msg) {
+    $("payErr").innerHTML = msg ? '<div class="err">' + esc(msg) + "</div>" : "";
+    if (msg) $("payErr").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function loadStripe() {
+    if (!CFG.publishable_key) { showErr("Card payment is not set up. Please call 903-561-2966."); return; }
+    var s = document.createElement("script");
+    s.src = "https://js.stripe.com/v3/";
+    s.onload = function () {
+      STRIPE = Stripe(CFG.publishable_key);
+      CARD = STRIPE.elements().create("card", { hidePostalCode: false });
+      CARD.mount("#cardbox");
+    };
+    s.onerror = function () { showErr("Card payment could not load. Please call 903-561-2966."); };
+    document.head.appendChild(s);
+  }
+
+  /* ---- pay -------------------------------------------------------------- */
+  function pay() {
+    if (!CART.length) return;
+    var need = [
+      [$("sFirst").value, "Tell us the student's first name."],
+      [$("sLast").value, "Tell us the student's last name."],
+      [$("bFirst").value, "Tell us your first name."],
+      [$("bLast").value, "Tell us your last name."],
+      [$("bEmail").value, "We need an email for the receipt."]
+    ];
+    for (var i = 0; i < need.length; i++) {
+      if (!String(need[i][0] || "").trim()) { showErr(need[i][1]); return; }
+    }
+    if (!STRIPE || !CARD) { showErr("Card payment is still loading. Give it a second."); return; }
+    showErr(null);
+    var btn = $("payBtn");
+    btn.disabled = true; btn.textContent = "Working...";
+
+    fetch(FN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
+      body: JSON.stringify({
+        sale_id: SALE_ID,
+        buyer_first: $("bFirst").value, buyer_last: $("bLast").value,
+        email: $("bEmail").value, phone: $("bPhone").value,
+        student_first: $("sFirst").value, student_last: $("sLast").value,
+        note: $("bNote").value, hp: $("hp").value,
+        items: CART.map(function (x) {
+          return { variant_id: x.variant_id, qty: x.qty, from_package: x.from_package };
+        })
+      })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j.paid && j.receipt_url) { finish(j.receipt_url); return null; }
+        if (!j.ok || !j.client_secret) { throw new Error(j.error || "We could not start the payment."); }
+        return STRIPE.confirmCardPayment(j.client_secret, { payment_method: { card: CARD } })
+          .then(function (res) {
+            if (res.error) throw new Error(res.error.message || "That card was declined.");
+            return fetch(FN, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
+              body: JSON.stringify({ action: "finalize", sale_id: SALE_ID, payment_intent_id: res.paymentIntent.id })
+            }).then(function (r2) { return r2.json(); });
+          })
+          .then(function (fin) {
+            if (!fin || !fin.ok) throw new Error((fin && fin.error) || "The payment went through but we could not record it. Please call us.");
+            finish(fin.receipt_url);
+          });
+      })
+      .catch(function (e) {
+        btn.disabled = false;
+        btn.textContent = "Pay " + money(totals().total);
+        showErr(String(e.message || e) + " Nothing has been charged.");
+      });
+  }
+
+  function finish(receiptUrl) {
+    $("app").hidden = true;
+    $("done").hidden = false;
+    $("doneMsg").textContent = "Your gear is ordered. We will let you know when it is at the school, and "
+      + ($("bEmail").value || "your email") + " has the receipt.";
+    if (receiptUrl) {
+      var t = /[?&]t=([0-9a-f]{32})/i.exec(receiptUrl);
+      if (t) {
+        fetch("https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/receipt-view?t=" + t[1] + "&f=frag",
+          { cache: "no-store" })
+          .then(function (r) { return r.text(); })
+          .then(function (html) { $("receipt").innerHTML = html; })
+          .catch(function () {
+            $("receipt").innerHTML = '<p class="sub"><a href="' + esc(receiptUrl) + '">View your receipt</a></p>';
+          });
+      }
+    }
+    window.scrollTo(0, 0);
+  }
+
+  if (!SALE_ID) {
+    $("boot").textContent = "This browser is too old for our checkout. Please call 903-561-2966.";
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>
