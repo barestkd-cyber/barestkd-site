@@ -610,7 +610,7 @@ Deno.serve(async (req) => {
     }
 
     const existing = await admin.from("pos_sales")
-      .select("id,view_token,status,total_cents,stripe_payment_intent").eq("id", saleId).maybeSingle();
+      .select("id,view_token,status,total_cents,stripe_payment_intent,stripe_customer_id").eq("id", saleId).maybeSingle();
     if (existing.data) {
       if (existing.data.status === "paid") {
         return json({ ok: true, paid: true, receipt_url: `${SITE}/invoice/?t=${existing.data.view_token}` }, 200, cors);
@@ -620,6 +620,20 @@ Deno.serve(async (req) => {
           + "?expand[]=latest_charge.payment_method_details", secretKey, undefined, "GET");
         if (pi0 && (pi0.status === "requires_payment_method" || pi0.status === "requires_confirmation" || pi0.status === "requires_action")) {
           return json({ ok: true, client_secret: pi0.client_secret, payment_intent_id: pi0.id, sale_id: saleId, total_cents: existing.data.total_cents }, 200, cors);
+        }
+        // The money already moved and the sale is not marked paid yet -
+        // the webhook is seconds behind. Falling through from here used to
+        // mint a fresh intent and show the card field again, so a parent
+        // who had already paid paid twice. Tell them it went through; the
+        // webhook finishes the enrolment.
+        if (pi0 && pi0.status === "succeeded") {
+          return json({ ok: true, paid: true, settling: true,
+            receipt_url: `${SITE}/invoice/?t=${existing.data.view_token}`,
+          }, 200, cors);
+        }
+        // In flight. Another intent on top would be a second charge.
+        if (pi0 && pi0.status === "processing") {
+          return json({ error: "Your payment is going through now. Give it a moment, then reload this page.", }, 409, cors);
         }
       }
       // NOT "ok" with a receipt and no way to pay. The page reads a missing
@@ -636,7 +650,19 @@ Deno.serve(async (req) => {
           rf.set("currency", "usd");
           rf.set("payment_method_types[]", "card");
           rf.set("metadata[sale_id]", saleId);
-          rf.set("metadata[source]", "program-checkout");
+          rf.set("metadata[source]", "program-checkout-retry");
+          rf.set("description", chosen.name + " - " + studentFirst + " " + studentLast);
+          if (email) rf.set("receipt_email", email);
+          // KEEP THE CARD. Without this the family who had trouble paying
+          // is the one family that enrols with nothing on file, and a
+          // membership charges its own pinned card or it charges nothing
+          // (owner, 2026-09-09). Reuse the customer the first attempt
+          // made, so the retry lands on the same one.
+          const retryCust = existing.data.stripe_customer_id as string | null;
+          if (retryCust) {
+            rf.set("customer", String(retryCust));
+            rf.set("setup_future_usage", "off_session");
+          }
           const rpi = await stripe("payment_intents", secretKey, rf);
           const st = await admin.from("pos_sales")
             .update({ stripe_payment_intent: rpi.id }).eq("id", saleId);
