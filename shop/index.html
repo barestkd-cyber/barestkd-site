@@ -124,6 +124,7 @@
       <div class="price" id="packTotal">-</div>
       <p class="sub" id="packNote"></p>
       <ul id="packList"></ul>
+      <div class="sub" id="packExtras" style="margin:10px 0 0"></div>
       <button class="pay go" id="packBtn" type="button">Build my package</button>
     </div>
 
@@ -358,18 +359,76 @@
       + '<button class="pay go" type="button" data-addone="' + esc(p.id) + '">Add to my order</button>');
   }
 
+  /* Every product carries its part in the package: required, boys (required
+     only when it is for a boy), optional, or none. */
+  function byRole(r) { return allProducts().filter(function (p) { return p.role === r; }); }
+  function titles(ps) {
+    var t = ps.map(function (p) { return p.title; });
+    return t.length < 2 ? t.join("") : t.slice(0, -1).join(", ") + " and " + t[t.length - 1];
+  }
+
+  /* The builder. Required pieces always. The cup and supporter appear, and
+     become required, the moment "this is for a boy" is ticked. The face shield
+     and elbow pads are optional ticks, each opening its own size picker. The
+     button carries the running total so a tick shows its price first. */
   function openPackage() {
-    openSheet('<div class="sheet-hd"><button class="close" type="button" data-close="1">&times;</button>'
+    var req = byRole("required"), boys = byRole("boys"), opt = byRole("optional");
+    var piece = function (p, prefix) {
+      return '<div style="padding:10px 0;border-top:1px solid #F0ECE4">'
+        + '<div style="font-weight:600;font-size:.9rem">' + esc(p.title)
+        + ' <span style="color:var(--muted);font-weight:400">' + money(priceFrom(p)) + '</span></div>'
+        + pickerRows(p, prefix) + '</div>';
+    };
+    var h = '<div class="sheet-hd"><button class="close" type="button" data-close="1">&times;</button>'
       + '<h3>' + esc(CFG.package_name || "Beginner Gear Package") + '</h3>'
-      + '<div class="sub" style="margin:2px 0 0">Pick a size for each piece.</div></div>'
-      + CFG.package.map(function (p) {
-          return '<div style="padding:10px 0;border-top:1px solid #F0ECE4">'
-            + '<div style="font-weight:600;font-size:.9rem">' + esc(p.title)
-            + ' <span style="color:var(--muted);font-weight:400">' + money(priceFrom(p)) + '</span></div>'
-            + pickerRows(p, "p") + '</div>';
-        }).join("")
-      + '<div id="sheetErr"></div>'
-      + '<button class="pay go" type="button" data-addpack="1">Add the package</button>');
+      + '<div class="sub" style="margin:2px 0 0">Pick a size for each piece.</div></div>';
+    if (boys.length) {
+      h += '<label style="display:flex;gap:10px;align-items:center;margin:4px 0 10px;'
+        + 'font-weight:600;cursor:pointer;background:#FFF8E6;border:1px solid #E8D080;'
+        + 'border-radius:8px;padding:10px 12px">'
+        + '<input type="checkbox" id="pkBoy" style="width:20px;height:20px;margin:0">'
+        + '<span>This is for a boy<span class="sub" style="display:block;margin:2px 0 0;font-weight:400">'
+        + 'Boys also need ' + esc(titles(boys)) + '.</span></span></label>';
+    }
+    h += req.map(function (p) { return piece(p, "p"); }).join("");
+    if (boys.length) {
+      h += '<div id="pkBoys" hidden><div class="step" style="margin-top:14px">Required for boys</div>'
+        + boys.map(function (p) { return piece(p, "p"); }).join("") + '</div>';
+    }
+    if (opt.length) {
+      h += '<div class="step" style="margin-top:16px">Add to the package, optional</div>'
+        + opt.map(function (p) {
+            return '<div style="padding:10px 0;border-top:1px solid #F0ECE4">'
+              + '<label style="display:flex;gap:10px;align-items:center;font-weight:600;font-size:.9rem;cursor:pointer">'
+              + '<input type="checkbox" data-opt="' + esc(p.id) + '" style="width:20px;height:20px;margin:0">'
+              + '<span>' + esc(p.title) + ' <span style="color:var(--muted);font-weight:400">'
+              + money(priceFrom(p)) + '</span></span></label>'
+              + '<div id="optp-' + esc(p.id) + '" hidden>' + pickerRows(p, "o") + '</div></div>';
+          }).join("");
+    }
+    h += '<div id="sheetErr"></div>'
+      + '<button class="pay go" type="button" data-addpack="1" id="pkAdd">Add the package</button>';
+    openSheet(h);
+    pkTotal();
+  }
+
+  /* What a piece costs as currently picked, or its cheapest if not picked yet:
+     the headgear is dearer in the big sizes, so the button follows the pick. */
+  function pickedCents(p, prefix) {
+    var got = pickVariant(p, prefix);
+    return got.err ? priceFrom(p) : got.v.cents;
+  }
+  function pkTotal() {
+    var btn = $("pkAdd"); if (!btn) return;
+    var sum = byRole("required").reduce(function (a, p) { return a + pickedCents(p, "p"); }, 0);
+    if ($("pkBoy") && $("pkBoy").checked) {
+      sum += byRole("boys").reduce(function (a, p) { return a + pickedCents(p, "p"); }, 0);
+    }
+    byRole("optional").forEach(function (p) {
+      var cb = document.querySelector('[data-opt="' + p.id + '"]');
+      if (cb && cb.checked) sum += pickedCents(p, "o");
+    });
+    btn.textContent = "Add the package, " + money(sum);
   }
 
   function sheetErr(msg) {
@@ -414,9 +473,17 @@
     // Resolve EVERY piece before adding any of it. Adding what it could and
     // reporting the rest left a half package in the basket and quietly bumped
     // an already-chosen piece to two.
+    var want = byRole("required").map(function (p) { return { p: p, prefix: "p" }; });
+    if ($("pkBoy") && $("pkBoy").checked) {
+      byRole("boys").forEach(function (p) { want.push({ p: p, prefix: "p" }); });
+    }
+    byRole("optional").forEach(function (p) {
+      var cb = document.querySelector('[data-opt="' + p.id + '"]');
+      if (cb && cb.checked) want.push({ p: p, prefix: "o" });
+    });
     var picked = [], err = null;
-    for (var i = 0; i < CFG.package.length; i++) {
-      var got = pickVariant(CFG.package[i], "p");
+    for (var i = 0; i < want.length; i++) {
+      var got = pickVariant(want[i].p, want[i].prefix);
       if (got.err) { err = got.err; break; }
       picked.push(got);
     }
@@ -471,13 +538,22 @@
         $("packNote").textContent = CFG.package_note || "";
         $("cadence").textContent = CFG.cadence_text || "";
 
-        if (!CFG.package.length) { $("packCard").hidden = true; }
+        var req = byRole("required");
+        if (!req.length) { $("packCard").hidden = true; }
         else {
-          var sum = CFG.package.reduce(function (a, p) { return a + priceFrom(p); }, 0);
+          var sum = req.reduce(function (a, p) { return a + priceFrom(p); }, 0);
           $("packTotal").textContent = money(sum);
-          $("packList").innerHTML = CFG.package.map(function (p) {
+          $("packList").innerHTML = req.map(function (p) {
             return "<li>" + esc(p.title) + "</li>";
           }).join("");
+          var boys = byRole("boys"), opt = byRole("optional"), notes = [];
+          if (boys.length) {
+            var bsum = boys.reduce(function (a, p) { return a + priceFrom(p); }, 0);
+            notes.push("<strong>Boys</strong> also need " + esc(titles(boys))
+              + ", " + money(bsum) + " more.");
+          }
+          if (opt.length) notes.push("<strong>Optional:</strong> " + esc(titles(opt)) + ".");
+          $("packExtras").innerHTML = notes.map(function (n) { return "<div>" + n + "</div>"; }).join("");
         }
         renderShopBody();
         wire();
@@ -517,6 +593,16 @@
       var one = el.closest("[data-addone]");
       if (one) { addOne(one.getAttribute("data-addone")); return; }
       if (el.closest("[data-addpack]")) { addPackage(); }
+    });
+    // Inside the builder: the boy tick reveals the cup and supporter, an
+    // optional tick reveals that piece's size picker, and any change re-prices
+    // the button.
+    $("scrim").addEventListener("change", function (e) {
+      var t = e.target;
+      if (t.id === "pkBoy") { var b = $("pkBoys"); if (b) b.hidden = !t.checked; }
+      var oid = t.getAttribute && t.getAttribute("data-opt");
+      if (oid) { var box = $("optp-" + oid); if (box) box.hidden = !t.checked; }
+      pkTotal();
     });
     $("cart").addEventListener("click", function (e) {
       var b = e.target.closest ? e.target.closest("[data-rm]") : null;

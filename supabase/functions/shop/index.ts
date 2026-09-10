@@ -168,7 +168,7 @@ Deno.serve(async (req: Request) => {
       }
       const [pRes, vRes] = await Promise.all([
         admin.from("shop_products")
-          .select("id,title,image_url,item_type,logo_cents,in_package,set_order,lead_time_text,stocked")
+          .select("id,title,image_url,item_type,logo_cents,package_role,set_order,lead_time_text,stocked")
           .eq("active", true).order("set_order"),
         admin.from("shop_variants")
           .select("id,product_id,size,color,list_cents,rank_gate")
@@ -193,7 +193,10 @@ Deno.serve(async (req: Request) => {
             image_url: p.image_url,
             // Drives which tab the shop files it under, and the type chips.
             item_type: p.item_type || "other",
-            in_package: p.in_package === true,
+            // Its part in the package: required, boys (required only for a
+            // boy), optional, or null for sold-on-its-own only.
+            role: (p.package_role as string | null) ?? null,
+            in_package: p.package_role === "required",
             logo: Number(p.logo_cents) > 0,
             lead_time_text: p.stocked === true ? null : (p.lead_time_text ?? null),
             // The price the buyer sees already contains the logo charge, and
@@ -218,8 +221,11 @@ Deno.serve(async (req: Request) => {
         package_note: S.shop_package_note || "",
         cadence_text: S.shop_cadence_text || "",
         notice: S.shop_notice_text || "",
-        package: products.filter((p) => p.in_package),
-        extras: products.filter((p) => !p.in_package),
+        // `package` and `extras` keep their OLD meaning, the required pieces
+        // and everything else, so a phone still holding yesterday's page keeps
+        // working. The current page reads `role` off each product instead.
+        package: products.filter((p) => p.role === "required"),
+        extras: products.filter((p) => p.role !== "required"),
       }, 200, cors);
     }
 
