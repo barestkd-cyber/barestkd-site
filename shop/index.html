@@ -261,12 +261,20 @@
   /* Sparring gear is its own tab and opens first, because beginners buying
      their first set are most of the traffic. Everything else shares one tab
      rather than sprouting a tab per item type nobody has yet. */
-  function tabOf(p) {
-    if (p.item_type === "sparring") return "sparring";
-    if (p.item_type === "kickboxing") return "kickboxing";
-    return "other";
+  /* The tabs a product appears on. Usually one, from its type. But anything
+     in the Beginner Gear Package also appears on Sparring Gear, because that
+     is where the package lives: so the duffle bag, a "bag" by type, shows on
+     Sparring Gear and on Everything Else. A general rule rather than a
+     special case for the bag, so the next package piece that is not sparring
+     gear lands in both places without anybody remembering to arrange it. */
+  function tabsOf(p) {
+    var t = [];
+    if (p.item_type === "sparring" || p.role) t.push("sparring");
+    if (p.item_type === "kickboxing") t.push("kickboxing");
+    if (p.item_type !== "sparring" && p.item_type !== "kickboxing") t.push("other");
+    return t;
   }
-  function inTab(p) { return tabOf(p) === TAB; }
+  function inTab(p) { return tabsOf(p).indexOf(TAB) >= 0; }
 
   function visible() {
     var q = Q.trim().toLowerCase();
@@ -282,7 +290,7 @@
   var TABS = [["sparring", "Sparring Gear"], ["kickboxing", "Kickboxing"], ["other", "Everything Else"]];
   function renderTabs() {
     var counts = { sparring: 0, kickboxing: 0, other: 0 };
-    allProducts().forEach(function (p) { counts[tabOf(p)]++; });
+    allProducts().forEach(function (p) { tabsOf(p).forEach(function (t) { counts[t]++; }); });
     // A tab with nothing in it is not offered: an empty Kickboxing tab would
     // only be a dead end.
     $("tabs").innerHTML = TABS.filter(function (t) { return counts[t[0]] > 0 || t[0] === TAB; })
@@ -294,7 +302,7 @@
   function renderChips() {
     var types = [], seen = {};
     allProducts().forEach(function (p) {
-      if (tabOf(p) !== TAB || seen[p.item_type]) return;
+      if (!inTab(p) || seen[p.item_type]) return;
       seen[p.item_type] = 1; types.push(p.item_type);
     });
     // One type in a tab means the chips would only ever say "All", so hide them.
