@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Gear Shop | Bares Taekwondo Fitness</title>
+<title>Pro Shop | Bares Taekwondo Fitness</title>
 <style>
   :root{
     --red:#EA0000; --gold:#F3B700; --ink:#141414; --muted:#6B7076;
@@ -15,10 +15,13 @@
        font-family:'Montserrat',system-ui,-apple-system,'Segoe UI',sans-serif;
        -webkit-font-smoothing:antialiased}
   .wrap{max-width:860px;margin:0 auto;padding:18px 14px 120px}
-  header{text-align:center;padding:8px 0 16px;border-bottom:4px solid var(--gold)}
-  header img{display:block;margin:0 auto 6px;height:50px;width:auto}
-  header h1{margin:6px 0 2px;font-size:1.4rem;letter-spacing:.04em;text-transform:uppercase}
-  header p{margin:0;color:var(--muted);font-size:.82rem}
+  /* The Pro Shop mark is artwork on a solid black background with no
+     transparency, so the header is black to match it. On the cream page it
+     would otherwise read as a black rectangle somebody forgot to cut out. */
+  header{background:var(--ink);margin:-18px -14px 0;padding:16px 14px 14px;
+         text-align:center;border-bottom:4px solid var(--gold)}
+  header img{display:block;margin:0 auto;width:100%;max-width:320px;height:auto}
+  header p{margin:8px 0 0;color:#9BA0A6;font-size:.78rem;letter-spacing:.05em}
   .notice{background:#FFF8E6;border:1px solid #E8D080;border-left:4px solid var(--gold);
           border-radius:8px;padding:12px 14px;margin:16px 0;font-size:.85rem;line-height:1.5}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px;margin:14px 0}
@@ -103,9 +106,9 @@
 <body>
 <div class="wrap">
   <header>
-    <a href="/"><img src="/assets/img/logo.png" alt="Bares Taekwondo Fitness"></a>
-    <h1>Gear Shop</h1>
-    <p>Bares Taekwondo Fitness</p>
+    <a href="/"><img src="/assets/img/pro-shop-logo.png" width="640" height="256"
+       alt="Bares Taekwondo Fitness Pro Shop"></a>
+    <p>Gear for class, ordered for you</p>
   </header>
 
   <div id="boot" class="sub" style="text-align:center;padding:30px 0">Loading the shop...</div>
@@ -459,7 +462,7 @@
         $("boot").hidden = true;
         if (!res.ok || res.j.closed) {
           $("closed").hidden = false;
-          $("closed").innerHTML = '<div class="err">' + esc(res.j.error || "The shop is not open right now.") + "</div>";
+          $("closed").innerHTML = '<div class="err">' + esc(res.j.error || "The Pro Shop is not open right now.") + "</div>";
           return;
         }
         CFG = res.j;
@@ -484,7 +487,7 @@
       .catch(function () {
         $("boot").hidden = true;
         $("closed").hidden = false;
-        $("closed").innerHTML = '<div class="err">We could not load the shop. Please call 903-561-2966.</div>';
+        $("closed").innerHTML = '<div class="err">We could not load the Pro Shop. Please call 903-561-2966.</div>';
       });
   }
 
