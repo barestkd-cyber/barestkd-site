@@ -693,6 +693,13 @@
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j.paid && j.receipt_url) { finish(j.receipt_url); return null; }
+        // Century sold out of something between the page loading and paying.
+        // Nothing was charged or saved; drop just those pieces so the parent
+        // can pick another size, or pay for the rest, without starting over.
+        if (j.sold_out && j.sold_out.length) {
+          CART = CART.filter(function (x) { return j.sold_out.indexOf(x.variant_id) < 0; });
+          renderCart();
+        }
         if (!j.ok || !j.client_secret) { throw new Error(j.error || "We could not start the payment."); }
         return STRIPE.confirmCardPayment(j.client_secret, { payment_method: { card: CARD } })
           .then(function (res) {
@@ -711,7 +718,9 @@
       .catch(function (e) {
         btn.disabled = false;
         btn.textContent = "Pay " + money(totals().total);
-        showErr(String(e.message || e) + " Nothing has been charged.");
+        var msg = String(e.message || e);
+        // The server already says so for a sold-out item; do not say it twice.
+        showErr(/nothing has been charged/i.test(msg) ? msg : msg + " Nothing has been charged.");
       });
   }
 

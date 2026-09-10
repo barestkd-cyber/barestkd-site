@@ -286,6 +286,18 @@ for (const page of PAGES) {
         'the client must send variant ids and quantities only');
       assert.ok(/Number\(v\.list_cents\)/.test(ts), 'prices must be re-derived from shop_variants');
     });
+    // Owner, 2026-09-10: "don't let someone buy an out of stock product." The
+    // stored stock flag is only as fresh as the weekly refresh, so the order
+    // is re-checked live with Century, and it has to happen BEFORE anything is
+    // written, or a sold-out order would leave a sale and a contact behind.
+    test('fn shop: re-checks stock live with Century before writing anything', () => {
+      assert.ok(/async function centuryOutOfStock\(/.test(ts), 'no live stock check');
+      const check = ts.indexOf('await centuryOutOfStock(handles)');
+      assert.ok(check > 0, 'the live check is never called');
+      assert.ok(check < ts.indexOf('from("contacts").insert'), 'a contact is written before stock is checked');
+      assert.ok(check < ts.indexOf('from("pos_sales").insert'), 'the sale is written before stock is checked');
+      assert.ok(/\.eq\("available", true\)/.test(ts), 'the catalogue must never offer an out-of-stock variant');
+    });
     test('fn shop: an abandoned checkout leaves no debt', () => {
       assert.ok(/status:\s*"pending_payment"/.test(ts), 'the sale must start pending_payment, never unpaid');
       assert.ok(/shop-checkout@website/.test(ts),

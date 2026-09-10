@@ -32,6 +32,13 @@
 //      never put gear on Race's Century order.
 //   5. Order lines are a SNAPSHOT. A later Century rename or price move must
 //      not rewrite what somebody already bought.
+//   6. NOBODY BUYS OUT-OF-STOCK GEAR. The stored flag is only as fresh as the
+//      weekly refresh, so stock is re-checked LIVE with Century at the moment
+//      of paying, before a single row is written or a cent moves. A definite
+//      "out of stock" refuses the order and marks the variant so the page
+//      stops offering it. If Century cannot be reached at all, the stored
+//      flag, already checked, stands, rather than refusing every sale on a
+//      Century hiccup (owner, 2026-09-10).
 //
 // Deploy:  supabase functions deploy shop --no-verify-jwt
 // ===========================================================================
@@ -119,6 +126,35 @@ async function sendReceipt(saleId: string): Promise<void> {
     });
     if (!r.ok) console.error("receipt send failed", r.status, await r.text().catch(() => ""));
   } catch (e) { console.error("receipt send threw", e); }
+}
+
+/** Live stock at Century, HARD RULE 6. Returns the Century variant ids that
+ *  Century reports as OUT of stock, for the products it could reach. A
+ *  product it could not reach contributes nothing: the stored flag has
+ *  already been checked for it, and a slow storefront must not block sales. */
+const CENTURY_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+async function centuryOutOfStock(handles: string[]): Promise<Set<number>> {
+  const out = new Set<number>();
+  await Promise.all(handles.map(async (h) => {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6000);
+    try {
+      const r = await fetch("https://www.centurymartialarts.com/products/" + encodeURIComponent(h) + ".js", {
+        headers: { "User-Agent": CENTURY_UA, "Accept": "application/json,text/javascript,*/*" },
+        signal: ctl.signal,
+      });
+      if (!r.ok) return;
+      // The .js endpoint answers text/javascript; parse on content.
+      const p = JSON.parse(await r.text());
+      for (const v of (p?.variants ?? [])) if (v && v.available === false) out.add(Number(v.id));
+    } catch (e) {
+      console.error("live stock check failed for", h, e);
+    } finally {
+      clearTimeout(timer);
+    }
+  }));
+  return out;
 }
 
 /** The card fee, grossed up on goods PLUS tax. See HARD RULE 2. */
@@ -327,14 +363,14 @@ Deno.serve(async (req: Request) => {
       wanted.push({ id, qty, fromPackage: r.from_package === true });
     }
     const vRes = await admin.from("shop_variants")
-      .select("id,product_id,variant_sku,size,color,list_cents,sellable,available")
+      .select("id,product_id,vendor_variant_id,variant_sku,size,color,list_cents,sellable,available")
       .in("id", wanted.map((w) => w.id));
     if (vRes.error) throw vRes.error;
     const vMap = new Map<string, Record<string, unknown>>();
     for (const v of (vRes.data ?? []) as Record<string, unknown>[]) vMap.set(String(v.id), v);
 
     const pRes = await admin.from("shop_products")
-      .select("id,title,dealer_sku,vendor,logo_cents,active")
+      .select("id,title,dealer_sku,vendor,handle,logo_cents,active")
       .in("id", Array.from(new Set((vRes.data ?? []).map((v: Record<string, unknown>) => String(v.product_id)))));
     if (pRes.error) throw pRes.error;
     const pMap = new Map<string, Record<string, unknown>>();
@@ -360,6 +396,22 @@ Deno.serve(async (req: Request) => {
         v, p, qty: w.qty, unit, logoCents, fromPackage: w.fromPackage,
         label: String(p.title) + (bits ? " (" + bits + ")" : ""),
       });
+    }
+
+    // ── live stock, HARD RULE 6 ────────────────────────────────────────
+    const handles = Array.from(new Set(priced.map((x) => str(x.p.handle)).filter(Boolean)));
+    const gone = await centuryOutOfStock(handles);
+    const soldOut = priced.filter((x) => gone.has(Number(x.v.vendor_variant_id)));
+    if (soldOut.length) {
+      // Record it now, so the page stops offering it straight away instead of
+      // waiting for the weekly refresh to notice.
+      await admin.from("shop_variants").update({ available: false })
+        .in("id", soldOut.map((x) => String(x.v.id)));
+      return json({
+        error: "Century has just sold out of " + soldOut.map((x) => x.label).join(", ")
+          + ". Remove it and pick another size or colour. Nothing has been charged.",
+        sold_out: soldOut.map((x) => String(x.v.id)),
+      }, 409, cors);
     }
 
     const lines = priced.map((x) => ({ cents: x.unit * x.qty, taxable: true }));
