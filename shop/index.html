@@ -57,11 +57,18 @@
   .done{text-align:center;padding:30px 10px}
   .done h2{color:var(--go)}
   .hp{position:absolute;left:-9999px}
+  header img{display:block;margin:0 auto 6px;height:54px;width:auto}
+  .step{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
+        color:var(--muted);font-weight:700;margin-bottom:4px}
+  .card.pack{border:2px solid var(--gold);box-shadow:0 2px 14px rgba(243,183,0,.16)}
+  button.pay.go{background:var(--go)}
+  button.pay.go.added{background:#5B8C74}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
+    <a href="/"><img src="/assets/img/logo.png" alt="Bares Taekwondo Fitness" width="101" height="54"></a>
     <h1>Gear Shop</h1>
     <p>Bares Taekwondo Fitness</p>
   </header>
@@ -71,18 +78,33 @@
   <div id="app" hidden>
     <div class="notice" id="notice"></div>
 
-    <div class="card" id="packCard">
+    <!-- STEP 1. The package, as one thing. Deliberately NO per-piece add
+         button in here: a parent adding pieces one at a time and only then
+         finding the single button below would rightly be annoyed. Buying one
+         piece on its own lives in step 3, where it says so. -->
+    <div class="card pack" id="packCard">
+      <div class="step">Step 1</div>
       <h2 id="packName">Beginner Gear Package</h2>
       <p class="sub" id="packNote"></p>
       <div id="packPieces"></div>
-      <div class="tot big"><span>Package</span><span id="packTotal">-</span></div>
-      <button class="add" id="packBtn" type="button" style="margin-top:10px">Add the package</button>
+      <div class="tot big"><span>Everything above</span><span id="packTotal">-</span></div>
+      <button class="pay go" id="packBtn" type="button">Add the package</button>
     </div>
 
-    <div class="card" id="extraCard">
-      <h2>Also available on its own</h2>
-      <p class="sub">Anything above can be bought singly too. Pick a size and add it.</p>
-      <div id="extraPieces"></div>
+    <!-- STEP 2. The two optional extras, offered where the decision is made. -->
+    <div class="card" id="addonCard">
+      <div class="step">Step 2, optional</div>
+      <h2>Add to the package</h2>
+      <p class="sub">Not required, but plenty of students carry them.</p>
+      <div id="addonPieces"></div>
+    </div>
+
+    <!-- STEP 3. Every item on its own, for a replacement. -->
+    <div class="card" id="singlesCard">
+      <div class="step">Or</div>
+      <h2>Buy a single piece</h2>
+      <p class="sub">Replacing something, or you only need the one item. Pick a size and add it.</p>
+      <div id="singlePieces"></div>
     </div>
 
     <div class="card">
@@ -185,6 +207,12 @@
   function colorsOf(p) {
     var out = [], seen = {};
     p.variants.forEach(function (v) { if (v.color && !seen[v.color]) { seen[v.color] = 1; out.push(v.color); } });
+    // Restricted colours go last. Century lists Black first, and Black is the
+    // black-belt colourway, so straight off the vendor a white belt's first
+    // option was the one they cannot have.
+    var gated = {};
+    p.variants.forEach(function (v) { if (v.black_belt_only && v.color) gated[v.color] = 1; });
+    out.sort(function (a, b) { return (gated[a] ? 1 : 0) - (gated[b] ? 1 : 0); });
     return out;
   }
   function priceFrom(p) {
@@ -217,11 +245,14 @@
           }).join('')
         + '</select>';
     }
-    // EVERY piece is addable on its own, package members included: somebody
-    // who split a shin guard should not have to buy the whole set again
-    // (owner, 2026-09-09).
-    h += '<button class="add" type="button" data-add="' + esc(p.id) + '">'
-      + (prefix === 'p' ? 'Add just this' : 'Add') + '</button>';
+    // NO add button inside the package block. Letting a parent add pieces
+    // one at a time up there, and only then discover the single button at the
+    // bottom, is the exact confusion this layout exists to avoid. Every piece
+    // is still buyable alone, in step 3, where the heading says so.
+    if (prefix !== 'p') {
+      h += '<button class="add" type="button" data-add="' + esc(p.id) + '">'
+        + (prefix === 'a' ? 'Add to my package' : 'Add') + '</button>';
+    }
     h += '</div></div></div>';
     return h;
   }
@@ -298,8 +329,14 @@
           var sum = CFG.package.reduce(function (a, p) { return a + priceFrom(p); }, 0);
           $("packTotal").textContent = money(sum);
         }
-        if (!CFG.extras.length) { $("extraCard").hidden = true; }
-        else { $("extraPieces").innerHTML = CFG.extras.map(function (p) { return pieceHtml(p, "x"); }).join(""); }
+        if (!CFG.extras.length) { $("addonCard").hidden = true; }
+        else { $("addonPieces").innerHTML = CFG.extras.map(function (p) { return pieceHtml(p, "a"); }).join(""); }
+
+        // Step 3 lists EVERYTHING, package pieces included, because a
+        // replacement mouthguard is the commonest single sale there is.
+        var all = CFG.package.concat(CFG.extras);
+        if (!all.length) { $("singlesCard").hidden = true; }
+        else { $("singlePieces").innerHTML = all.map(function (p) { return pieceHtml(p, "i"); }).join(""); }
 
         wire();
         loadStripe();
@@ -324,6 +361,11 @@
       }
       if (err) { showErr(err); return; }
       showErr(null);
+      // Say plainly that it worked. Without this the only feedback is a cart
+      // further down the page, and a parent who does not see it clicks again.
+      var b = $("packBtn");
+      b.classList.add("added");
+      b.textContent = "Added. Tap again for a second package";
       picked.forEach(function (got) {
         var found = null;
         CART.forEach(function (x) { if (x.variant_id === got.v.id) found = x; });
@@ -333,8 +375,8 @@
       });
       renderCart();
     });
-    // One handler for both lists. A package piece bought on its own is NOT
-    // from_package: it is a single item, and the order line should say so.
+    // Step 2 and step 3. A piece bought on its own is NOT from_package, so
+    // the order line records what it really was.
     function singleAdd(list, prefix) {
       return function (ev) {
         var id = ev.target && ev.target.getAttribute && ev.target.getAttribute("data-add");
@@ -345,8 +387,9 @@
         renderCart();
       };
     }
-    $("extraPieces").addEventListener("click", singleAdd(function () { return CFG.extras; }, "x"));
-    $("packPieces").addEventListener("click", singleAdd(function () { return CFG.package; }, "p"));
+    $("addonPieces").addEventListener("click", singleAdd(function () { return CFG.extras; }, "a"));
+    $("singlePieces").addEventListener("click",
+      singleAdd(function () { return CFG.package.concat(CFG.extras); }, "i"));
     $("cart").addEventListener("click", function (ev) {
       var i = ev.target && ev.target.getAttribute && ev.target.getAttribute("data-rm");
       if (i === null || i === undefined) return;
