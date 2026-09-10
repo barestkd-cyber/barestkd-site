@@ -648,8 +648,11 @@
     var adds = chosenAddOns();
     var addCents = adds.reduce(function (a, x) { return a + x.cents; }, 0);
     var base = due + uni + tee + addCents;
-    var fee = cardFeeCents(base, CFG.admin_fee_bps, CFG.admin_fee_flat_cents);
     var tax = Math.floor((uni + tee) * CFG.tax_rate + 0.5);   // goods are taxable, tuition is not
+    // The fee grosses up on base PLUS tax, because Stripe takes its cut of
+    // the whole charge. Same order the server uses, so the quote matches the
+    // charge exactly (ledger audit 2026-09-09).
+    var fee = cardFeeCents(base + tax, CFG.admin_fee_bps, CFG.admin_fee_flat_cents);
     return { due: due, uni: uni, tee: tee, adds: adds, fee: fee, tax: tax, total: base + fee + tax };
   }
   function renderPrice() {

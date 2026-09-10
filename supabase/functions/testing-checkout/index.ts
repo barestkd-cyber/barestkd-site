@@ -458,8 +458,15 @@ Deno.serve(async (req) => {
     }
 
     const lines = seats.map((s) => ({ cents: s.cents, taxable: TESTING_TAXABLE }));
-    const preTaxBase = seats.reduce((a, s) => a + s.cents, 0);
-    const fee = adminFeeCents(preTaxBase, feeBps, feeFlat);   // card-only online
+    // Gross up on what Race must NET, which is the seats PLUS any sales tax:
+    // Stripe takes its percentage of the whole charge, tax included. A no-op
+    // while TESTING_TAXABLE is false, and the reason flipping that flag can
+    // never silently under-collect the way the pre-tax base did elsewhere
+    // (ledger audit 2026-09-09).
+    const preFee = BTKDPricing.invoiceTotals({
+      lines, discountCents: 0, adminFeeCents: 0, taxRate: TAX_RATE,
+    });
+    const fee = adminFeeCents(preFee.totalCents, feeBps, feeFlat);   // card-only online
     const totals = BTKDPricing.invoiceTotals({
       lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
     });

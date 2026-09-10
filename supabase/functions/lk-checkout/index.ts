@@ -552,9 +552,15 @@ Deno.serve(async (req) => {
     const lines = [{ cents: due, taxable: false }];
     if (wantShirt) lines.push({ cents: shirtCents, taxable: true });
     if (wantGray) lines.push({ cents: grayCents, taxable: true });
-    const preTaxBase = due + (wantShirt ? shirtCents : 0) + (wantGray ? grayCents : 0);
-    // Online checkout is card-only, and a card always carries the fee.
-    const fee = adminFeeCents(preTaxBase, feeBps, feeFlat);
+    // Online checkout is card-only, and a card always carries the fee. The
+    // fee grosses up on what Race must NET, which is the session PLUS sales
+    // tax on any shirt: Stripe takes its percentage of the whole charge, tax
+    // included. Grossing up on the pre-tax subtotal left him about 2.9% of
+    // the tax short on every shirt sale (ledger audit 2026-09-09). Tax never
+    // depends on the fee, so price it once with a zero fee and gross up on
+    // that total.
+    const preFee = BTKDPricing.invoiceTotals({ lines, discountCents: 0, adminFeeCents: 0, taxRate: TAX_RATE });
+    const fee = adminFeeCents(preFee.totalCents, feeBps, feeFlat);
     const totals = BTKDPricing.invoiceTotals({ lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE });
 
     const today = todayCT();

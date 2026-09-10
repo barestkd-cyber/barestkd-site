@@ -102,19 +102,21 @@ test('money: session only — $109 + $3.56 grossed-up card fee, no tax', () => {
   assert.strictEqual(t.totalCents, 11256, 'total: ' + t.totalCents);
 });
 
-test('money: with the shirt — fee on the pre-tax base, tax on the shirt only', () => {
-  const fee = adminFeeCents(10900 + 2500, 290, 30);
-  assert.strictEqual(fee, 431, 'fee: ' + fee);
-  netsExactly(13400, fee);
-  const t = P.invoiceTotals({
-    lines: [{ cents: 10900, taxable: false }, { cents: 2500, taxable: true }],
-    discountCents: 0, adminFeeCents: fee, taxRate: 0.0825,
-  });
-  assert.strictEqual(t.taxCents, 206, 'tax: ' + t.taxCents); // 2500*.0825=206.25 → 206
-  assert.strictEqual(t.totalCents, 10900 + 2500 + 431 + 206, 'total: ' + t.totalCents);
+test('money: with the shirt, fee grossed up on session plus shirt plus tax', () => {
+  const lines = [{ cents: 10900, taxable: false }, { cents: 2500, taxable: true }];
+  // Stripe's cut lands on the sales tax as well as the goods, so the base the
+  // fee grosses up on has to include it. Grossing up on the pre-tax 134.00
+  // gave 4.31 and left the studio 6c short of the sticker price every time.
+  const pre = P.invoiceTotals({ lines, discountCents: 0, adminFeeCents: 0, taxRate: 0.0825 });
+  assert.strictEqual(pre.taxCents, 206, 'tax: ' + pre.taxCents); // 2500*.0825=206.25 → 206
+  assert.strictEqual(pre.totalCents, 13606, 'goods plus tax: ' + pre.totalCents);
+  const fee = adminFeeCents(pre.totalCents, 290, 30);
+  assert.strictEqual(fee, 437, 'fee: ' + fee);
+  netsExactly(pre.totalCents, fee);
+  const t = P.invoiceTotals({ lines, discountCents: 0, adminFeeCents: fee, taxRate: 0.0825 });
   // The fee itself is never in the tax base.
-  const noFee = P.invoiceTotals({ lines: [{ cents: 10900, taxable: false }, { cents: 2500, taxable: true }], discountCents: 0, adminFeeCents: 0, taxRate: 0.0825 });
-  assert.strictEqual(noFee.taxCents, t.taxCents, 'adding the fee changed the tax');
+  assert.strictEqual(t.taxCents, pre.taxCents, 'adding the fee changed the tax');
+  assert.strictEqual(t.totalCents, 10900 + 2500 + 437 + 206, 'total: ' + t.totalCents);
 });
 
 test('money: gray tee rides at half price — tax on the discounted price', () => {
@@ -122,24 +124,27 @@ test('money: gray tee rides at half price — tax on the discounted price', () =
   assert.ok(/TEE_DISCOUNT_BPS = 5000/.test(fnSrc), 'the 50% enrollment discount is missing');
   const grayNow = Math.round(2500 * (10000 - 5000) / 10000);
   assert.strictEqual(grayNow, 1250, 'half of $25 is $12.50');
-  const fee = adminFeeCents(10900 + 1250, 290, 30);
-  assert.strictEqual(fee, 394, 'fee: ' + fee);
-  netsExactly(12150, fee);
-  const t = P.invoiceTotals({ lines: [{ cents: 10900, taxable: false }, { cents: 1250, taxable: true }], discountCents: 0, adminFeeCents: fee, taxRate: 0.0825 });
-  assert.strictEqual(t.taxCents, 103, 'tax: ' + t.taxCents); // 1250*.0825=103.125 → 103
-  assert.strictEqual(t.totalCents, 10900 + 1250 + 394 + 103, 'total: ' + t.totalCents);
+  const lines = [{ cents: 10900, taxable: false }, { cents: 1250, taxable: true }];
+  const pre = P.invoiceTotals({ lines, discountCents: 0, adminFeeCents: 0, taxRate: 0.0825 });
+  assert.strictEqual(pre.taxCents, 103, 'tax: ' + pre.taxCents); // 1250*.0825=103.125 → 103
+  const fee = adminFeeCents(pre.totalCents, 290, 30);   // grossed up on goods PLUS tax
+  assert.strictEqual(fee, 397, 'fee: ' + fee);
+  netsExactly(pre.totalCents, fee);
+  const t = P.invoiceTotals({ lines, discountCents: 0, adminFeeCents: fee, taxRate: 0.0825 });
+  assert.strictEqual(t.taxCents, 103, 'tax: ' + t.taxCents);
+  assert.strictEqual(t.totalCents, 10900 + 1250 + 397 + 103, 'total: ' + t.totalCents);
 });
 
 test('money: both shirts — white full price, gray half, one tax rounding', () => {
-  const fee = adminFeeCents(10900 + 2500 + 1250, 290, 30);
-  assert.strictEqual(fee, 468, 'fee: ' + fee);
-  netsExactly(14650, fee);
-  const t = P.invoiceTotals({
-    lines: [{ cents: 10900, taxable: false }, { cents: 2500, taxable: true }, { cents: 1250, taxable: true }],
-    discountCents: 0, adminFeeCents: fee, taxRate: 0.0825,
-  });
-  assert.strictEqual(t.taxCents, 309, 'tax: ' + t.taxCents); // 3750*.0825=309.375 → 309
-  assert.strictEqual(t.totalCents, 14650 + 468 + 309, 'total: ' + t.totalCents);
+  const lines = [{ cents: 10900, taxable: false }, { cents: 2500, taxable: true }, { cents: 1250, taxable: true }];
+  const pre = P.invoiceTotals({ lines, discountCents: 0, adminFeeCents: 0, taxRate: 0.0825 });
+  assert.strictEqual(pre.taxCents, 309, 'tax: ' + pre.taxCents); // 3750*.0825=309.375 → 309
+  const fee = adminFeeCents(pre.totalCents, 290, 30);   // grossed up on goods PLUS tax
+  assert.strictEqual(fee, 478, 'fee: ' + fee);
+  netsExactly(pre.totalCents, fee);
+  const t = P.invoiceTotals({ lines, discountCents: 0, adminFeeCents: fee, taxRate: 0.0825 });
+  assert.strictEqual(t.taxCents, 309, 'tax: ' + t.taxCents);
+  assert.strictEqual(t.totalCents, 14650 + 478 + 309, 'total: ' + t.totalCents);
 });
 
 test('the frozen body_text is the whole executed document', () => {

@@ -277,6 +277,21 @@ for (const page of PAGES) {
       assert.strictEqual(wrong.length, 0,
         'server would charge a different fee from the page on ' + wrong.length + ' amounts');
     });
+    // The two tests above only prove the fee HELPER is right. Both passed
+    // happily for weeks while every caller handed it a pre-tax base, so
+    // Stripe's cut landed on the sales tax too and the studio came up about
+    // 2.9% of the tax short on every taxed sale. Found in the live ledger
+    // 2026-09-09. The base has to be goods PLUS tax, which is exactly what
+    // invoiceTotals returns as totalCents when the fee is zero.
+    test('fn ' + name + ': the fee base includes sales tax', () => {
+      const calls = Array.from(ts.matchAll(/(?:^|[^\w.])adminFeeCents\(\s*([^,]+),/g))
+        .map((m) => m[1].trim())
+        .filter((a) => !/^baseCents/.test(a));   // skip the declaration itself
+      assert.ok(calls.length, 'no adminFeeCents call found at all');
+      const bad = calls.filter((a) => !/\.totalCents$/.test(a));
+      assert.strictEqual(bad.length, 0,
+        'fee grossed up on a pre-tax base: ' + bad.join(' | '));
+    });
   });
 }
 

@@ -500,7 +500,16 @@ Deno.serve(async (req) => {
     const lines = [{ cents: due, taxable: false }];
     if (wantUniform) lines.push({ cents: uniformCents, taxable: true });
     wantShirts.forEach((x) => lines.push({ cents: x.cents, taxable: true }));
-    const fee = adminFeeCents(due + uniformCents + shirtsCents, feeBps, feeFlat);   // card-only online, fee always rides
+    // The fee grosses up on what Race must NET, which is goods PLUS sales
+    // tax: Stripe takes its percentage of the whole charge, tax included.
+    // Grossing up on the pre-tax subtotal left him about 2.9% of the tax
+    // short on every taxed sale (ledger audit 2026-09-09: 19c on the Cubs
+    // enrollment of 08-29). Tax never depends on the fee, so price it once
+    // with a zero fee and gross up on that total.
+    const preFee = BTKDPricing.invoiceTotals({
+      lines, discountCents: 0, adminFeeCents: 0, taxRate: TAX_RATE,
+    });
+    const fee = adminFeeCents(preFee.totalCents, feeBps, feeFlat);   // card-only online, fee always rides
     const totals = BTKDPricing.invoiceTotals({
       lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
     });

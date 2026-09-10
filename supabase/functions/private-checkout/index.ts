@@ -329,12 +329,18 @@ Deno.serve(async (req) => {
         .in("key", ["admin_fee_bps", "admin_fee_flat_cents"]);
       const fs2: Record<string, number> = {};
       ((feeRow.data ?? []) as { key: string; value_cents: number }[]).forEach((r) => fs2[r.key] = r.value_cents);
-      const withFee = (cents: number) => BTKDPricing.invoiceTotals({
-        lines: [{ cents, taxable: LESSON_TAXABLE }],
-        discountCents: 0,
-        adminFeeCents: adminFeeCents(cents, fs2.admin_fee_bps ?? 290, fs2.admin_fee_flat_cents ?? 30),
-        taxRate: TAX_RATE,
-      }).totalCents;
+      // Same rule as the POST path: the fee grosses up on lessons PLUS tax,
+      // never on the pre-tax figure, so the quoted price and the charge agree.
+      const withFee = (cents: number) => {
+        const l = [{ cents, taxable: LESSON_TAXABLE }];
+        const pre = BTKDPricing.invoiceTotals({ lines: l, discountCents: 0, adminFeeCents: 0, taxRate: TAX_RATE });
+        return BTKDPricing.invoiceTotals({
+          lines: l,
+          discountCents: 0,
+          adminFeeCents: adminFeeCents(pre.totalCents, fs2.admin_fee_bps ?? 290, fs2.admin_fee_flat_cents ?? 30),
+          taxRate: TAX_RATE,
+        }).totalCents;
+      };
       return json({
         page_live: pageLive,
         rate_cents: rateCents,
@@ -517,9 +523,17 @@ Deno.serve(async (req) => {
     // How many of the pack are the free ones, said plainly on the invoice.
     const payFor = Math.max(1, Math.round(Number(S.private_pack_pay_for)) || packSize - 1);
     const freeCount = Math.max(0, packSize - payFor);
-    const fee = adminFeeCents(lessonsCents, ps.admin_fee_bps ?? 290, ps.admin_fee_flat_cents ?? 30);
+    // Gross up on what Race must NET, which is the lessons PLUS any sales
+    // tax: Stripe takes its percentage of the whole charge, tax included. A
+    // no-op while LESSON_TAXABLE is false, and the reason flipping that flag
+    // can never silently under-collect (ledger audit 2026-09-09).
+    const feeLines = [{ cents: lessonsCents, taxable: LESSON_TAXABLE }];
+    const preFee = BTKDPricing.invoiceTotals({
+      lines: feeLines, discountCents: 0, adminFeeCents: 0, taxRate: TAX_RATE,
+    });
+    const fee = adminFeeCents(preFee.totalCents, ps.admin_fee_bps ?? 290, ps.admin_fee_flat_cents ?? 30);
     const totals = BTKDPricing.invoiceTotals({
-      lines: [{ cents: lessonsCents, taxable: LESSON_TAXABLE }],
+      lines: feeLines,
       discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
     });
 

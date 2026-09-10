@@ -473,8 +473,11 @@
     var gray = $("lkc-gray").checked && CFG.gray_tee_available;
     var taxable = (shirt ? CFG.tshirt_cents : 0) + (gray ? CFG.gray_tee_cents : 0);
     var base = CFG.price_cents + taxable;
-    var fee = cardFeeCents(base, CFG.admin_fee_bps, CFG.admin_fee_flat_cents);
     var tax = Math.floor(taxable * CFG.tax_rate + 0.5);
+    // The fee grosses up on base PLUS tax, because Stripe takes its cut of
+    // the whole charge. Same order the server uses, so the quote matches the
+    // charge exactly (ledger audit 2026-09-09).
+    var fee = cardFeeCents(base + tax, CFG.admin_fee_bps, CFG.admin_fee_flat_cents);
     return { shirt: shirt, gray: gray, fee: fee, tax: tax, total: base + fee + tax };
   }
   function renderPrice() {
