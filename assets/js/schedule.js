@@ -72,7 +72,10 @@
       (p.classes || []).forEach(function (c) {
         var lab = c.label || p.program;
         var meta = CLASS_META[lab] || { name: lab, detail: "" };
-        out.push({ dow: c.dow, h: c.h, m: c.m, label: lab, name: meta.name, detail: meta.detail, belt: beltLabel(c.belt), program: p.program, trialOpen: c.trialOpen !== false, startsOn: c.startsOn || null });
+        // An ended class is not on the schedule any more. It used to stay,
+        // because the renderer threw away the dates that said so.
+        if (c.endsOn && String(c.endsOn) < studioToday()) return;
+        out.push({ dow: c.dow, h: c.h, m: c.m, label: lab, name: meta.name, detail: meta.detail, belt: beltLabel(c.belt), program: p.program, trialOpen: c.trialOpen !== false, startsOn: c.startsOn || null, endsOn: c.endsOn || null });
       });
     });
     return out;
@@ -97,6 +100,21 @@
 
   /* "2026-09-16" -> "Sept 16". Split the string rather than new Date(): a
       bare date parses as UTC and reads a day early in Central. */
+  // The studio's calendar date, not the visitor's: a class ends on a
+  // Texas date regardless of where the page is read.
+  function studioToday() {
+    try {
+      return new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+    } catch (e) {
+      var d = new Date();
+      return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    }
+  }
+  function daysBetween(a, b) {
+    var pa = a.split("-"), pb = b.split("-");
+    return Math.round((Date.UTC(+pb[0], +pb[1] - 1, +pb[2]) - Date.UTC(+pa[0], +pa[1] - 1, +pa[2])) / 86400000);
+  }
+
   function startLabel(ymd) {
     var M = ["Jan","Feb","Mar","Apr","May","June","July","Aug","Sept","Oct","Nov","Dec"];
     var p = String(ymd).split("-");
@@ -164,7 +182,12 @@
       ul.className = "schedule-class-row__times";
       times.forEach(function (c) {
         var txt = SHORT[c.dow] + " " + fmtTime(c.h, c.m) + (c.belt ? " · " + c.belt : "");
-        if (c.startsOn) txt += " · starts " + startLabel(c.startsOn);
+        // "starts" only while it is still ahead - it used to print forever,
+        // including after the class had begun. And say when one is about
+        // to stop, so a family is not surprised by a changeover.
+        var today = studioToday();
+        if (c.startsOn && String(c.startsOn) > today) txt += " · starts " + startLabel(c.startsOn);
+        else if (c.endsOn && daysBetween(today, String(c.endsOn)) <= 21) txt += " · last class " + startLabel(c.endsOn);
         ul.appendChild(el("li", "", txt));
       });
       row.appendChild(ul);

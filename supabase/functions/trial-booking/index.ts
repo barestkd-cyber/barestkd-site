@@ -20,6 +20,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 import { LOGO_PNG_BASE64 } from "./logo.ts";
+import { findOrCreateGuardian } from "../_shared/family.ts";
 
 const ALLOWED_ORIGINS = [
   "https://www.barestkd.fit",
@@ -240,6 +241,59 @@ async function handleFullSchedule(cors: Record<string, string>) {
   }
 }
 
+/** The page's program tags, mapped to the schedule's marketing groups. A
+ *  tag missing from here still books on a valid slot rather than being
+ *  refused: a new program added to the page before this list would
+ *  otherwise turn away every family trying it. */
+const TAG_TO_PROGRAM: Record<string, string> = {
+  "Cubs": "Cubs",
+  "Juniors": "Taekwondo",
+  "Teens/Adults Taekwondo": "Taekwondo",
+  "Taekwondo": "Taekwondo",
+  "Kickboxing": "Kickboxing",
+  "Jiu Jitsu": "Jiu Jitsu",
+  "AMP'D": "AMP'D",
+};
+
+/** Every booking must be a real class. Same schedule_template rows and the
+ *  same "running" rule the public schedule uses, so the booker and the
+ *  website cannot disagree about what is bookable. */
+async function validateBookings(
+  admin: ReturnType<typeof adminClient>, bookings: unknown[],
+): Promise<{ refused?: string; error?: unknown }> {
+  const { data: rows, error } = await admin.from("schedule_template")
+    .select("day, time_h, time_m, label, prog_css, trial_open, starts_on, ends_on");
+  if (error) return { error };
+  const list = (rows || []) as any[];
+  const nowMs = Date.now();
+  for (const raw of bookings) {
+    const b = (raw && typeof raw === "object") ? raw as Record<string, unknown> : {};
+    const at = new Date(str(b.class_datetime));
+    if (isNaN(at.getTime())) return { refused: "One of those class times could not be read. Please pick it again." };
+    if (at.getTime() < nowMs) return { refused: "One of those classes has already started. Please pick another time." };
+    // The studio's wall clock at that instant.
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Chicago", weekday: "short", hour: "2-digit", minute: "2-digit",
+      hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(at).map((p) => [p.type, p.value]));
+    const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(String(parts.weekday));
+    const h = Number(parts.hour), m = Number(parts.minute);
+    const ymd = parts.year + "-" + parts.month + "-" + parts.day;
+    const want = TAG_TO_PROGRAM[str(b.program)];
+    const group = want ? MARKETING.find((g) => g.program === want) : undefined;
+    const ok = list.some((r) =>
+      r.day + 1 === dow && Number(r.time_h) === h && Number(r.time_m) === m &&
+      !!r.trial_open &&
+      (!r.starts_on || String(r.starts_on) <= ymd) &&
+      (!r.ends_on || String(r.ends_on) >= ymd) &&
+      (!group || group.match(r)));
+    if (!ok) {
+      return { refused: "That class is not open for a free trial at that time. Please pick another from the list." };
+    }
+  }
+  return {};
+}
+
 async function handleSchedule(cors: Record<string, string>, req: Request) {
   const wantRaw = new URL(req.url).searchParams.get("raw") === "1";
   const cacheHeaders = { ...cors, "Cache-Control": "public, max-age=300" };
@@ -269,8 +323,15 @@ async function handleSchedule(cors: Record<string, string>, req: Request) {
       // startsOn lets the site print "Starts Sept 16" instead of implying the
       // class already meets; notYet also makes it unbookable for a trial.
       const notYet = !running(r);
+      // Trial-eligible unless the class has ENDED. A class that has not
+      // started yet IS bookable - for dates on or after startsOn, which the
+      // page now enforces - so the new schedule can be booked ahead of its
+      // first day instead of appearing only once it has begun. endsOn goes
+      // out too, so no page offers a date after the class stops.
+      const ended = !!r.ends_on && String(r.ends_on) < todayCT;
       return { dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "", belt: r.belt || "",
-               trialOpen: !!r.trial_open && !notYet, startsOn: r.starts_on || null, notYet: notYet };
+               trialOpen: !!r.trial_open && !ended,
+               startsOn: r.starts_on || null, endsOn: r.ends_on || null, notYet: notYet };
     };
 
     const programs: any[] = MARKETING.map(function (mkt) {
@@ -285,7 +346,9 @@ async function handleSchedule(cors: Record<string, string>, req: Request) {
     list.forEach(function (r: any, i: number) {
       if (used[i]) return;
       const key = r.prog_css || "other";
-      (leftovers[key] = leftovers[key] || []).push({ dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "", trialOpen: !!r.trial_open });
+      const endedL = !!r.ends_on && String(r.ends_on) < todayCT;
+      (leftovers[key] = leftovers[key] || []).push({ dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "",
+        trialOpen: !!r.trial_open && !endedL, startsOn: r.starts_on || null, endsOn: r.ends_on || null, notYet: !running(r) });
     });
     Object.keys(leftovers).forEach(function (k) {
       programs.push({ program: titleFromCss(k), ageLabel: "", kids: false, classes: leftovers[k] });
@@ -376,7 +439,10 @@ Deno.serve(async (req) => {
       // this, a 13-year-old booking Kickboxing (Ages 13+, kids:false) was
       // treated as an adult: no parent asked for, and the waiver signed in
       // the child's own name.
-      const studentAgeTrial = ageFromDob(body.student_dob);
+      // `dob`, parsed above - NOT body.student_dob, which the page has never
+      // sent. Reading that field made this always null, so the is_kids
+      // fallback decided every time and the fix described above never ran.
+      const studentAgeTrial = ageFromDob(dob);
       const needsGuardian = studentAgeTrial !== null ? studentAgeTrial < 18 : isKids;
 
       if (needsGuardian) {
@@ -446,6 +512,30 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Every booking must land on a REAL class: in the schedule, open for
+      // trials, running on that date, and still in the future. Checked
+      // before anything is written, so a refusal leaves nothing behind.
+      // Only blackout days used to be checked; the program, time and label
+      // were taken on the browser's word.
+      const slotCheck = await validateBookings(admin, bookings);
+      if (slotCheck.error) {
+        console.error("[trial-booking] schedule read failed:", slotCheck.error);
+        return json({ error: "We could not confirm that class time. Please try again in a moment." }, 503, cors);
+      }
+      if (slotCheck.refused) return json({ error: slotCheck.refused }, 409, cors);
+
+      // A retry of the SAME submission returns what the first one did,
+      // instead of creating a second person. Identity comes from the key
+      // the page made when the form opened - never from a name match, since
+      // two children can share a name and a parent can book siblings.
+      const intakeKey = /^[A-Za-z0-9_-]{16,64}$/.test(str(body.intake_key)) ? str(body.intake_key) : null;
+      if (intakeKey) {
+        const prior = await admin.from("contacts").select("id").eq("intake_key", intakeKey).maybeSingle();
+        if (prior.data) {
+          return json({ ok: true, repeat: true, contact_id: prior.data.id }, 200, cors);
+        }
+      }
+
       // ONE contact per student. program stays NULL; trial-interest programs
       // live in tags (text[]) and on the booking rows.
       const { data: contact, error: cErr } = await admin
@@ -462,6 +552,7 @@ Deno.serve(async (req) => {
           phone: contactPhone,
           dob,
           tags: programs,        // e.g. ["Taekwondo","Jiu Jitsu"]
+          intake_key: intakeKey,
         })
         .select("id")
         .single();
@@ -488,19 +579,33 @@ Deno.serve(async (req) => {
       if (!rows.length) return json({ error: "Missing required fields" }, 400, cors);
 
       const { error: bErr } = await admin.from("trial_bookings").insert(rows);
-      if (bErr) throw bErr;
+      if (bErr) {
+        // Undo the person this request just made, so the retry does not
+        // meet a half-built record and make a second one. This deletes only
+        // the row created a few lines up in this same request - a failure
+        // artifact, never anybody who existed before it.
+        const undo = await admin.from("contacts").delete().eq("id", contact.id);
+        if (undo.error) console.error("[trial-booking] could not undo contact", contact.id, undo.error);
+        throw bErr;
+      }
 
       // Record the parent/guardian email as a guardian row (kids always; adults
       // only when they supplied an optional guardian email).
       // bookedBy is the guardian's name on the kids path, so store it: a
       // guardian row of email-only shows on a profile as a bare address.
-      if (parentEmail || (needsGuardian && bookedBy)) {
-        await admin.from("student_guardians").insert({
-          student_id: contact.id,
-          email: parentEmail || null,
-          name: bookedBy || null,
-          label: "parent",
+      // A real guardian PERSON, linked to the student - the model every
+      // checkout uses. The old insert wrote name/email onto the link row with
+      // no person behind it, which the CRM's guardian UI cannot see, and
+      // never checked the result. findOrCreateGuardian matches on EMAIL only
+      // and refuses outright when two guardians share an address, so it
+      // never merges people on a name.
+      if (parentEmail) {
+        const gid = await findOrCreateGuardian(admin, {
+          name: bookedBy, email: parentEmail,
+          phone: needsGuardian ? contactPhone : guardianPhone,
+          studentId: contact.id, label: "Parent",
         });
+        if (!gid) console.error("[trial-booking] guardian not linked for", contact.id);
       }
 
       // One clean line per class: program, day, date, time once (no repeated

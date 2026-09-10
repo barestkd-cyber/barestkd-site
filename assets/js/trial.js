@@ -211,9 +211,15 @@
     if (dayEnd.getTime() <= now.getTime()) return [];
     var classes = classesFor(item);
     var out = [];
+    var ymd = ymdOf(d);
     for (var c = 0; c < classes.length; c++) {
       var cls = classes[c];
       if (cls.dow !== d.getDay()) continue;
+      // Only on a date the class actually meets. Without this a class
+      // ending on the 13th was offered for the 14th, and one starting on
+      // the 16th could not be booked ahead of it.
+      if (cls.startsOn && ymd < String(cls.startsOn)) continue;
+      if (cls.endsOn && ymd > String(cls.endsOn)) continue;
       var when = new Date(d.getFullYear(), d.getMonth(), d.getDate(), cls.h, cls.m);
       out.push({
         iso: studioToInstant(d.getFullYear(), d.getMonth(), d.getDate(), cls.h, cls.m).toISOString(),
@@ -699,6 +705,20 @@
   }
 
   /* ---- step 5: submit ------------------------------------------------ */
+  // One random key per submission, made on the first attempt and reused by
+  // every retry of it. The server uses it to recognise a retry and return the
+  // first result instead of creating the same person twice. A name cannot do
+  // that job: two children share names, and parents book siblings.
+  function intakeKey() {
+    if (state.intakeKey) return state.intakeKey;
+    var a = new Uint8Array(18);
+    (window.crypto || window.msCrypto).getRandomValues(a);
+    state.intakeKey = Array.prototype.map.call(a, function (b) {
+      return ("0" + b.toString(16)).slice(-2);
+    }).join("");
+    return state.intakeKey;
+  }
+
   function submitBooking(form) {
     var status = form.querySelector(".form-status");
     var button = form.querySelector('button[type="submit"]');
@@ -706,6 +726,7 @@
 
     var payload = {
       type: "trial",
+      intake_key: intakeKey(),
       is_kids: d.isKids,
       student_first: d.student_first,
       student_last: d.student_last,
