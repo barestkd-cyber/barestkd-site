@@ -213,7 +213,10 @@ for (const page of PAGES) {
   test(page.dir + ': links no file that does not exist', () => {
     // A dead "View all policies" link is the exact thing a buyer clicks before
     // signing. Only Cubs has a policy PDF.
-    const refs = [...html.matchAll(/href="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
+    // src as well as href. Checking only href let a missing script and a
+    // missing image through (audit A16: private-lesson's site.js, and
+    // the map on Home and Contact).
+    const refs = [...html.matchAll(/(?:href|src)="(\/assets\/[^"?#]+)/g)].map((m) => m[1]);
     const missing = refs.filter((r) => !fs.existsSync(path.join(SITE, r.replace(/^\//, ''))));
     assert.deepStrictEqual(missing, [], 'links to files that are not in the repo: ' + missing.join(', '));
   });
