@@ -132,10 +132,16 @@
   .done h2{color:var(--ink)}
   .hp{position:absolute;left:-9999px}
 
-  .toast{position:fixed;left:50%;top:16px;transform:translate(-50%,-120%);background:var(--ink);color:#fff;
-         padding:10px 16px;border-radius:9px;font-size:.85rem;font-weight:600;z-index:80;
-         transition:transform .2s ease;pointer-events:none}
-  .toast.on{transform:translate(-50%,0)}
+  /* "Added to cart". Hidden by opacity and visibility, never by sliding it
+     off the top: a slide measured in its own height left the bottom of the
+     pill peeking out above the logo before anything was added. Visibility
+     flips after the fade out, and at once on the way in. */
+  .toast{position:fixed;left:50%;top:16px;transform:translate(-50%,-10px);opacity:0;visibility:hidden;
+         background:var(--ink);color:#fff;padding:10px 16px;border-radius:9px;font-size:.85rem;font-weight:600;
+         z-index:80;pointer-events:none;
+         transition:opacity .2s ease,transform .2s ease,visibility 0s linear .2s}
+  .toast.on{opacity:1;visibility:visible;transform:translate(-50%,0);
+            transition:opacity .2s ease,transform .2s ease,visibility 0s}
 </style>
 </head>
 <body>
