@@ -11,38 +11,75 @@
     --line:#E5E5E5; --bg:#FFFFFF; --card:#fff; --soft:#F5F5F5;
   }
   *{box-sizing:border-box}
+  /* The hidden attribute always wins. Without this, any rule that sets a
+     display (the Category box, the cart) quietly un-hides the element. */
+  [hidden]{display:none !important}
   body{margin:0;background:var(--bg);color:var(--ink);
        font-family:'Montserrat',system-ui,-apple-system,'Segoe UI',sans-serif;
        -webkit-font-smoothing:antialiased}
-  .wrap{max-width:860px;margin:0 auto;padding:18px 14px 120px}
+  .wrap{max-width:860px;margin:0 auto;padding:18px 14px 60px}
   /* The Pro Shop mark, transparent. Every letter carries its own black
      outline, which is what keeps the white TAEKWONDO and PRO readable sitting
-     straight on the cream page, so no background band is needed. */
-  header{text-align:center;padding:6px 0 14px;border-bottom:4px solid var(--red)}
+     straight on the page, so no background band is needed. */
+  header{position:relative;text-align:center;padding:6px 0 14px;border-bottom:4px solid var(--red)}
   header img{display:block;margin:0 auto;width:100%;max-width:340px;height:auto}
   header p{margin:8px 0 0;color:var(--muted);font-size:.78rem;letter-spacing:.05em}
+
+  /* The cart (owner, 2026-09-10). On a computer it is the button top right,
+     beside the logo, like any other shop. On a phone the logo fills the
+     width and that button would sit on the PRO, so the cart is instead a bar
+     pinned to the bottom of the screen, one tap away from anywhere in a long
+     list. The bar shows once something is in the cart. */
+  .cart-btn{position:absolute;top:4px;right:0;border:0;background:var(--ink);color:#fff;
+            border-radius:10px;padding:9px 11px;cursor:pointer;display:flex;align-items:center;gap:6px;
+            font:inherit;font-size:.8rem;font-weight:700}
+  .cart-btn svg{width:20px;height:20px}
+  .cart-btn .n{background:var(--red);color:#fff;border-radius:10px;min-width:20px;height:20px;
+               padding:0 6px;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem}
+  .cartbar{position:fixed;left:0;right:0;bottom:0;z-index:50;width:100%;display:none;
+           background:#fff;border:0;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.08);
+           padding:10px 14px calc(10px + env(safe-area-inset-bottom));font:inherit;color:var(--ink);
+           cursor:pointer;text-align:left}
+  .cartbar .in{display:flex;align-items:center;gap:14px}
+  .cartbar .ico{position:relative;display:flex;flex:0 0 auto}
+  .cartbar svg{width:26px;height:26px}
+  .cartbar .n{position:absolute;top:-8px;right:-10px;background:var(--red);color:#fff;border-radius:10px;
+              min-width:19px;height:19px;padding:0 5px;font-size:.7rem;font-weight:700;
+              display:flex;align-items:center;justify-content:center}
+  .cartbar .sum{flex:1;min-width:0;line-height:1.25}
+  .cartbar .sum small{display:block;color:var(--muted);font-size:.75rem}
+  .cartbar .sum b{font-size:1rem}
+  .cartbar .go{background:var(--red);color:#fff;border-radius:9px;padding:11px 16px;font-weight:700;
+               font-size:.82rem;letter-spacing:.03em;text-transform:uppercase;flex:0 0 auto}
+  @media (max-width:559px){
+    .cart-btn{display:none}
+    .cartbar{display:block}
+    .wrap{padding-bottom:110px}   /* the last row of the grid clears the bar */
+  }
+
   .notice{background:var(--soft);border:1px solid var(--line);border-left:4px solid var(--red);
           border-radius:8px;padding:12px 14px;margin:16px 0;font-size:.85rem;line-height:1.5}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px;margin:14px 0}
   .card h2{margin:0 0 4px;font-size:1.05rem}
   .sub{color:var(--muted);font-size:.83rem;line-height:1.5;margin:0 0 10px}
+  .step{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:4px}
 
-  /* the package hero */
+  /* the package, on Sparring Gear only */
   .pack{border:2px solid var(--ink);box-shadow:0 2px 14px rgba(0,0,0,.07)}
   .pack .price{font-size:1.5rem;font-weight:800;margin:2px 0 6px}
   .pack ul{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:.83rem;line-height:1.6}
 
-  /* tabs, search, chips */
-  .tabs{display:flex;gap:8px;margin:22px 0 12px}
+  /* tabs, then search and the Category dropdown on one line */
+  .tabs{display:flex;gap:8px;margin:18px 0 12px}
   .tab{flex:1;padding:11px 8px;border:1px solid var(--line);background:#fff;border-radius:9px;
        font:inherit;font-size:.88rem;font-weight:700;cursor:pointer;color:var(--muted)}
   .tab.on{background:var(--ink);border-color:var(--ink);color:#fff}
-  .search{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;
-          font:inherit;background:#fff}
-  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 0}
-  .chip{padding:6px 12px;border:1px solid var(--line);background:#fff;border-radius:20px;
-        font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--muted)}
-  .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .toolbar{display:flex;gap:10px;align-items:flex-end;margin-top:14px}
+  .toolbar .search{flex:1;min-width:0}
+  .search{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff}
+  .cat{display:flex;flex-direction:column;font-size:.72rem;color:var(--muted);font-weight:700;
+       letter-spacing:.05em;text-transform:uppercase;gap:4px;flex:0 0 auto}
+  .cat select{padding:10px;min-width:150px;text-transform:none;letter-spacing:0;font-weight:600;color:var(--ink)}
 
   /* the grid */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:14px}
@@ -57,17 +94,19 @@
   .tile .tag{font-size:.68rem;color:var(--muted);margin-top:2px}
   .empty{grid-column:1/-1;color:var(--muted);font-size:.85rem;padding:18px 4px}
 
-  /* the picker sheet */
+  /* pop-ups: the product picker, the package builder and the cart share one;
+     checkout has its own, because the Stripe card field must survive */
   .scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:60;
          align-items:flex-end;justify-content:center}
   .scrim.on{display:flex}
   .sheet{background:#fff;width:100%;max-width:520px;border-radius:14px 14px 0 0;
-         padding:16px 16px 22px;max-height:88vh;overflow:auto}
+         padding:16px 16px 22px;max-height:90vh;overflow:auto}
   @media (min-width:560px){ .scrim{align-items:center} .sheet{border-radius:14px} }
   .sheet h3{margin:0 0 2px;font-size:1.05rem}
-  .sheet .close{position:absolute;right:16px;top:12px;border:0;background:none;font-size:1.5rem;
-                cursor:pointer;color:var(--muted)}
-  .sheet-hd{position:relative;padding-right:30px;margin-bottom:10px}
+  .sheet .close{position:absolute;right:0;top:-4px;border:0;background:none;font-size:1.6rem;
+                cursor:pointer;color:var(--muted);padding:4px 8px}
+  .sheet-hd{position:relative;padding-right:34px;margin-bottom:10px}
+  #coScrim{z-index:70}
 
   select,input,textarea{font:inherit;padding:10px;border:1px solid var(--line);
         border-radius:7px;background:#fff;color:var(--ink);max-width:100%}
@@ -75,8 +114,10 @@
   label.fld select,label.fld input,label.fld textarea{width:100%;margin-top:4px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media (max-width:520px){ .row2{grid-template-columns:1fr} }
-  .tot{display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem}
+  .tot{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:.88rem}
   .tot.big{font-weight:700;font-size:1.05rem;border-top:1px solid var(--line);margin-top:6px;padding-top:10px}
+  .line{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #EEEEEE;font-size:.88rem}
+  .line:first-child{border-top:0}
   button.pay{width:100%;margin-top:14px;padding:14px;border:0;border-radius:9px;
         background:var(--red);color:#fff;font-weight:700;font-size:.98rem;
         letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
@@ -84,22 +125,17 @@
   button.pay:disabled{background:#C9C6C0;cursor:not-allowed}
   .lnk{background:none;border:0;color:var(--muted);font:inherit;font-size:.76rem;
        text-decoration:underline;cursor:pointer;padding:0}
-  .bb{display:inline-block;background:#EEE9F7;color:#5B3E9B;border-radius:5px;
-      padding:1px 6px;font-size:.68rem;font-weight:700}
   .err{background:#FBE9E9;border:1px solid #E9B7B7;color:#8A1F1F;border-radius:8px;
        padding:11px 13px;margin:12px 0;font-size:.86rem}
-  #cardbox{border:1px solid var(--line);border-radius:7px;padding:12px;background:#fff;margin-top:6px}
+  #cardbox{border:1px solid var(--line);border-radius:7px;padding:12px;background:#fff;margin-top:6px;min-height:44px}
   .done{text-align:center;padding:30px 10px}
   .done h2{color:var(--ink)}
   .hp{position:absolute;left:-9999px}
 
-  /* the sticky basket, so the order is never lost off the bottom */
-  .bar{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:#fff;z-index:50;
-       padding:11px 14px;display:none;align-items:center;gap:12px}
-  .bar.on{display:flex}
-  .bar .n{flex:1;font-size:.85rem}
-  .bar button{border:0;border-radius:8px;padding:10px 16px;background:var(--red);
-              color:#fff;font:inherit;font-weight:700;cursor:pointer}
+  .toast{position:fixed;left:50%;top:16px;transform:translate(-50%,-120%);background:var(--ink);color:#fff;
+         padding:10px 16px;border-radius:9px;font-size:.85rem;font-weight:600;z-index:80;
+         transition:transform .2s ease;pointer-events:none}
+  .toast.on{transform:translate(-50%,0)}
 </style>
 </head>
 <body>
@@ -108,6 +144,12 @@
     <a href="/"><img src="/assets/img/pro-shop-logo.png" width="640" height="256"
        alt="Bares Taekwondo Fitness Pro Shop"></a>
     <p>Gear for class, ordered for you</p>
+    <button class="cart-btn" id="cartBtn" type="button" aria-label="Your cart" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+      <span class="n" id="cartN">0</span>
+    </button>
   </header>
 
   <div id="boot" class="sub" style="text-align:center;padding:30px 0">Loading the shop...</div>
@@ -121,7 +163,7 @@
     <div class="tabs" id="tabs"></div>
 
     <!-- The package belongs to Sparring Gear only, and is shown only on that
-         tab. It stays compact: the sizes are picked in a sheet. -->
+         tab. It stays compact: the sizes are picked in a pop-up. -->
     <div class="card pack" id="packCard">
       <h2 id="packName">Beginner Gear Package</h2>
       <div class="price" id="packTotal">-</div>
@@ -131,47 +173,13 @@
       <button class="pay go" id="packBtn" type="button">Build my package</button>
     </div>
 
-    <input class="search" id="q" type="search" placeholder="Search the shop" autocomplete="off">
-    <div class="chips" id="chips"></div>
+    <!-- One Category dropdown per tab, not a row of pills: tabs inside a tab
+         confused people (owner, 2026-09-10). -->
+    <div class="toolbar">
+      <input class="search" id="q" type="search" placeholder="Search the shop" autocomplete="off">
+      <label class="cat" id="catWrap" hidden>Category<select id="cat"></select></label>
+    </div>
     <div class="grid" id="grid"></div>
-
-    <div class="card" id="orderCard">
-      <h2>Your order</h2>
-      <div id="cart"><p class="sub">Nothing added yet.</p></div>
-      <div id="totals" hidden>
-        <div class="tot"><span>Subtotal</span><span id="tSub">-</span></div>
-        <div class="tot"><span>Sales tax</span><span id="tTax">-</span></div>
-        <div class="tot"><span>Card processing</span><span id="tFee">-</span></div>
-        <div class="tot big"><span>Total</span><span id="tTot">-</span></div>
-      </div>
-      <p class="sub" id="cadence" style="margin-top:10px"></p>
-    </div>
-
-    <div class="card">
-      <h2>Who it is for</h2>
-      <div class="row2">
-        <label class="fld">Student first name<input id="sFirst" autocomplete="off"></label>
-        <label class="fld">Student last name<input id="sLast" autocomplete="off"></label>
-      </div>
-      <div class="row2" style="margin-top:6px">
-        <label class="fld">Your first name<input id="bFirst" autocomplete="given-name"></label>
-        <label class="fld">Your last name<input id="bLast" autocomplete="family-name"></label>
-      </div>
-      <div class="row2" style="margin-top:6px">
-        <label class="fld">Email<input id="bEmail" type="email" autocomplete="email"></label>
-        <label class="fld">Phone<input id="bPhone" type="tel" autocomplete="tel"></label>
-      </div>
-      <label class="fld">Anything we should know (optional)<textarea id="bNote" rows="2"></textarea></label>
-      <input class="hp" id="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-    </div>
-
-    <div class="card">
-      <h2>Payment</h2>
-      <p class="sub">Paid now by card. We will have your gear ready at the school.</p>
-      <div id="cardbox"></div>
-      <div id="payErr"></div>
-      <button class="pay" id="payBtn" type="button" disabled>Pay</button>
-    </div>
   </div>
 
   <div id="done" class="done" hidden>
@@ -181,21 +189,68 @@
   </div>
 </div>
 
-<div class="bar" id="bar">
-  <span class="n" id="barN"></span>
-  <button type="button" id="barBtn">Checkout</button>
-</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<!-- phones: the cart, pinned to the bottom of the screen -->
+<button class="cartbar" id="cartBar" type="button" aria-label="Your cart" hidden>
+  <span class="in">
+    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg><span class="n" id="barN">0</span></span>
+    <span class="sum"><small id="barItems">0 items</small><b id="barSum">$0.00</b></span>
+    <span class="go">View cart</span>
+  </span>
+</button>
+
+<!-- shared: product picker, package builder, cart -->
 <div class="scrim" id="scrim"><div class="sheet" id="sheet"></div></div>
+
+<!-- checkout: its own pop-up, built once, so the Stripe card field is never
+     destroyed by another pop-up replacing its contents -->
+<div class="scrim" id="coScrim">
+  <div class="sheet" id="coSheet">
+    <div class="sheet-hd">
+      <button class="close" type="button" data-coclose="1" aria-label="Close">&times;</button>
+      <h3>Checkout</h3>
+      <div class="sub" style="margin:2px 0 0" id="coSummary"></div>
+    </div>
+    <div class="step">Who it is for</div>
+    <div class="row2">
+      <label class="fld">Student first name<input id="sFirst" autocomplete="off"></label>
+      <label class="fld">Student last name<input id="sLast" autocomplete="off"></label>
+    </div>
+    <div class="step" style="margin-top:14px">Your details</div>
+    <div class="row2">
+      <label class="fld">Your first name<input id="bFirst" autocomplete="given-name"></label>
+      <label class="fld">Your last name<input id="bLast" autocomplete="family-name"></label>
+    </div>
+    <div class="row2">
+      <label class="fld">Email<input id="bEmail" type="email" autocomplete="email"></label>
+      <label class="fld">Phone<input id="bPhone" type="tel" autocomplete="tel"></label>
+    </div>
+    <label class="fld">Anything we should know (optional)<textarea id="bNote" rows="2"></textarea></label>
+    <input class="hp" id="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div class="step" style="margin-top:14px">Card</div>
+    <div id="cardbox"></div>
+    <div id="coTotals" style="margin-top:12px"></div>
+    <p class="sub" id="cadence" style="margin-top:8px"></p>
+    <div id="payErr"></div>
+    <button class="pay" id="payBtn" type="button">Pay</button>
+    <div style="text-align:center;margin-top:10px">
+      <button class="lnk" type="button" data-backcart="1">Back to cart</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function () {
   "use strict";
   var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/shop";
   var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5";
-  var CFG = null, STRIPE = null, CARD = null;
+  var CFG = null, STRIPE = null, CARD = null, CARD_MOUNTED = false;
   var CART = [];                 // { variant_id, qty, from_package, label, cents }
-  var TAB = "sparring", TYPE = "", Q = "";
+  var TAB = "sparring", CAT = "", Q = "";
+  var HAS_PACK = false;          // set once the catalogue loads
   var SALE_ID = (self.crypto && self.crypto.randomUUID) ? self.crypto.randomUUID() : null;
 
   function $(id) { return document.getElementById(id); }
@@ -257,16 +312,18 @@
   var TYPE_LABEL = { sparring:"Sparring gear", kickboxing:"Kickboxing", uniform:"Uniforms", shirt:"Shirts",
                      bag:"Bags", belt:"Belts", other:"Other" };
   function typeLabel(t) { return TYPE_LABEL[t] || t; }
+  /* The Category dropdown reads the product's own category; a product that
+     has none yet falls back to its type, so nothing is ever uncategorised. */
+  function catOf(p) { return p.category || typeLabel(p.item_type); }
+  /* The dropdown lists the main thing on each tab first, in the order the
+     owner named them; anything new sorts after, alphabetically. */
+  var CAT_ORDER = ["Sparring gear", "Bags", "Boxing gloves", "Shin guards", "Pads"];
+  function catRank(c) { var i = CAT_ORDER.indexOf(c); return i < 0 ? CAT_ORDER.length : i; }
 
-  /* Sparring gear is its own tab and opens first, because beginners buying
-     their first set are most of the traffic. Everything else shares one tab
-     rather than sprouting a tab per item type nobody has yet. */
   /* The tabs a product appears on. Usually one, from its type. But anything
      in the Beginner Gear Package also appears on Sparring Gear, because that
      is where the package lives: so the duffle bag, a "bag" by type, shows on
-     Sparring Gear and on Everything Else. A general rule rather than a
-     special case for the bag, so the next package piece that is not sparring
-     gear lands in both places without anybody remembering to arrange it. */
+     Sparring Gear and on Everything Else. */
   function tabsOf(p) {
     var t = [];
     if (p.item_type === "sparring" || p.role) t.push("sparring");
@@ -280,7 +337,7 @@
     var q = Q.trim().toLowerCase();
     return allProducts().filter(function (p) {
       if (!inTab(p)) return false;
-      if (TYPE && p.item_type !== TYPE) return false;
+      if (CAT && catOf(p) !== CAT) return false;
       if (q && p.title.toLowerCase().indexOf(q) < 0) return false;
       return true;
     });
@@ -291,33 +348,34 @@
   function renderTabs() {
     var counts = { sparring: 0, kickboxing: 0, other: 0 };
     allProducts().forEach(function (p) { tabsOf(p).forEach(function (t) { counts[t]++; }); });
-    // A tab with nothing in it is not offered: an empty Kickboxing tab would
-    // only be a dead end.
+    // A tab with nothing in it is not offered: an empty tab is only a dead end.
     $("tabs").innerHTML = TABS.filter(function (t) { return counts[t[0]] > 0 || t[0] === TAB; })
       .map(function (t) {
         return '<button class="tab' + (TAB === t[0] ? " on" : "") + '" type="button" data-tab="' + t[0] + '">'
           + esc(t[1]) + ' <span style="opacity:.7">' + counts[t[0]] + '</span></button>';
       }).join("");
   }
-  function renderChips() {
-    var types = [], seen = {};
+  /* One Category dropdown for the tab. Hidden when the tab holds a single
+     category, where "All" would be its only real choice. */
+  function renderCats() {
+    var cats = [], seen = {};
     allProducts().forEach(function (p) {
-      if (!inTab(p) || seen[p.item_type]) return;
-      seen[p.item_type] = 1; types.push(p.item_type);
+      if (!inTab(p)) return;
+      var c = catOf(p);
+      if (!seen[c]) { seen[c] = 1; cats.push(c); }
     });
-    // One type in a tab means the chips would only ever say "All", so hide them.
-    if (types.length < 2) { $("chips").innerHTML = ""; return; }
-    $("chips").innerHTML = '<button class="chip' + (TYPE ? "" : " on") + '" type="button" data-type="">All</button>'
-      + types.map(function (t) {
-          return '<button class="chip' + (TYPE === t ? " on" : "") + '" type="button" data-type="'
-            + esc(t) + '">' + esc(typeLabel(t)) + '</button>';
-        }).join("");
+    cats.sort(function (a, b) { return catRank(a) - catRank(b) || (a < b ? -1 : a > b ? 1 : 0); });
+    if (CAT && !seen[CAT]) CAT = "";
+    $("catWrap").hidden = cats.length < 2;
+    $("cat").innerHTML = '<option value="">All</option>' + cats.map(function (c) {
+      return '<option value="' + esc(c) + '"' + (c === CAT ? " selected" : "") + '>' + esc(c) + '</option>';
+    }).join("");
   }
   function renderGrid() {
     var list = visible();
     if (!list.length) {
       $("grid").innerHTML = '<div class="empty">Nothing here'
-        + (Q ? ' for "' + esc(Q) + '"' : "") + '. Try the other tab.</div>';
+        + (Q ? ' for "' + esc(Q) + '"' : "") + '. Try another category or tab.</div>';
       return;
     }
     $("grid").innerHTML = list.map(function (p) {
@@ -330,16 +388,22 @@
         + '</button>';
     }).join("");
   }
-  var HAS_PACK = false;   // set once the catalogue loads
   function renderShopBody() {
     renderTabs();
     $("packCard").hidden = !(HAS_PACK && TAB === "sparring");
-    renderChips(); renderGrid();
+    renderCats(); renderGrid();
   }
 
-  /* ---- the picker sheet ------------------------------------------------- */
-  function openSheet(html) { $("sheet").innerHTML = html; $("scrim").classList.add("on"); }
-  function closeSheet() { $("scrim").classList.remove("on"); }
+  /* ---- the shared pop-up: picker, package builder, cart ------------------ */
+  function openSheet(html) {
+    $("sheet").innerHTML = html;
+    $("scrim").classList.add("on");
+    document.body.style.overflow = "hidden";
+  }
+  function closeSheet() {
+    $("scrim").classList.remove("on");
+    if (!$("coScrim").classList.contains("on")) document.body.style.overflow = "";
+  }
 
   function pickerRows(p, prefix) {
     var sizes = sizesOf(p), colors = colorsOf(p), h = "";
@@ -365,7 +429,7 @@
     var p = allProducts().filter(function (x) { return x.id === id; })[0];
     if (!p) return;
     var lo = priceFrom(p), hi = priceTo(p);
-    openSheet('<div class="sheet-hd"><button class="close" type="button" data-close="1">&times;</button>'
+    openSheet('<div class="sheet-hd"><button class="close" type="button" data-close="1" aria-label="Close">&times;</button>'
       + '<h3>' + esc(p.title) + '</h3>'
       + '<div class="sub" style="margin:2px 0 0">' + (lo === hi ? money(lo) : money(lo) + " to " + money(hi))
       + (p.logo ? " with the school logo" : "") + '</div>'
@@ -378,7 +442,7 @@
       + [1,2,3,4,5].map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join("")
       + '</select></label>'
       + '<div id="sheetErr"></div>'
-      + '<button class="pay go" type="button" data-addone="' + esc(p.id) + '">Add to my order</button>');
+      + '<button class="pay go" type="button" data-addone="' + esc(p.id) + '">Add to cart</button>');
   }
 
   /* Every product carries its part in the package: required, boys (required
@@ -401,7 +465,7 @@
         + ' <span style="color:var(--muted);font-weight:400">' + money(priceFrom(p)) + '</span></div>'
         + pickerRows(p, prefix) + '</div>';
     };
-    var h = '<div class="sheet-hd"><button class="close" type="button" data-close="1">&times;</button>'
+    var h = '<div class="sheet-hd"><button class="close" type="button" data-close="1" aria-label="Close">&times;</button>'
       + '<h3>' + esc(CFG.package_name || "Beginner Gear Package") + '</h3>'
       + '<div class="sub" style="margin:2px 0 0">Pick a size for each piece.</div></div>';
     if (boys.length) {
@@ -488,7 +552,7 @@
     if (got.err) { sheetErr(got.err); return; }
     var qEl = $("i-q-" + p.id);
     push(got, Math.max(1, parseInt(qEl ? qEl.value : "1", 10) || 1), false);
-    closeSheet(); renderCart();
+    closeSheet(); cartChanged(); toast("Added to cart");
   }
 
   function addPackage() {
@@ -511,35 +575,90 @@
     }
     if (err) { sheetErr(err); return; }
     picked.forEach(function (got) { push(got, 1, true); });
-    closeSheet(); renderCart();
+    closeSheet(); cartChanged(); toast("Package added to cart");
   }
 
-  /* ---- the basket ------------------------------------------------------- */
-  function renderCart() {
+  /* ---- the cart ---------------------------------------------------------- */
+  function cartCount() { return CART.reduce(function (a, x) { return a + x.qty; }, 0); }
+
+  /* Everything that depends on what is in the cart, in one place: the
+     computer's cart button, the phone's cart bar, and the checkout pop-up if
+     it is open. The bar shows the full total, fee included, so the number a
+     parent sees before tapping is the number they will pay. */
+  function cartChanged() {
+    var n = cartCount();
+    $("cartN").textContent = n;
+    $("barN").textContent = n;
+    $("barItems").textContent = n + (n === 1 ? " item" : " items");
+    $("barSum").textContent = money(totals().total) + " total";
+    $("cartBar").hidden = !n;
+    if ($("coScrim").classList.contains("on")) renderCheckoutTotals();
+  }
+
+  function totalsHtml() {
+    var t = totals();
+    return '<div class="tot"><span>Subtotal</span><span>' + money(t.sub) + '</span></div>'
+      + '<div class="tot"><span>Sales tax</span><span>' + money(t.tax) + '</span></div>'
+      + '<div class="tot"><span>Card processing</span><span>' + money(t.fee) + '</span></div>'
+      + '<div class="tot big"><span>Total</span><span>' + money(t.total) + '</span></div>';
+  }
+
+  function openCart() {
+    var head = '<div class="sheet-hd"><button class="close" type="button" data-close="1" aria-label="Close">&times;</button>'
+      + '<h3>Your cart</h3></div>';
     if (!CART.length) {
-      $("cart").innerHTML = '<p class="sub">Nothing added yet.</p>';
-      $("totals").hidden = true;
-      $("payBtn").disabled = true;
-      $("payBtn").textContent = "Pay";
-      $("bar").classList.remove("on");
+      openSheet(head + '<p class="sub">Your cart is empty. Tap any item to add it.</p>');
       return;
     }
-    $("cart").innerHTML = CART.map(function (x, i) {
-      return '<div class="tot"><span>' + esc(x.label) + (x.qty > 1 ? " x" + x.qty : "")
-        + ' <button class="lnk" type="button" data-rm="' + i + '">remove</button></span>'
-        + '<span>' + money(x.cents * x.qty) + '</span></div>';
-    }).join("");
-    var t = totals();
-    $("tSub").textContent = money(t.sub);
-    $("tTax").textContent = money(t.tax);
-    $("tFee").textContent = money(t.fee);
-    $("tTot").textContent = money(t.total);
-    $("totals").hidden = false;
-    $("payBtn").disabled = false;
+    openSheet(head
+      + '<div>' + CART.map(function (x, i) {
+          return '<div class="line"><span>' + esc(x.label) + (x.qty > 1 ? " <strong>x" + x.qty + "</strong>" : "")
+            + '<br><button class="lnk" type="button" data-rm="' + i + '">Remove</button></span>'
+            + '<span>' + money(x.cents * x.qty) + '</span></div>';
+        }).join("") + '</div>'
+      + '<div style="margin-top:8px">' + totalsHtml() + '</div>'
+      + '<button class="pay" type="button" data-checkout="1">Checkout</button>');
+  }
+
+  /* ---- checkout ---------------------------------------------------------- */
+  /* The card field is mounted once, the first time checkout is visible.
+     Mounting into a hidden element can size it wrongly, and remounting would
+     throw away what the parent had typed. */
+  function mountCard() {
+    if (CARD_MOUNTED || !STRIPE || !$("coScrim").classList.contains("on")) return;
+    CARD = STRIPE.elements().create("card", { hidePostalCode: false });
+    CARD.mount("#cardbox");
+    CARD_MOUNTED = true;
+  }
+  function renderCheckoutTotals() {
+    var n = cartCount(), t = totals();
+    $("coSummary").textContent = n + (n === 1 ? " item" : " items") + ", " + money(t.total);
+    $("coTotals").innerHTML = totalsHtml();
     $("payBtn").textContent = "Pay " + money(t.total);
-    var n = CART.reduce(function (a, x) { return a + x.qty; }, 0);
-    $("barN").textContent = n + (n === 1 ? " item" : " items") + " · " + money(t.total);
-    $("bar").classList.add("on");
+    $("payBtn").disabled = !CART.length;
+  }
+  function openCheckout() {
+    if (!CART.length) return;
+    closeSheet();
+    renderCheckoutTotals();
+    showErr(null);
+    $("coScrim").classList.add("on");
+    document.body.style.overflow = "hidden";
+    mountCard();
+  }
+  function closeCheckout() {
+    $("coScrim").classList.remove("on");
+    document.body.style.overflow = "";
+  }
+
+  /* ---- a word when something is added ------------------------------------ */
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg;
+    t.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("on"); }, 2200);
   }
 
   /* ---- boot ------------------------------------------------------------- */
@@ -555,6 +674,7 @@
         }
         CFG = res.j;
         $("app").hidden = false;
+        $("cartBtn").hidden = false;
         $("notice").textContent = CFG.notice || "";
         $("packName").textContent = CFG.package_name || "Beginner Gear Package";
         $("packNote").textContent = CFG.package_note || "";
@@ -591,23 +711,22 @@
 
   function wire() {
     $("packBtn").addEventListener("click", openPackage);
+    $("cartBtn").addEventListener("click", openCart);
+    $("cartBar").addEventListener("click", openCart);
     $("tabs").addEventListener("click", function (e) {
       var t = e.target.closest ? e.target.closest("[data-tab]") : null;
       if (!t) return;
-      TAB = t.getAttribute("data-tab"); TYPE = "";
+      TAB = t.getAttribute("data-tab"); CAT = "";
       renderShopBody();
     });
-    $("chips").addEventListener("click", function (e) {
-      var c = e.target.closest ? e.target.closest("[data-type]") : null;
-      if (!c) return;
-      TYPE = c.getAttribute("data-type");
-      renderChips(); renderGrid();
-    });
+    $("cat").addEventListener("change", function (e) { CAT = e.target.value || ""; renderGrid(); });
     $("q").addEventListener("input", function (e) { Q = e.target.value || ""; renderGrid(); });
     $("grid").addEventListener("click", function (e) {
       var t = e.target.closest ? e.target.closest("[data-open]") : null;
       if (t) openProduct(t.getAttribute("data-open"));
     });
+
+    // The shared pop-up: close, add one, add the package, remove, checkout.
     $("scrim").addEventListener("click", function (e) {
       if (e.target === $("scrim")) { closeSheet(); return; }
       var el = e.target.closest ? e.target : null;
@@ -615,7 +734,10 @@
       if (el.closest("[data-close]")) { closeSheet(); return; }
       var one = el.closest("[data-addone]");
       if (one) { addOne(one.getAttribute("data-addone")); return; }
-      if (el.closest("[data-addpack]")) { addPackage(); }
+      if (el.closest("[data-addpack]")) { addPackage(); return; }
+      var rm = el.closest("[data-rm]");
+      if (rm) { CART.splice(Number(rm.getAttribute("data-rm")), 1); cartChanged(); openCart(); return; }
+      if (el.closest("[data-checkout]")) { openCheckout(); }
     });
     // Inside the builder: the boy tick reveals the cup and supporter, an
     // optional tick reveals that piece's size picker, and any change re-prices
@@ -627,17 +749,21 @@
       if (oid) { var box = $("optp-" + oid); if (box) box.hidden = !t.checked; }
       pkTotal();
     });
-    $("cart").addEventListener("click", function (e) {
-      var b = e.target.closest ? e.target.closest("[data-rm]") : null;
-      if (!b) return;
-      CART.splice(Number(b.getAttribute("data-rm")), 1);
-      renderCart();
-    });
-    $("barBtn").addEventListener("click", function () {
-      $("orderCard").scrollIntoView({ behavior: "smooth", block: "start" });
+
+    // Checkout: close, back to the cart, pay. Tapping the dimmed backdrop does
+    // NOT close checkout, so a stray tap cannot throw away a typed-in card.
+    $("coScrim").addEventListener("click", function (e) {
+      var el = e.target.closest ? e.target : null;
+      if (!el) return;
+      if (el.closest("[data-coclose]")) { closeCheckout(); return; }
+      if (el.closest("[data-backcart]")) { closeCheckout(); openCart(); }
     });
     $("payBtn").addEventListener("click", pay);
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSheet(); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      if ($("scrim").classList.contains("on")) closeSheet();
+      else if ($("coScrim").classList.contains("on")) closeCheckout();
+    });
   }
 
   function showErr(msg) {
@@ -646,15 +772,11 @@
   }
 
   function loadStripe() {
-    if (!CFG.publishable_key) { showErr("Card payment is not set up. Please call 903-561-2966."); return; }
+    if (!CFG.publishable_key) return;
     var s = document.createElement("script");
     s.src = "https://js.stripe.com/v3/";
-    s.onload = function () {
-      STRIPE = Stripe(CFG.publishable_key);
-      CARD = STRIPE.elements().create("card", { hidePostalCode: false });
-      CARD.mount("#cardbox");
-    };
-    s.onerror = function () { showErr("Card payment could not load. Please call 903-561-2966."); };
+    s.onload = function () { STRIPE = Stripe(CFG.publishable_key); mountCard(); };
+    s.onerror = function () { STRIPE = null; };
     document.head.appendChild(s);
   }
 
@@ -671,7 +793,7 @@
     for (var i = 0; i < need.length; i++) {
       if (!String(need[i][0] || "").trim()) { showErr(need[i][1]); return; }
     }
-    if (!STRIPE || !CARD) { showErr("Card payment is still loading. Give it a second."); return; }
+    if (!STRIPE || !CARD) { showErr("Card payment is still loading. Give it a second, or call 903-561-2966."); return; }
     showErr(null);
     var btn = $("payBtn");
     btn.disabled = true; btn.textContent = "Working...";
@@ -698,7 +820,7 @@
         // can pick another size, or pay for the rest, without starting over.
         if (j.sold_out && j.sold_out.length) {
           CART = CART.filter(function (x) { return j.sold_out.indexOf(x.variant_id) < 0; });
-          renderCart();
+          cartChanged();
         }
         if (!j.ok || !j.client_secret) { throw new Error(j.error || "We could not start the payment."); }
         return STRIPE.confirmCardPayment(j.client_secret, { payment_method: { card: CARD } })
@@ -716,8 +838,8 @@
           });
       })
       .catch(function (e) {
-        btn.disabled = false;
-        btn.textContent = "Pay " + money(totals().total);
+        btn.disabled = !CART.length;
+        btn.textContent = CART.length ? "Pay " + money(totals().total) : "Pay";
         var msg = String(e.message || e);
         // The server already says so for a sold-out item; do not say it twice.
         showErr(/nothing has been charged/i.test(msg) ? msg : msg + " Nothing has been charged.");
@@ -725,8 +847,11 @@
   }
 
   function finish(receiptUrl) {
+    closeCheckout();
+    closeSheet();
     $("app").hidden = true;
-    $("bar").classList.remove("on");
+    $("cartBtn").hidden = true;
+    $("cartBar").hidden = true;
     $("done").hidden = false;
     $("doneMsg").textContent = "Your gear is ordered. We will let you know when it is at the school, and "
       + ($("bEmail").value || "your email") + " has the receipt.";

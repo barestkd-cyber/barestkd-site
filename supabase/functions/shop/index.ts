@@ -204,7 +204,7 @@ Deno.serve(async (req: Request) => {
       }
       const [pRes, vRes] = await Promise.all([
         admin.from("shop_products")
-          .select("id,title,image_url,item_type,logo_cents,package_role,set_order,lead_time_text,stocked")
+          .select("id,title,image_url,item_type,category,logo_cents,package_role,set_order,lead_time_text,stocked")
           .eq("active", true).order("set_order"),
         admin.from("shop_variants")
           .select("id,product_id,size,color,list_cents,rank_gate")
@@ -229,6 +229,8 @@ Deno.serve(async (req: Request) => {
             image_url: p.image_url,
             // Drives which tab the shop files it under, and the type chips.
             item_type: p.item_type || "other",
+            // The Category dropdown within a tab. Null means "use the type".
+            category: (p.category as string | null) || null,
             // Its part in the package: required, boys (required only for a
             // boy), optional, or null for sold-on-its-own only.
             role: (p.package_role as string | null) ?? null,
