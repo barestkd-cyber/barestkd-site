@@ -14,100 +14,123 @@
   body{margin:0;background:var(--bg);color:var(--ink);
        font-family:'Montserrat',system-ui,-apple-system,'Segoe UI',sans-serif;
        -webkit-font-smoothing:antialiased}
-  .wrap{max-width:760px;margin:0 auto;padding:22px 16px 80px}
-  header{text-align:center;padding:10px 0 18px;border-bottom:4px solid var(--gold)}
-  header h1{margin:8px 0 2px;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase}
-  header p{margin:0;color:var(--muted);font-size:.85rem}
+  .wrap{max-width:860px;margin:0 auto;padding:18px 14px 120px}
+  header{text-align:center;padding:8px 0 16px;border-bottom:4px solid var(--gold)}
+  header img{display:block;margin:0 auto 6px;height:50px;width:auto}
+  header h1{margin:6px 0 2px;font-size:1.4rem;letter-spacing:.04em;text-transform:uppercase}
+  header p{margin:0;color:var(--muted);font-size:.82rem}
   .notice{background:#FFF8E6;border:1px solid #E8D080;border-left:4px solid var(--gold);
-          border-radius:8px;padding:13px 15px;margin:20px 0;font-size:.88rem;line-height:1.5}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
-        padding:16px;margin:14px 0}
+          border-radius:8px;padding:12px 14px;margin:16px 0;font-size:.85rem;line-height:1.5}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px;margin:14px 0}
   .card h2{margin:0 0 4px;font-size:1.05rem}
-  .sub{color:var(--muted);font-size:.84rem;line-height:1.5;margin:0 0 10px}
-  .piece{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid #F0ECE4}
-  .piece:first-of-type{border-top:0}
-  .piece img{width:54px;height:54px;object-fit:contain;background:#fff;
-             border:1px solid var(--line);border-radius:8px;flex:none}
-  .piece .nm{font-weight:600;font-size:.93rem}
-  .piece .pr{color:var(--muted);font-size:.82rem;margin-top:1px}
-  .picks{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-  select,input,textarea{font:inherit;padding:9px 10px;border:1px solid var(--line);
+  .sub{color:var(--muted);font-size:.83rem;line-height:1.5;margin:0 0 10px}
+
+  /* the package hero */
+  .pack{border:2px solid var(--gold);box-shadow:0 2px 14px rgba(243,183,0,.16)}
+  .pack .price{font-size:1.5rem;font-weight:800;margin:2px 0 6px}
+  .pack ul{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:.83rem;line-height:1.6}
+
+  /* tabs, search, chips */
+  .tabs{display:flex;gap:8px;margin:22px 0 12px}
+  .tab{flex:1;padding:11px 8px;border:1px solid var(--line);background:#fff;border-radius:9px;
+       font:inherit;font-size:.88rem;font-weight:700;cursor:pointer;color:var(--muted)}
+  .tab.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .search{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;
+          font:inherit;background:#fff}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 0}
+  .chip{padding:6px 12px;border:1px solid var(--line);background:#fff;border-radius:20px;
+        font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--muted)}
+  .chip.on{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+
+  /* the grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:14px}
+  .tile{background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px;
+        cursor:pointer;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column}
+  .tile:hover{border-color:var(--gold);box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  .tile .ph{aspect-ratio:1/1;background:#FAF9F6;border-radius:8px;display:flex;
+            align-items:center;justify-content:center;overflow:hidden;margin-bottom:8px}
+  .tile .ph img{max-width:100%;max-height:100%;object-fit:contain}
+  .tile .nm{font-size:.83rem;font-weight:600;line-height:1.3}
+  .tile .pr{margin-top:auto;padding-top:6px;font-size:.88rem;font-weight:700}
+  .tile .tag{font-size:.68rem;color:var(--muted);margin-top:2px}
+  .empty{grid-column:1/-1;color:var(--muted);font-size:.85rem;padding:18px 4px}
+
+  /* the picker sheet */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:60;
+         align-items:flex-end;justify-content:center}
+  .scrim.on{display:flex}
+  .sheet{background:#fff;width:100%;max-width:520px;border-radius:14px 14px 0 0;
+         padding:16px 16px 22px;max-height:88vh;overflow:auto}
+  @media (min-width:560px){ .scrim{align-items:center} .sheet{border-radius:14px} }
+  .sheet h3{margin:0 0 2px;font-size:1.05rem}
+  .sheet .close{position:absolute;right:16px;top:12px;border:0;background:none;font-size:1.5rem;
+                cursor:pointer;color:var(--muted)}
+  .sheet-hd{position:relative;padding-right:30px;margin-bottom:10px}
+
+  select,input,textarea{font:inherit;padding:10px;border:1px solid var(--line);
         border-radius:7px;background:#fff;color:var(--ink);max-width:100%}
-  select{min-width:120px}
-  label.fld{display:block;margin:10px 0 0;font-size:.82rem;color:var(--muted)}
-  label.fld input,label.fld textarea{width:100%;margin-top:4px}
+  label.fld{display:block;margin:10px 0 0;font-size:.8rem;color:var(--muted)}
+  label.fld select,label.fld input,label.fld textarea{width:100%;margin-top:4px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  @media (max-width:560px){ .row2{grid-template-columns:1fr} }
-  .tot{display:flex;justify-content:space-between;padding:5px 0;font-size:.9rem}
-  .tot.big{font-weight:700;font-size:1.05rem;border-top:1px solid var(--line);
-           margin-top:6px;padding-top:10px}
+  @media (max-width:520px){ .row2{grid-template-columns:1fr} }
+  .tot{display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem}
+  .tot.big{font-weight:700;font-size:1.05rem;border-top:1px solid var(--line);margin-top:6px;padding-top:10px}
   button.pay{width:100%;margin-top:14px;padding:14px;border:0;border-radius:9px;
-        background:var(--red);color:#fff;font-weight:700;font-size:1rem;
-        letter-spacing:.04em;text-transform:uppercase;cursor:pointer}
+        background:var(--red);color:#fff;font-weight:700;font-size:.98rem;
+        letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
+  button.pay.go{background:var(--go)}
   button.pay:disabled{background:#C9C6C0;cursor:not-allowed}
-  .add{padding:8px 13px;border:1px solid var(--line);border-radius:7px;background:#fff;
-       font-size:.83rem;font-weight:600;cursor:pointer}
-  .add.on{background:var(--go);border-color:var(--go);color:#fff}
+  .lnk{background:none;border:0;color:var(--muted);font:inherit;font-size:.76rem;
+       text-decoration:underline;cursor:pointer;padding:0}
   .bb{display:inline-block;background:#EEE9F7;color:#5B3E9B;border-radius:5px;
-      padding:1px 6px;font-size:.7rem;font-weight:700;margin-left:6px;vertical-align:middle}
+      padding:1px 6px;font-size:.68rem;font-weight:700}
   .err{background:#FBE9E9;border:1px solid #E9B7B7;color:#8A1F1F;border-radius:8px;
-       padding:11px 13px;margin:12px 0;font-size:.87rem}
-  .lead{color:var(--muted);font-size:.78rem;margin-top:3px}
+       padding:11px 13px;margin:12px 0;font-size:.86rem}
   #cardbox{border:1px solid var(--line);border-radius:7px;padding:12px;background:#fff;margin-top:6px}
   .done{text-align:center;padding:30px 10px}
   .done h2{color:var(--go)}
   .hp{position:absolute;left:-9999px}
-  header img{display:block;margin:0 auto 6px;height:54px;width:auto}
-  .step{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
-        color:var(--muted);font-weight:700;margin-bottom:4px}
-  .card.pack{border:2px solid var(--gold);box-shadow:0 2px 14px rgba(243,183,0,.16)}
-  button.pay.go{background:var(--go)}
-  button.pay.go.added{background:#5B8C74}
+
+  /* the sticky basket, so the order is never lost off the bottom */
+  .bar{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:#fff;z-index:50;
+       padding:11px 14px;display:none;align-items:center;gap:12px}
+  .bar.on{display:flex}
+  .bar .n{flex:1;font-size:.85rem}
+  .bar button{border:0;border-radius:8px;padding:10px 16px;background:var(--gold);
+              color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <a href="/"><img src="/assets/img/logo.png" alt="Bares Taekwondo Fitness" width="101" height="54"></a>
+    <a href="/"><img src="/assets/img/logo.png" alt="Bares Taekwondo Fitness"></a>
     <h1>Gear Shop</h1>
     <p>Bares Taekwondo Fitness</p>
   </header>
 
   <div id="boot" class="sub" style="text-align:center;padding:30px 0">Loading the shop...</div>
   <div id="closed" hidden></div>
+
   <div id="app" hidden>
     <div class="notice" id="notice"></div>
 
-    <!-- STEP 1. The package, as one thing. Deliberately NO per-piece add
-         button in here: a parent adding pieces one at a time and only then
-         finding the single button below would rightly be annoyed. Buying one
-         piece on its own lives in step 3, where it says so. -->
+    <!-- The package stays at the top and stays compact: it is what most
+         buyers came for, but it must not be a screenful of dropdowns before
+         anyone reaches the shop. The sizes are picked in a sheet. -->
     <div class="card pack" id="packCard">
-      <div class="step">Step 1</div>
       <h2 id="packName">Beginner Gear Package</h2>
+      <div class="price" id="packTotal">-</div>
       <p class="sub" id="packNote"></p>
-      <div id="packPieces"></div>
-      <div class="tot big"><span>Everything above</span><span id="packTotal">-</span></div>
-      <button class="pay go" id="packBtn" type="button">Add the package</button>
+      <ul id="packList"></ul>
+      <button class="pay go" id="packBtn" type="button">Build my package</button>
     </div>
 
-    <!-- STEP 2. The two optional extras, offered where the decision is made. -->
-    <div class="card" id="addonCard">
-      <div class="step">Step 2, optional</div>
-      <h2>Add to the package</h2>
-      <p class="sub">Not required, but plenty of students carry them.</p>
-      <div id="addonPieces"></div>
-    </div>
+    <div class="tabs" id="tabs"></div>
+    <input class="search" id="q" type="search" placeholder="Search the shop" autocomplete="off">
+    <div class="chips" id="chips"></div>
+    <div class="grid" id="grid"></div>
 
-    <!-- STEP 3. Every item on its own, for a replacement. -->
-    <div class="card" id="singlesCard">
-      <div class="step">Or</div>
-      <h2>Buy a single piece</h2>
-      <p class="sub">Replacing something, or you only need the one item. Pick a size and add it.</p>
-      <div id="singlePieces"></div>
-    </div>
-
-    <div class="card">
+    <div class="card" id="orderCard">
       <h2>Your order</h2>
       <div id="cart"><p class="sub">Nothing added yet.</p></div>
       <div id="totals" hidden>
@@ -125,11 +148,11 @@
         <label class="fld">Student first name<input id="sFirst" autocomplete="off"></label>
         <label class="fld">Student last name<input id="sLast" autocomplete="off"></label>
       </div>
-      <div class="row2" style="margin-top:8px">
+      <div class="row2" style="margin-top:6px">
         <label class="fld">Your first name<input id="bFirst" autocomplete="given-name"></label>
         <label class="fld">Your last name<input id="bLast" autocomplete="family-name"></label>
       </div>
-      <div class="row2" style="margin-top:8px">
+      <div class="row2" style="margin-top:6px">
         <label class="fld">Email<input id="bEmail" type="email" autocomplete="email"></label>
         <label class="fld">Phone<input id="bPhone" type="tel" autocomplete="tel"></label>
       </div>
@@ -153,6 +176,13 @@
   </div>
 </div>
 
+<div class="bar" id="bar">
+  <span class="n" id="barN"></span>
+  <button type="button" id="barBtn">Checkout</button>
+</div>
+
+<div class="scrim" id="scrim"><div class="sheet" id="sheet"></div></div>
+
 <script>
 (function () {
   "use strict";
@@ -160,6 +190,7 @@
   var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5";
   var CFG = null, STRIPE = null, CARD = null;
   var CART = [];                 // { variant_id, qty, from_package, label, cents }
+  var TAB = "sparring", TYPE = "", Q = "";
   var SALE_ID = (self.crypto && self.crypto.randomUUID) ? self.crypto.randomUUID() : null;
 
   function $(id) { return document.getElementById(id); }
@@ -198,7 +229,8 @@
     return { sub: sub, tax: tax, fee: fee, total: sub + tax + fee };
   }
 
-  /* ---- rendering the catalogue ------------------------------------------ */
+  /* ---- catalogue helpers ------------------------------------------------ */
+  function allProducts() { return CFG.package.concat(CFG.extras); }
   function sizesOf(p) {
     var out = [], seen = {};
     p.variants.forEach(function (v) { if (v.size && !seen[v.size]) { seen[v.size] = 1; out.push(v.size); } });
@@ -215,51 +247,138 @@
     out.sort(function (a, b) { return (gated[a] ? 1 : 0) - (gated[b] ? 1 : 0); });
     return out;
   }
-  function priceFrom(p) {
-    return Math.min.apply(null, p.variants.map(function (v) { return v.cents; }));
+  function priceFrom(p) { return Math.min.apply(null, p.variants.map(function (v) { return v.cents; })); }
+  function priceTo(p) { return Math.max.apply(null, p.variants.map(function (v) { return v.cents; })); }
+  var TYPE_LABEL = { sparring:"Sparring gear", uniform:"Uniforms", shirt:"Shirts",
+                     bag:"Bags", belt:"Belts", other:"Other" };
+  function typeLabel(t) { return TYPE_LABEL[t] || t; }
+
+  /* Sparring gear is its own tab and opens first, because beginners buying
+     their first set are most of the traffic. Everything else shares one tab
+     rather than sprouting a tab per item type nobody has yet. */
+  function tabOf(p) { return p.item_type === "sparring" ? "sparring" : "other"; }
+  function inTab(p) { return tabOf(p) === TAB; }
+
+  function visible() {
+    var q = Q.trim().toLowerCase();
+    return allProducts().filter(function (p) {
+      if (!inTab(p)) return false;
+      if (TYPE && p.item_type !== TYPE) return false;
+      if (q && p.title.toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
   }
 
-  function pieceHtml(p, prefix) {
-    var sizes = sizesOf(p), colors = colorsOf(p);
-    // No badge on the product name. The restriction is on ONE COLOUR, and a
-    // badge up here read as though the whole piece were black belts only.
-    // The colour option carries it instead, where it is true.
-    var h = '<div class="piece" data-pid="' + esc(p.id) + '">'
-      + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="">' : '<div style="width:54px"></div>')
-      + '<div style="flex:1">'
-      + '<div class="nm">' + esc(p.title) + '</div>'
-      + '<div class="pr">' + money(priceFrom(p)) + (p.logo ? ' with the school logo' : '') + '</div>'
-      + (p.lead_time_text ? '<div class="lead">' + esc(p.lead_time_text) + '</div>' : '')
-      + '<div class="picks">';
-    if (sizes.length > 1 || (sizes.length === 1 && colors.length)) {
-      h += '<select id="' + prefix + '-s-' + esc(p.id) + '">'
-        + (sizes.length > 1 ? '<option value="">Size...</option>' : '')
-        + sizes.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('')
-        + '</select>';
+  /* ---- rendering -------------------------------------------------------- */
+  function renderTabs() {
+    var counts = { sparring: 0, other: 0 };
+    allProducts().forEach(function (p) { counts[tabOf(p)]++; });
+    $("tabs").innerHTML =
+      '<button class="tab' + (TAB === "sparring" ? " on" : "") + '" type="button" data-tab="sparring">'
+      + 'Sparring Gear <span style="opacity:.7">' + counts.sparring + '</span></button>'
+      + '<button class="tab' + (TAB === "other" ? " on" : "") + '" type="button" data-tab="other">'
+      + 'Everything Else <span style="opacity:.7">' + counts.other + '</span></button>';
+  }
+  function renderChips() {
+    var types = [], seen = {};
+    allProducts().forEach(function (p) {
+      if (tabOf(p) !== TAB || seen[p.item_type]) return;
+      seen[p.item_type] = 1; types.push(p.item_type);
+    });
+    // One type in a tab means the chips would only ever say "All", so hide them.
+    if (types.length < 2) { $("chips").innerHTML = ""; return; }
+    $("chips").innerHTML = '<button class="chip' + (TYPE ? "" : " on") + '" type="button" data-type="">All</button>'
+      + types.map(function (t) {
+          return '<button class="chip' + (TYPE === t ? " on" : "") + '" type="button" data-type="'
+            + esc(t) + '">' + esc(typeLabel(t)) + '</button>';
+        }).join("");
+  }
+  function renderGrid() {
+    var list = visible();
+    if (!list.length) {
+      $("grid").innerHTML = '<div class="empty">Nothing here'
+        + (Q ? ' for "' + esc(Q) + '"' : "") + '. Try the other tab.</div>';
+      return;
+    }
+    $("grid").innerHTML = list.map(function (p) {
+      var lo = priceFrom(p), hi = priceTo(p);
+      return '<button class="tile" type="button" data-open="' + esc(p.id) + '">'
+        + '<div class="ph">' + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" loading="lazy">' : "") + '</div>'
+        + '<div class="nm">' + esc(p.title) + '</div>'
+        + (p.logo ? '<div class="tag">school logo included</div>' : "")
+        + '<div class="pr">' + (lo === hi ? money(lo) : money(lo) + "+") + '</div>'
+        + '</button>';
+    }).join("");
+  }
+  function renderShopBody() { renderTabs(); renderChips(); renderGrid(); }
+
+  /* ---- the picker sheet ------------------------------------------------- */
+  function openSheet(html) { $("sheet").innerHTML = html; $("scrim").classList.add("on"); }
+  function closeSheet() { $("scrim").classList.remove("on"); }
+
+  function pickerRows(p, prefix) {
+    var sizes = sizesOf(p), colors = colorsOf(p), h = "";
+    if (sizes.length) {
+      h += '<label class="fld">Size<select id="' + prefix + '-s-' + esc(p.id) + '">'
+        + (sizes.length > 1 ? '<option value="">Pick a size</option>' : "")
+        + sizes.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join("")
+        + '</select></label>';
     }
     if (colors.length > 1) {
-      h += '<select id="' + prefix + '-c-' + esc(p.id) + '"><option value="">Colour...</option>'
+      h += '<label class="fld">Colour<select id="' + prefix + '-c-' + esc(p.id) + '">'
+        + '<option value="">Pick a colour</option>'
         + colors.map(function (c) {
             var bb = p.variants.some(function (v) { return v.color === c && v.black_belt_only; });
-            return '<option value="' + esc(c) + '">' + esc(c) + (bb ? ' (black belts only)' : '') + '</option>';
-          }).join('')
-        + '</select>';
+            return '<option value="' + esc(c) + '">' + esc(c) + (bb ? " (black belts only)" : "") + '</option>';
+          }).join("")
+        + '</select></label>';
     }
-    // NO add button inside the package block. Letting a parent add pieces
-    // one at a time up there, and only then discover the single button at the
-    // bottom, is the exact confusion this layout exists to avoid. Every piece
-    // is still buyable alone, in step 3, where the heading says so.
-    if (prefix !== 'p') {
-      h += '<button class="add" type="button" data-add="' + esc(p.id) + '">'
-        + (prefix === 'a' ? 'Add to my package' : 'Add') + '</button>';
-    }
-    h += '</div></div></div>';
     return h;
   }
 
+  function openProduct(id) {
+    var p = allProducts().filter(function (x) { return x.id === id; })[0];
+    if (!p) return;
+    var lo = priceFrom(p), hi = priceTo(p);
+    openSheet('<div class="sheet-hd"><button class="close" type="button" data-close="1">&times;</button>'
+      + '<h3>' + esc(p.title) + '</h3>'
+      + '<div class="sub" style="margin:2px 0 0">' + (lo === hi ? money(lo) : money(lo) + " to " + money(hi))
+      + (p.logo ? " with the school logo" : "") + '</div>'
+      + (p.lead_time_text ? '<div class="sub" style="margin:2px 0 0">' + esc(p.lead_time_text) + '</div>' : "")
+      + '</div>'
+      + (p.image_url ? '<div class="ph" style="max-width:190px;margin:0 auto 8px"><img src="'
+          + esc(p.image_url) + '" alt="" style="max-width:100%"></div>' : "")
+      + pickerRows(p, "i")
+      + '<label class="fld">How many<select id="i-q-' + esc(p.id) + '">'
+      + [1,2,3,4,5].map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join("")
+      + '</select></label>'
+      + '<div id="sheetErr"></div>'
+      + '<button class="pay go" type="button" data-addone="' + esc(p.id) + '">Add to my order</button>');
+  }
+
+  function openPackage() {
+    openSheet('<div class="sheet-hd"><button class="close" type="button" data-close="1">&times;</button>'
+      + '<h3>' + esc(CFG.package_name || "Beginner Gear Package") + '</h3>'
+      + '<div class="sub" style="margin:2px 0 0">Pick a size for each piece.</div></div>'
+      + CFG.package.map(function (p) {
+          return '<div style="padding:10px 0;border-top:1px solid #F0ECE4">'
+            + '<div style="font-weight:600;font-size:.9rem">' + esc(p.title)
+            + ' <span style="color:var(--muted);font-weight:400">' + money(priceFrom(p)) + '</span></div>'
+            + pickerRows(p, "p") + '</div>';
+        }).join("")
+      + '<div id="sheetErr"></div>'
+      + '<button class="pay go" type="button" data-addpack="1">Add the package</button>');
+  }
+
+  function sheetErr(msg) {
+    var el = $("sheetErr");
+    if (el) el.innerHTML = msg ? '<div class="err">' + esc(msg) + "</div>" : "";
+  }
+
+  /* Resolve the chosen size and colour to one real variant. */
   function pickVariant(p, prefix) {
     var sizes = sizesOf(p), colors = colorsOf(p);
-    var sEl = $(prefix + '-s-' + p.id), cEl = $(prefix + '-c-' + p.id);
+    var sEl = $(prefix + "-s-" + p.id), cEl = $(prefix + "-c-" + p.id);
     var wantS = sEl ? sEl.value : (sizes[0] || "");
     var wantC = cEl ? cEl.value : (colors[0] || "");
     if (sizes.length && !wantS) return { err: "Pick a size for the " + p.title + "." };
@@ -271,28 +390,52 @@
     return { v: v, label: p.title + [wantS, wantC].filter(Boolean).map(function (t) { return " " + t; }).join(",") };
   }
 
-  /* ---- the cart --------------------------------------------------------- */
-  function addToCart(p, prefix, fromPackage) {
-    var got = pickVariant(p, prefix);
-    if (got.err) return got.err;
+  function push(got, qty, fromPackage) {
     var found = null;
     CART.forEach(function (x) { if (x.variant_id === got.v.id) found = x; });
-    if (found) found.qty += 1;
-    else CART.push({ variant_id: got.v.id, qty: 1, from_package: !!fromPackage,
+    if (found) found.qty += qty;
+    else CART.push({ variant_id: got.v.id, qty: qty, from_package: !!fromPackage,
                      label: got.label, cents: got.v.cents });
-    return null;
   }
+
+  function addOne(id) {
+    var p = allProducts().filter(function (x) { return x.id === id; })[0];
+    if (!p) return;
+    var got = pickVariant(p, "i");
+    if (got.err) { sheetErr(got.err); return; }
+    var qEl = $("i-q-" + p.id);
+    push(got, Math.max(1, parseInt(qEl ? qEl.value : "1", 10) || 1), false);
+    closeSheet(); renderCart();
+  }
+
+  function addPackage() {
+    // Resolve EVERY piece before adding any of it. Adding what it could and
+    // reporting the rest left a half package in the basket and quietly bumped
+    // an already-chosen piece to two.
+    var picked = [], err = null;
+    for (var i = 0; i < CFG.package.length; i++) {
+      var got = pickVariant(CFG.package[i], "p");
+      if (got.err) { err = got.err; break; }
+      picked.push(got);
+    }
+    if (err) { sheetErr(err); return; }
+    picked.forEach(function (got) { push(got, 1, true); });
+    closeSheet(); renderCart();
+  }
+
+  /* ---- the basket ------------------------------------------------------- */
   function renderCart() {
     if (!CART.length) {
       $("cart").innerHTML = '<p class="sub">Nothing added yet.</p>';
       $("totals").hidden = true;
       $("payBtn").disabled = true;
       $("payBtn").textContent = "Pay";
+      $("bar").classList.remove("on");
       return;
     }
     $("cart").innerHTML = CART.map(function (x, i) {
-      return '<div class="tot"><span>' + esc(x.label) + (x.qty > 1 ? ' x' + x.qty : '')
-        + ' <button class="add" type="button" data-rm="' + i + '" style="padding:2px 8px;font-size:.75rem">remove</button></span>'
+      return '<div class="tot"><span>' + esc(x.label) + (x.qty > 1 ? " x" + x.qty : "")
+        + ' <button class="lnk" type="button" data-rm="' + i + '">remove</button></span>'
         + '<span>' + money(x.cents * x.qty) + '</span></div>';
     }).join("");
     var t = totals();
@@ -303,6 +446,9 @@
     $("totals").hidden = false;
     $("payBtn").disabled = false;
     $("payBtn").textContent = "Pay " + money(t.total);
+    var n = CART.reduce(function (a, x) { return a + x.qty; }, 0);
+    $("barN").textContent = n + (n === 1 ? " item" : " items") + " · " + money(t.total);
+    $("bar").classList.add("on");
   }
 
   /* ---- boot ------------------------------------------------------------- */
@@ -313,7 +459,7 @@
         $("boot").hidden = true;
         if (!res.ok || res.j.closed) {
           $("closed").hidden = false;
-          $("closed").innerHTML = '<div class="err">' + esc(res.j.error || "The shop is not open right now.") + '</div>';
+          $("closed").innerHTML = '<div class="err">' + esc(res.j.error || "The shop is not open right now.") + "</div>";
           return;
         }
         CFG = res.j;
@@ -325,19 +471,13 @@
 
         if (!CFG.package.length) { $("packCard").hidden = true; }
         else {
-          $("packPieces").innerHTML = CFG.package.map(function (p) { return pieceHtml(p, "p"); }).join("");
           var sum = CFG.package.reduce(function (a, p) { return a + priceFrom(p); }, 0);
           $("packTotal").textContent = money(sum);
+          $("packList").innerHTML = CFG.package.map(function (p) {
+            return "<li>" + esc(p.title) + "</li>";
+          }).join("");
         }
-        if (!CFG.extras.length) { $("addonCard").hidden = true; }
-        else { $("addonPieces").innerHTML = CFG.extras.map(function (p) { return pieceHtml(p, "a"); }).join(""); }
-
-        // Step 3 lists EVERYTHING, package pieces included, because a
-        // replacement mouthguard is the commonest single sale there is.
-        var all = CFG.package.concat(CFG.extras);
-        if (!all.length) { $("singlesCard").hidden = true; }
-        else { $("singlePieces").innerHTML = all.map(function (p) { return pieceHtml(p, "i"); }).join(""); }
-
+        renderShopBody();
         wire();
         loadStripe();
       })
@@ -349,54 +489,44 @@
   }
 
   function wire() {
-    $("packBtn").addEventListener("click", function () {
-      // Resolve EVERY piece before adding any of it. Adding what it could and
-      // reporting the rest left a half package in the basket and quietly bumped
-      // an already-chosen piece to two, which is not what anybody meant.
-      var picked = [], err = null;
-      for (var i = 0; i < CFG.package.length; i++) {
-        var got = pickVariant(CFG.package[i], "p");
-        if (got.err) { err = got.err; break; }
-        picked.push(got);
-      }
-      if (err) { showErr(err); return; }
-      showErr(null);
-      // Say plainly that it worked. Without this the only feedback is a cart
-      // further down the page, and a parent who does not see it clicks again.
-      var b = $("packBtn");
-      b.classList.add("added");
-      b.textContent = "Added. Tap again for a second package";
-      picked.forEach(function (got) {
-        var found = null;
-        CART.forEach(function (x) { if (x.variant_id === got.v.id) found = x; });
-        if (found) found.qty += 1;
-        else CART.push({ variant_id: got.v.id, qty: 1, from_package: true,
-                         label: got.label, cents: got.v.cents });
-      });
+    $("packBtn").addEventListener("click", openPackage);
+    $("tabs").addEventListener("click", function (e) {
+      var t = e.target.closest ? e.target.closest("[data-tab]") : null;
+      if (!t) return;
+      TAB = t.getAttribute("data-tab"); TYPE = "";
+      renderShopBody();
+    });
+    $("chips").addEventListener("click", function (e) {
+      var c = e.target.closest ? e.target.closest("[data-type]") : null;
+      if (!c) return;
+      TYPE = c.getAttribute("data-type");
+      renderChips(); renderGrid();
+    });
+    $("q").addEventListener("input", function (e) { Q = e.target.value || ""; renderGrid(); });
+    $("grid").addEventListener("click", function (e) {
+      var t = e.target.closest ? e.target.closest("[data-open]") : null;
+      if (t) openProduct(t.getAttribute("data-open"));
+    });
+    $("scrim").addEventListener("click", function (e) {
+      if (e.target === $("scrim")) { closeSheet(); return; }
+      var el = e.target.closest ? e.target : null;
+      if (!el) return;
+      if (el.closest("[data-close]")) { closeSheet(); return; }
+      var one = el.closest("[data-addone]");
+      if (one) { addOne(one.getAttribute("data-addone")); return; }
+      if (el.closest("[data-addpack]")) { addPackage(); }
+    });
+    $("cart").addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("[data-rm]") : null;
+      if (!b) return;
+      CART.splice(Number(b.getAttribute("data-rm")), 1);
       renderCart();
     });
-    // Step 2 and step 3. A piece bought on its own is NOT from_package, so
-    // the order line records what it really was.
-    function singleAdd(list, prefix) {
-      return function (ev) {
-        var id = ev.target && ev.target.getAttribute && ev.target.getAttribute("data-add");
-        if (!id) return;
-        var p = list().filter(function (x) { return x.id === id; })[0];
-        if (!p) return;
-        showErr(addToCart(p, prefix, false));
-        renderCart();
-      };
-    }
-    $("addonPieces").addEventListener("click", singleAdd(function () { return CFG.extras; }, "a"));
-    $("singlePieces").addEventListener("click",
-      singleAdd(function () { return CFG.package.concat(CFG.extras); }, "i"));
-    $("cart").addEventListener("click", function (ev) {
-      var i = ev.target && ev.target.getAttribute && ev.target.getAttribute("data-rm");
-      if (i === null || i === undefined) return;
-      CART.splice(Number(i), 1);
-      renderCart();
+    $("barBtn").addEventListener("click", function () {
+      $("orderCard").scrollIntoView({ behavior: "smooth", block: "start" });
     });
     $("payBtn").addEventListener("click", pay);
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSheet(); });
   }
 
   function showErr(msg) {
@@ -476,6 +606,7 @@
 
   function finish(receiptUrl) {
     $("app").hidden = true;
+    $("bar").classList.remove("on");
     $("done").hidden = false;
     $("doneMsg").textContent = "Your gear is ordered. We will let you know when it is at the school, and "
       + ($("bEmail").value || "your email") + " has the receipt.";

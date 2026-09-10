@@ -191,6 +191,8 @@ Deno.serve(async (req: Request) => {
             id: p.id,
             title: p.title,
             image_url: p.image_url,
+            // Drives which tab the shop files it under, and the type chips.
+            item_type: p.item_type || "other",
             in_package: p.in_package === true,
             logo: Number(p.logo_cents) > 0,
             lead_time_text: p.stocked === true ? null : (p.lead_time_text ?? null),
