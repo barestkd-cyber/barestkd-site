@@ -503,6 +503,10 @@ const BTKDPricing = (function () {
       if (d) row.next_bill_on = d;
     }
 
+    if (row.billing_frequency === 'monthly' && row.next_bill_on) {
+      // Preserve the agreed day even when the first automatic bill is clamped.
+      row.billing_anchor_day = Number(String(opts.nextBillOn || row.started_on || row.next_bill_on).slice(8, 10));
+    }
     return row;
   }
 
@@ -791,10 +795,14 @@ const BTKDPricing = (function () {
       return out;
     }
     var f = new Date(first);
-    var anchorDay = f.getUTCDate(), y = f.getUTCFullYear(), mo = f.getUTCMonth();
+    var savedAnchor = Number(opts.anchorDay);
+    var anchorDay = Number.isInteger(savedAnchor) && savedAnchor >= 1 && savedAnchor <= 31
+      ? savedAnchor : f.getUTCDate();
+    var y = f.getUTCFullYear(), mo = f.getUTCMonth();
     for (var j = 0; j < count; j++) {
       var last = new Date(Date.UTC(y, mo + j + 1, 0)).getUTCDate();
-      out.push({ seq: j + 1, dueOn: utcToYmd(Date.UTC(y, mo + j, Math.min(anchorDay, last))), amountCents: amount });
+      // The explicitly scheduled first date stays put; only future dates use the anchor.
+      out.push({ seq: j + 1, dueOn: j === 0 ? utcToYmd(first) : utcToYmd(Date.UTC(y, mo + j, Math.min(anchorDay, last))), amountCents: amount });
     }
     return out;
   }
