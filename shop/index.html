@@ -116,9 +116,12 @@
   <div id="app" hidden>
     <div class="notice" id="notice"></div>
 
-    <!-- The package stays at the top and stays compact: it is what most
-         buyers came for, but it must not be a screenful of dropdowns before
-         anyone reaches the shop. The sizes are picked in a sheet. -->
+    <!-- The tabs come first, so a kickboxer is never made to scroll past a
+         taekwondo package to find their gloves (owner, 2026-09-10). -->
+    <div class="tabs" id="tabs"></div>
+
+    <!-- The package belongs to Sparring Gear only, and is shown only on that
+         tab. It stays compact: the sizes are picked in a sheet. -->
     <div class="card pack" id="packCard">
       <h2 id="packName">Beginner Gear Package</h2>
       <div class="price" id="packTotal">-</div>
@@ -128,7 +131,6 @@
       <button class="pay go" id="packBtn" type="button">Build my package</button>
     </div>
 
-    <div class="tabs" id="tabs"></div>
     <input class="search" id="q" type="search" placeholder="Search the shop" autocomplete="off">
     <div class="chips" id="chips"></div>
     <div class="grid" id="grid"></div>
@@ -252,14 +254,18 @@
   }
   function priceFrom(p) { return Math.min.apply(null, p.variants.map(function (v) { return v.cents; })); }
   function priceTo(p) { return Math.max.apply(null, p.variants.map(function (v) { return v.cents; })); }
-  var TYPE_LABEL = { sparring:"Sparring gear", uniform:"Uniforms", shirt:"Shirts",
+  var TYPE_LABEL = { sparring:"Sparring gear", kickboxing:"Kickboxing", uniform:"Uniforms", shirt:"Shirts",
                      bag:"Bags", belt:"Belts", other:"Other" };
   function typeLabel(t) { return TYPE_LABEL[t] || t; }
 
   /* Sparring gear is its own tab and opens first, because beginners buying
      their first set are most of the traffic. Everything else shares one tab
      rather than sprouting a tab per item type nobody has yet. */
-  function tabOf(p) { return p.item_type === "sparring" ? "sparring" : "other"; }
+  function tabOf(p) {
+    if (p.item_type === "sparring") return "sparring";
+    if (p.item_type === "kickboxing") return "kickboxing";
+    return "other";
+  }
   function inTab(p) { return tabOf(p) === TAB; }
 
   function visible() {
@@ -273,14 +279,17 @@
   }
 
   /* ---- rendering -------------------------------------------------------- */
+  var TABS = [["sparring", "Sparring Gear"], ["kickboxing", "Kickboxing"], ["other", "Everything Else"]];
   function renderTabs() {
-    var counts = { sparring: 0, other: 0 };
+    var counts = { sparring: 0, kickboxing: 0, other: 0 };
     allProducts().forEach(function (p) { counts[tabOf(p)]++; });
-    $("tabs").innerHTML =
-      '<button class="tab' + (TAB === "sparring" ? " on" : "") + '" type="button" data-tab="sparring">'
-      + 'Sparring Gear <span style="opacity:.7">' + counts.sparring + '</span></button>'
-      + '<button class="tab' + (TAB === "other" ? " on" : "") + '" type="button" data-tab="other">'
-      + 'Everything Else <span style="opacity:.7">' + counts.other + '</span></button>';
+    // A tab with nothing in it is not offered: an empty Kickboxing tab would
+    // only be a dead end.
+    $("tabs").innerHTML = TABS.filter(function (t) { return counts[t[0]] > 0 || t[0] === TAB; })
+      .map(function (t) {
+        return '<button class="tab' + (TAB === t[0] ? " on" : "") + '" type="button" data-tab="' + t[0] + '">'
+          + esc(t[1]) + ' <span style="opacity:.7">' + counts[t[0]] + '</span></button>';
+      }).join("");
   }
   function renderChips() {
     var types = [], seen = {};
@@ -313,7 +322,12 @@
         + '</button>';
     }).join("");
   }
-  function renderShopBody() { renderTabs(); renderChips(); renderGrid(); }
+  var HAS_PACK = false;   // set once the catalogue loads
+  function renderShopBody() {
+    renderTabs();
+    $("packCard").hidden = !(HAS_PACK && TAB === "sparring");
+    renderChips(); renderGrid();
+  }
 
   /* ---- the picker sheet ------------------------------------------------- */
   function openSheet(html) { $("sheet").innerHTML = html; $("scrim").classList.add("on"); }
@@ -539,6 +553,7 @@
         $("cadence").textContent = CFG.cadence_text || "";
 
         var req = byRole("required");
+        HAS_PACK = req.length > 0;
         if (!req.length) { $("packCard").hidden = true; }
         else {
           var sum = req.reduce(function (a, p) { return a + priceFrom(p); }, 0);
