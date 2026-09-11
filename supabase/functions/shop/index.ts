@@ -64,22 +64,28 @@ const MAX_ITEMS = 40;
 // tests/checkout-copy.test.js fails if a checkout page sells a shirt that is
 // missing here. A shirt the catalogue marks inactive is simply not offered.
 const TEE_SIZES = ["Youth XS", "Youth S", "Youth M", "Youth L", "Adult S", "Adult M", "Adult L", "Adult XL", "Adult 2XL"];
+// `swatch` is the colour painted behind the artwork, and it must be the
+// artwork's OWN edge colour, sampled from the image, or the picture shows as
+// a box of a slightly different colour (owner, 2026-09-11). `fill` is for a
+// photo that runs to its edges with no flat background: it fills the tile.
 type Shirt = {
-  name: string; colour: string; swatch: string; sizes: string[];
+  name: string; colour: string; swatch: string; sizes: string[]; fill?: boolean;
   designs?: string[]; images: { src: string; label: string }[];
 };
 const SHIRTS: Shirt[] = [
   { name: "Classic gray tee", colour: "Gray", swatch: "#B4B6B9", sizes: TEE_SIZES,
     images: [{ src: "/assets/img/logo.png", label: "Front" },
              { src: "/assets/img/shirts/art-bear-patch.png", label: "Back" }] },
-  { name: "Lego tee", colour: "Blue", swatch: "#1F51A8", sizes: TEE_SIZES,
+  // A photo of the print on blue fabric, textured to its edges: no flat colour
+  // can match it, so it fills the whole tile instead.
+  { name: "Lego tee", colour: "Blue", swatch: "#00458C", sizes: TEE_SIZES, fill: true,
     images: [{ src: "/assets/img/shirts/art-lego.jpg", label: "Front" }] },
-  { name: "Alternate design tee", colour: "Black", swatch: "#141414", sizes: TEE_SIZES,
+  { name: "Alternate design tee", colour: "Black", swatch: "#000000", sizes: TEE_SIZES,
     images: [{ src: "/assets/img/shirts/art-bares-bar.jpg", label: "Front" }] },
-  { name: "Team Grizzly Kickboxing tee", colour: "Black", swatch: "#141414", sizes: TEE_SIZES,
+  { name: "Team Grizzly Kickboxing tee", colour: "Black", swatch: "#030103", sizes: TEE_SIZES,
     images: [{ src: "/assets/img/shirts/art-grizzly-kickboxing.jpg", label: "Front" }] },
   // White, and the artwork is the choice, exactly as on the Little Kickers page.
-  { name: "Little Kickers T-Shirt", colour: "White", swatch: "#FFFFFF",
+  { name: "Little Kickers T-Shirt", colour: "White", swatch: "#FEFEFE",
     sizes: ["2T", "3T", "4T", "Youth XS", "Youth S"], designs: ["Girl", "Boy"],
     images: [{ src: "/assets/img/lk-logo-girl.png", label: "Girl design" },
              { src: "/assets/img/lk-logo-boy.png", label: "Boy design" }] },
@@ -311,6 +317,7 @@ Deno.serve(async (req: Request) => {
           image_url: sh.images[0].src,
           images: sh.images,
           swatch: sh.swatch,
+          fill: sh.fill === true,
           item_type: "shirt",
           category: "T-shirts",
           role: null,

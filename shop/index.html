@@ -98,6 +98,9 @@
   /* A school shirt's tile IS the shirt: its own colour, the print on it. */
   .tile .ph.sw{box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
   .tile .ph.sw img{max-width:72%;max-height:72%}
+  /* A photo that runs to its own edges fills the square, trimmed a hair so
+     its thin frame line never shows. */
+  .ph.fill img,.tile .ph.fill img,.shots .ph.fill img{width:104%;height:104%;max-width:none;max-height:none;object-fit:cover}
   .shots{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:0 auto 8px}
   .shots figure{margin:0;flex:0 1 170px;text-align:center}
   .shots .ph{aspect-ratio:1/1;border-radius:8px;display:flex;align-items:center;justify-content:center;
@@ -405,7 +408,8 @@
     }
     $("grid").innerHTML = list.map(function (p) {
       var lo = priceFrom(p), hi = priceTo(p);
-      var ph = p.swatch ? '<div class="ph sw" style="background:' + esc(p.swatch) + '">' : '<div class="ph">';
+      var ph = p.swatch ? '<div class="ph sw' + (p.fill ? " fill" : "") + '" style="background:' + esc(p.swatch) + '">'
+        : '<div class="ph">';
       return '<button class="tile" type="button" data-open="' + esc(p.id) + '">'
         + ph + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" loading="lazy">' : "") + '</div>'
         + '<div class="nm">' + esc(p.title) + '</div>'
@@ -457,7 +461,7 @@
   function shotsHtml(p) {
     if (p.images && p.images.length) {
       return '<div class="shots">' + p.images.map(function (im) {
-        return '<figure><div class="ph" style="background:' + esc(p.swatch || "#F7F7F7") + '"><img src="'
+        return '<figure><div class="ph' + (p.fill ? " fill" : "") + '" style="background:' + esc(p.swatch || "#F7F7F7") + '"><img src="'
           + esc(im.src) + '" alt="' + esc(p.title + ", " + im.label) + '"></div>'
           + '<figcaption>' + esc(im.label) + '</figcaption></figure>';
       }).join("") + '</div>';
