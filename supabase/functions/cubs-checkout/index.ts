@@ -53,9 +53,15 @@ const SHIRT_ART: Record<string, { front: string; back: string | null }> = {
   "Lego tee":         { front: "/assets/img/shirts/art-lego.jpg", back: null },
   "Alternate design tee":   { front: "/assets/img/shirts/art-bares-bar.jpg", back: null },
 };
+// The card colour must be the artwork's OWN edge colour, sampled from the
+// image, or the picture sits on the card as a box of a slightly different
+// colour (owner, 2026-09-11). The Lego picture is a photo of the print on
+// blue fabric, textured to its edges, so no flat colour can match it: it is
+// flagged to FILL its card instead. The shop's shirt list uses the same values.
 const SHIRT_COLOR: Record<string, string> = {
-  "Classic gray tee": "#B4B6B9", "Lego tee": "#1F51A8", "Alternate design tee": "#141414",
+  "Classic gray tee": "#B4B6B9", "Lego tee": "#00458C", "Alternate design tee": "#000000",
 };
+const SHIRT_FILL = new Set(["Lego tee"]);
 const TAX_RATE = 0.0825;          // memberships are untaxed; kept for shape
 const SITE = "https://www.barestkd.fit";
 
@@ -301,6 +307,7 @@ Deno.serve(async (req) => {
           front: SHIRT_ART[r.name] ? SHIRT_ART[r.name].front : null,
           back: SHIRT_ART[r.name] ? SHIRT_ART[r.name].back : null,
           color: SHIRT_COLOR[r.name] || "#B4B6B9",
+          fill: SHIRT_FILL.has(r.name),
         })).sort((a: { featured: boolean }, b: { featured: boolean }) => (a.featured ? -1 : 0) - (b.featured ? -1 : 0)),
         admin_fee_bps: feeBps,
         admin_fee_flat_cents: feeFlat,

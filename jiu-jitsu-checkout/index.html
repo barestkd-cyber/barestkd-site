@@ -125,6 +125,10 @@
   flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:8px;font:inherit;width:190px}
 .cbc-tee-art{width:100%;height:auto;max-height:120px;object-fit:contain;display:block}
 .cbc-tee-art[hidden]{display:none}
+/* A photo that runs to its own edges (the Lego tee) fills its card, trimmed a
+   hair so its thin frame line never shows: no flat colour can match it. */
+.cbc-tee-flip.fill{position:relative;padding:0;overflow:hidden;aspect-ratio:1/1;min-height:140px}
+.cbc-tee-flip.fill .cbc-tee-art{position:absolute;left:-2%;top:-2%;width:104%;height:104%;max-width:none;max-height:none;object-fit:cover}
 .cbc-tee-flipbtn{font-size:.72rem;font-weight:800;color:#15171C;text-transform:uppercase;letter-spacing:.03em}
 .cbc-shirt .cbc-tee-flip{flex:0 0 150px;width:150px}
 @media (max-width:560px){
@@ -492,7 +496,7 @@
       + (sh.featured ? '<p class="cbc-tee-note">Enrollment special.</p>' : '')
       + '<select data-size="' + i + '" aria-label="Size for ' + esc(sh.name) + '" hidden>' + sizes + '</select>'
       + '</div>'
-      + '<button type="button" class="cbc-tee-flip" data-flip="' + i + '" style="background:' + esc(sh.color) + '">'
+      + '<button type="button" class="cbc-tee-flip' + (sh.fill ? ' fill' : '') + '" data-flip="' + i + '" style="background:' + esc(sh.color) + '">'
       + '<img class="cbc-tee-art" data-art="' + i + '" src="' + esc(sh.front) + '" alt="' + esc(sh.name) + '">'
       + (sh.back ? '<span class="cbc-tee-flipbtn" data-lbl="' + i + '">Front &middot; tap for back</span>' : '')
       + '</button>'
