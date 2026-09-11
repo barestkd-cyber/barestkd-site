@@ -341,7 +341,7 @@
   function catOf(p) { return p.category || typeLabel(p.item_type); }
   /* The dropdown lists the main thing on each tab first, in the order the
      owner named them; anything new sorts after, alphabetically. */
-  var CAT_ORDER = ["Sparring gear", "Bags", "Boxing gloves", "Shin guards", "Pads"];
+  var CAT_ORDER = ["Sparring gear", "Uniforms", "Pants", "Bags", "Boxing gloves", "Shin guards", "Pads"];
   function catRank(c) { var i = CAT_ORDER.indexOf(c); return i < 0 ? CAT_ORDER.length : i; }
 
   /* The tabs a product appears on. Usually one, from its type. But anything
@@ -413,7 +413,8 @@
       return '<button class="tile" type="button" data-open="' + esc(p.id) + '">'
         + ph + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" loading="lazy">' : "") + '</div>'
         + '<div class="nm">' + esc(p.title) + '</div>'
-        + (p.logo ? '<div class="tag">school logo included</div>' : "")
+        + (p.art_labels && p.art_labels.length ? '<div class="tag">school patches included</div>'
+            : p.logo ? '<div class="tag">school logo included</div>' : "")
         + '<div class="pr">' + (lo === hi ? money(lo) : money(lo) + "+") + '</div>'
         + '</button>';
     }).join("");
@@ -456,6 +457,15 @@
     return h;
   }
 
+  /* "big bear logo on the back, bear logo on the front and IMAS patch on the
+     front": each label starts lower case unless it is an acronym. */
+  function artWords(list) {
+    var w = list.map(function (l) {
+      return /^[A-Z]{2}/.test(l) ? l : l.charAt(0).toLowerCase() + l.slice(1);
+    });
+    return w.length < 2 ? w.join("") : w.slice(0, -1).join(", ") + " and " + w[w.length - 1];
+  }
+
   /* The picture in the pop-up. A school shirt shows every side it has, front
      and back, or the girl and boy artwork, on the shirt's own colour. */
   function shotsHtml(p) {
@@ -478,6 +488,8 @@
       + '<h3>' + esc(p.title) + '</h3>'
       + '<div class="sub" style="margin:2px 0 0">' + (lo === hi ? money(lo) : money(lo) + " to " + money(hi))
       + (p.logo ? " with the school logo" : "") + '</div>'
+      + (p.art_labels && p.art_labels.length
+          ? '<div class="sub" style="margin:2px 0 0">Comes with ' + esc(artWords(p.art_labels)) + '.</div>' : "")
       + (p.lead_time_text ? '<div class="sub" style="margin:2px 0 0">' + esc(p.lead_time_text) + '</div>' : "")
       + '</div>'
       + shotsHtml(p)

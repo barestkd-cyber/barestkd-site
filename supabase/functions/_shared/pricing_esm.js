@@ -556,6 +556,42 @@ const BTKDPricing = (function () {
     return total - base;
   }
 
+  /* The gear shop's price to the student for one variant, in cents, or null
+   * when it cannot be priced (owner, 2026-09-11).
+   *
+   *   Century's list price + the logo charge + TWICE what the school pays
+   *   for each piece of art on it.
+   *
+   * "Charge 2x for art and the retail of the uniform." The $6 logo on the
+   * sparring gear is the same rule, twice a $3 cost, kept as its own field.
+   *
+   * Until EVERY piece of art has a cost, the item sells at its flat price
+   * instead ("for now set it at 82.25"), whatever Century's list says, and
+   * with no flat price it is not for sale at all: guessing a price for
+   * somebody's custom uniform would be worse than not offering it. An
+   * item with no art is list + logo, exactly as before.
+   *
+   *   item   { logo_cents, art: [{ label, cost_cents | null }], flat_price_cents }
+   */
+  function shopUnitCents(listCents, item) {
+    var it = item || {};
+    var art = Array.isArray(it.art) ? it.art : [];
+    var known = function (a) {
+      if (!a || a.cost_cents === null || a.cost_cents === undefined || a.cost_cents === '') return false;
+      var c = Number(a.cost_cents);
+      return isFinite(c) && c >= 0;
+    };
+    if (art.length && !art.every(known)) {
+      var flat = Math.round(Number(it.flat_price_cents) || 0);
+      return flat > 0 ? flat : null;
+    }
+    var list = Math.round(Number(listCents) || 0);
+    if (list <= 0) return null;
+    var logo = Math.max(0, Math.round(Number(it.logo_cents) || 0));
+    var artCents = art.reduce(function (sum, a) { return sum + Math.round(Number(a.cost_cents)); }, 0);
+    return list + logo + 2 * artCents;
+  }
+
   /* Split `total` integer cents across `weights` pro-rata, largest-remainder,
    * so the parts always sum to exactly `total`. Zero/empty weights → zeros.
    * Used for the invoice discount, and by the UI to show per-line tax that
@@ -867,6 +903,7 @@ const BTKDPricing = (function () {
     paymentsRemaining: paymentsRemaining,
     allocateCents: allocateCents,
     cardFeeCents: cardFeeCents,
+    shopUnitCents: shopUnitCents,
     // exposed for the UI and for tests
     householdRank: householdRank,
     familyPosition: familyPosition,

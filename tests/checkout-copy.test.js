@@ -287,7 +287,8 @@ for (const page of PAGES) {
     test('fn shop: never lets the browser name a price', () => {
       assert.ok(!/body\.(unit_cents|amount|price|total)/.test(ts),
         'the client must send variant ids and quantities only');
-      assert.ok(/Number\(v\.list_cents\)/.test(ts), 'prices must be re-derived from shop_variants');
+      assert.ok(/shopUnitCents\(v\.list_cents, p\)/.test(ts),
+        'prices must be re-derived from shop_variants through the engine rule');
     });
     // Owner, 2026-09-10: "don't let someone buy an out of stock product." The
     // stored stock flag is only as fresh as the weekly refresh, so the order
@@ -326,6 +327,14 @@ for (const page of PAGES) {
       assert.ok(sold.size >= 5, 'found only ' + sold.size + ' shirts on the checkout pages; the scan is broken');
       const missing = Array.from(sold).filter((n) => !listed.has(n));
       assert.deepStrictEqual(missing, [], 'the checkout pages sell shirts the shop does not');
+    });
+    // Owner, 2026-09-11: the custom uniform is priced from what the school
+    // pays for each patch. That cost is his; the public page only ever gets
+    // the words. The function never even names the cost field: the engine
+    // reads it.
+    test('fn shop: what the school pays for art never reaches the public page', () => {
+      assert.ok(!/cost_cents/.test(ts), 'the shop function handles art costs directly');
+      assert.ok(/art_labels: artLabels\(p\)/.test(ts), 'the page should get art labels, and only labels');
     });
     test('fn shop: sizes each shirt the way its checkout page does', () => {
       const shopSizes = /const TEE_SIZES = (\[[^\]]*\])/.exec(ts);

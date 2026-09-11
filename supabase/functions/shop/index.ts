@@ -19,8 +19,12 @@
 //
 // HARD RULES
 //   1. The browser never names a price. Every unit price is re-derived here
-//      from shop_variants, and a variant that is not sellable, not in stock,
-//      or belongs to an inactive product is refused outright.
+//      from shop_variants through BTKDPricing.shopUnitCents, the rule the CRM
+//      shows too: Century's list + the logo + TWICE what the school pays for
+//      each piece of art, or the flat price while an art cost is unknown
+//      (owner, 2026-09-11). A variant that is not sellable, not in stock, or
+//      belongs to an inactive product is refused outright. What the school
+//      pays for art NEVER leaves the server: the page gets the labels only.
 //   2. THE FEE GROSSES UP ON GOODS PLUS TAX. Stripe takes its cut of the
 //      whole charge, tax included. Gear is all sales tax, so getting this
 //      wrong costs about 59c on every set (ledger audit 2026-09-09).
@@ -215,6 +219,12 @@ function feeFor(lines: { cents: number; taxable: boolean }[], bps: number, flat:
 
 const todayCT = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
 
+/** The art on an item as the words a buyer reads, never what it costs: the
+ *  school's cost per piece is Race's, and stays in the CRM. */
+const artLabels = (p: Record<string, unknown>): string[] =>
+  (Array.isArray(p.art) ? (p.art as Record<string, unknown>[]) : [])
+    .map((a) => str(a ? a.label : "")).filter(Boolean);
+
 Deno.serve(async (req: Request) => {
   const cors = corsHeaders(req.headers.get("Origin"));
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -253,7 +263,7 @@ Deno.serve(async (req: Request) => {
       }
       const [pRes, vRes, tRes] = await Promise.all([
         admin.from("shop_products")
-          .select("id,title,image_url,item_type,category,logo_cents,package_role,set_order,lead_time_text,stocked")
+          .select("id,title,display_title,image_url,item_type,category,logo_cents,art,flat_price_cents,package_role,set_order,lead_time_text,stocked")
           .eq("active", true).order("set_order"),
         admin.from("shop_variants")
           .select("id,product_id,size,color,list_cents,rank_gate")
@@ -276,7 +286,9 @@ Deno.serve(async (req: Request) => {
           const vs = byProduct.get(String(p.id)) ?? [];
           return {
             id: p.id,
-            title: p.title,
+            // Our own name when there is one: Century's title is rewritten
+            // by every weekly refresh, the display title never is.
+            title: (p.display_title as string | null) || p.title,
             image_url: p.image_url,
             // Drives which tab the shop files it under, and the type chips.
             item_type: p.item_type || "other",
@@ -287,16 +299,19 @@ Deno.serve(async (req: Request) => {
             role: (p.package_role as string | null) ?? null,
             in_package: p.package_role === "required",
             logo: Number(p.logo_cents) > 0,
+            art_labels: artLabels(p),
             lead_time_text: p.stocked === true ? null : (p.lead_time_text ?? null),
             // The price the buyer sees already contains the logo charge, and
             // is never presented as a separate line (owner, 2026-09-09).
+            // An item the rule cannot price (art costs unknown and no flat
+            // price) offers nothing, rather than a guessed or zero price.
             variants: vs.map((v) => ({
               id: v.id,
               size: v.size || "",
               color: v.color || "",
-              cents: Number(v.list_cents) + Number(p.logo_cents ?? 0),
+              cents: BTKDPricing.shopUnitCents(v.list_cents, p),
               black_belt_only: v.rank_gate === "black_belt",
-            })),
+            })).filter((v) => typeof v.cents === "number" && v.cents > 0),
           };
         })
         .filter((p) => p.variants.length > 0);
@@ -470,7 +485,7 @@ Deno.serve(async (req: Request) => {
     const gearIds = Array.from(new Set((vRes.data ?? []).map((v: Record<string, unknown>) => String(v.product_id))));
     const pRes = gearIds.length
       ? await admin.from("shop_products")
-        .select("id,title,dealer_sku,vendor,handle,logo_cents,active")
+        .select("id,title,display_title,dealer_sku,vendor,handle,logo_cents,art,flat_price_cents,active")
         .in("id", gearIds)
       : { data: [] as Record<string, unknown>[], error: null };
     if (pRes.error) throw pRes.error;
@@ -490,12 +505,14 @@ Deno.serve(async (req: Request) => {
       if (v.sellable !== true) return json({ error: "We are not selling that colour. Reload the page." }, 409, cors);
       if (v.available !== true) return json({ error: "Century has that one out of stock. Reload the page and pick another." }, 409, cors);
       const logoCents = Number(p.logo_cents) || 0;
-      const unit = Number(v.list_cents) + logoCents;
-      if (!(unit > 0)) return json({ error: "That item is not priced. Please call us." }, 409, cors);
+      const unit = BTKDPricing.shopUnitCents(v.list_cents, p);
+      if (!(typeof unit === "number" && unit > 0)) {
+        return json({ error: "That item is not priced. Please call us." }, 409, cors);
+      }
       const bits = [v.size, v.color].map((x) => str(x)).filter(Boolean).join(", ");
       priced.push({
         v, p, qty: w.qty, unit, logoCents, fromPackage: w.fromPackage,
-        label: String(p.title) + (bits ? " (" + bits + ")" : ""),
+        label: String(p.display_title || p.title) + (bits ? " (" + bits + ")" : ""),
       });
     }
 
@@ -659,7 +676,9 @@ Deno.serve(async (req: Request) => {
           vendor,
           dealer_sku: x.p.dealer_sku ?? null,
           variant_sku: x.v.variant_sku ?? null,
-          title: x.p.title,
+          title: x.p.display_title || x.p.title,
+          // What goes on it, so the queue and the Century order text say so.
+          art_text: artLabels(x.p).join("; ") || null,
           size: str(x.v.size) || null,
           color: str(x.v.color) || null,
           from_package: x.fromPackage,
