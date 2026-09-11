@@ -74,6 +74,12 @@
   .tab{flex:1;padding:11px 8px;border:1px solid var(--line);background:#fff;border-radius:9px;
        font:inherit;font-size:.88rem;font-weight:700;cursor:pointer;color:var(--muted)}
   .tab.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  /* Four tabs do not fit across a phone ("Kickboxing" alone is wider than a
+     quarter of the screen), so on a phone they sit two by two. */
+  @media (max-width:559px){
+    .tabs{display:grid;grid-template-columns:1fr 1fr}
+    .tab:last-child:nth-child(odd){grid-column:1/-1}
+  }
   .toolbar{display:flex;gap:10px;align-items:flex-end;margin-top:14px}
   .toolbar .search{flex:1;min-width:0}
   .search{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff}
@@ -89,6 +95,15 @@
   .tile .ph{aspect-ratio:1/1;background:#F7F7F7;border-radius:8px;display:flex;
             align-items:center;justify-content:center;overflow:hidden;margin-bottom:8px}
   .tile .ph img{max-width:100%;max-height:100%;object-fit:contain}
+  /* A school shirt's tile IS the shirt: its own colour, the print on it. */
+  .tile .ph.sw{box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+  .tile .ph.sw img{max-width:72%;max-height:72%}
+  .shots{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:0 auto 8px}
+  .shots figure{margin:0;flex:0 1 170px;text-align:center}
+  .shots .ph{aspect-ratio:1/1;border-radius:8px;display:flex;align-items:center;justify-content:center;
+             overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+  .shots .ph img{max-width:72%;max-height:72%;object-fit:contain}
+  .shots figcaption{font-size:.72rem;color:var(--muted);margin-top:4px}
   .tile .nm{font-size:.83rem;font-weight:600;line-height:1.3}
   .tile .pr{margin-top:auto;padding-top:6px;font-size:.88rem;font-weight:700}
   .tile .tag{font-size:.68rem;color:var(--muted);margin-top:2px}
@@ -334,7 +349,10 @@
     var t = [];
     if (p.item_type === "sparring" || p.role) t.push("sparring");
     if (p.item_type === "kickboxing") t.push("kickboxing");
-    if (p.item_type !== "sparring" && p.item_type !== "kickboxing") t.push("other");
+    // The school's own shirts, the ones the checkout pages sell (owner,
+    // 2026-09-11). Priced from the CRM catalogue by the server.
+    if (p.item_type === "shirt") t.push("shirts");
+    if (p.item_type !== "sparring" && p.item_type !== "kickboxing" && p.item_type !== "shirt") t.push("other");
     return t;
   }
   function inTab(p) { return tabsOf(p).indexOf(TAB) >= 0; }
@@ -350,9 +368,10 @@
   }
 
   /* ---- rendering -------------------------------------------------------- */
-  var TABS = [["sparring", "Sparring Gear"], ["kickboxing", "Kickboxing"], ["other", "Everything Else"]];
+  var TABS = [["sparring", "Sparring Gear"], ["kickboxing", "Kickboxing"], ["shirts", "T-Shirts"],
+              ["other", "Everything Else"]];
   function renderTabs() {
-    var counts = { sparring: 0, kickboxing: 0, other: 0 };
+    var counts = { sparring: 0, kickboxing: 0, shirts: 0, other: 0 };
     allProducts().forEach(function (p) { tabsOf(p).forEach(function (t) { counts[t]++; }); });
     // A tab with nothing in it is not offered: an empty tab is only a dead end.
     $("tabs").innerHTML = TABS.filter(function (t) { return counts[t[0]] > 0 || t[0] === TAB; })
@@ -386,8 +405,9 @@
     }
     $("grid").innerHTML = list.map(function (p) {
       var lo = priceFrom(p), hi = priceTo(p);
+      var ph = p.swatch ? '<div class="ph sw" style="background:' + esc(p.swatch) + '">' : '<div class="ph">';
       return '<button class="tile" type="button" data-open="' + esc(p.id) + '">'
-        + '<div class="ph">' + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" loading="lazy">' : "") + '</div>'
+        + ph + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" loading="lazy">' : "") + '</div>'
         + '<div class="nm">' + esc(p.title) + '</div>'
         + (p.logo ? '<div class="tag">school logo included</div>' : "")
         + '<div class="pr">' + (lo === hi ? money(lo) : money(lo) + "+") + '</div>'
@@ -420,8 +440,9 @@
         + '</select></label>';
     }
     if (colors.length > 1) {
-      h += '<label class="fld">Colour<select id="' + prefix + '-c-' + esc(p.id) + '">'
-        + '<option value="">Pick a colour</option>'
+      var what = p.color_label || "Colour";
+      h += '<label class="fld">' + esc(what) + '<select id="' + prefix + '-c-' + esc(p.id) + '">'
+        + '<option value="">Pick a ' + esc(what.toLowerCase()) + '</option>'
         + colors.map(function (c) {
             var bb = p.variants.some(function (v) { return v.color === c && v.black_belt_only; });
             return '<option value="' + esc(c) + '">' + esc(c) + (bb ? " (black belts only)" : "") + '</option>';
@@ -429,6 +450,20 @@
         + '</select></label>';
     }
     return h;
+  }
+
+  /* The picture in the pop-up. A school shirt shows every side it has, front
+     and back, or the girl and boy artwork, on the shirt's own colour. */
+  function shotsHtml(p) {
+    if (p.images && p.images.length) {
+      return '<div class="shots">' + p.images.map(function (im) {
+        return '<figure><div class="ph" style="background:' + esc(p.swatch || "#F7F7F7") + '"><img src="'
+          + esc(im.src) + '" alt="' + esc(p.title + ", " + im.label) + '"></div>'
+          + '<figcaption>' + esc(im.label) + '</figcaption></figure>';
+      }).join("") + '</div>';
+    }
+    return p.image_url ? '<div class="ph" style="max-width:190px;margin:0 auto 8px"><img src="'
+      + esc(p.image_url) + '" alt="" style="max-width:100%"></div>' : "";
   }
 
   function openProduct(id) {
@@ -441,8 +476,7 @@
       + (p.logo ? " with the school logo" : "") + '</div>'
       + (p.lead_time_text ? '<div class="sub" style="margin:2px 0 0">' + esc(p.lead_time_text) + '</div>' : "")
       + '</div>'
-      + (p.image_url ? '<div class="ph" style="max-width:190px;margin:0 auto 8px"><img src="'
-          + esc(p.image_url) + '" alt="" style="max-width:100%"></div>' : "")
+      + shotsHtml(p)
       + pickerRows(p, "i")
       + '<label class="fld">How many<select id="i-q-' + esc(p.id) + '">'
       + [1,2,3,4,5].map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join("")
@@ -535,7 +569,9 @@
     var wantS = sEl ? sEl.value : (sizes[0] || "");
     var wantC = cEl ? cEl.value : (colors[0] || "");
     if (sizes.length && !wantS) return { err: "Pick a size for the " + p.title + "." };
-    if (colors.length > 1 && !wantC) return { err: "Pick a colour for the " + p.title + "." };
+    if (colors.length > 1 && !wantC) {
+      return { err: "Pick a " + (p.color_label || "colour").toLowerCase() + " for the " + p.title + "." };
+    }
     var v = p.variants.filter(function (x) {
       return (!sizes.length || x.size === wantS) && (colors.length <= 1 || x.color === wantC);
     })[0];
@@ -586,6 +622,10 @@
 
   /* ---- the cart ---------------------------------------------------------- */
   function cartCount() { return CART.reduce(function (a, x) { return a + x.qty; }, 0); }
+  /* Only school shirts in the cart: nothing waits on a Century batch. */
+  function onlyShirts() {
+    return CART.length > 0 && CART.every(function (x) { return String(x.variant_id).indexOf("tee|") === 0; });
+  }
 
   /* Everything that depends on what is in the cart, in one place: the
      computer's cart button, the phone's cart bar, and the checkout pop-up if
@@ -642,6 +682,8 @@
     $("coTotals").innerHTML = totalsHtml();
     $("payBtn").textContent = "Pay " + money(t.total);
     $("payBtn").disabled = !CART.length;
+    // The Century batch timing means nothing to somebody buying only a shirt.
+    $("cadence").hidden = onlyShirts() || !CFG.cadence_text;
   }
   function openCheckout() {
     if (!CART.length) return;
@@ -859,7 +901,9 @@
     $("cartBtn").hidden = true;
     $("cartBar").hidden = true;
     $("done").hidden = false;
-    $("doneMsg").textContent = "Your gear is ordered. We will let you know when it is at the school, and "
+    $("doneMsg").textContent = (onlyShirts()
+        ? "Your order is in. We will have it for you at the school, and "
+        : "Your gear is ordered. We will let you know when it is at the school, and ")
       + ($("bEmail").value || "your email") + " has the receipt.";
     if (receiptUrl) {
       var t = /[?&]t=([0-9a-f]{32})/i.exec(receiptUrl);

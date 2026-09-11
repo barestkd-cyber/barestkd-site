@@ -9,7 +9,8 @@
 // every other checkout page does it, by the name and email typed at checkout.
 //
 // GET  -> the catalogue: the package, the pieces sold on their own, every
-//         sellable variant with its price, and the settings copy.
+//         sellable variant with its price, the school's own shirts, and the
+//         settings copy.
 // POST -> contact + sale + sale lines + shop order + order lines, then a
 //         PaymentIntent. The client sends variant ids and quantities, NEVER
 //         an amount.
@@ -39,6 +40,12 @@
 //      stops offering it. If Century cannot be reached at all, the stored
 //      flag, already checked, stands, rather than refusing every sale on a
 //      Century hiccup (owner, 2026-09-10).
+//   7. SHIRTS ARE THE SCHOOL'S OWN (owner, 2026-09-11). The T-Shirts tab sells
+//      every shirt the checkout pages sell, priced from `products`, the CRM
+//      catalogue the POS and those pages already use, so one price change in
+//      the CRM reaches all of them. A shirt is never Century gear: it skips
+//      the Century stock check, and it goes on its own shop order with vendor
+//      'school', so it can never land in the text Race pastes to Century.
 //
 // Deploy:  supabase functions deploy shop --no-verify-jwt
 // ===========================================================================
@@ -50,6 +57,42 @@ const SITE = "https://www.barestkd.fit";
 const TAX_RATE = 0.0825;          // the same literal the POS and every other checkout uses
 const SLUG = "shop";              // its row in checkout_pages, for the live switch
 const MAX_ITEMS = 40;
+
+// ── the school's own shirts, HARD RULE 7 ────────────────────────────────
+// The NAME is the key into `products`. Artwork, colour and sizes are the
+// checkout pages' own (cubs-checkout, program-checkout, lk-checkout), and
+// tests/checkout-copy.test.js fails if a checkout page sells a shirt that is
+// missing here. A shirt the catalogue marks inactive is simply not offered.
+const TEE_SIZES = ["Youth XS", "Youth S", "Youth M", "Youth L", "Adult S", "Adult M", "Adult L", "Adult XL", "Adult 2XL"];
+type Shirt = {
+  name: string; colour: string; swatch: string; sizes: string[];
+  designs?: string[]; images: { src: string; label: string }[];
+};
+const SHIRTS: Shirt[] = [
+  { name: "Classic gray tee", colour: "Gray", swatch: "#B4B6B9", sizes: TEE_SIZES,
+    images: [{ src: "/assets/img/logo.png", label: "Front" },
+             { src: "/assets/img/shirts/art-bear-patch.png", label: "Back" }] },
+  { name: "Lego tee", colour: "Blue", swatch: "#1F51A8", sizes: TEE_SIZES,
+    images: [{ src: "/assets/img/shirts/art-lego.jpg", label: "Front" }] },
+  { name: "Alternate design tee", colour: "Black", swatch: "#141414", sizes: TEE_SIZES,
+    images: [{ src: "/assets/img/shirts/art-bares-bar.jpg", label: "Front" }] },
+  { name: "Team Grizzly Kickboxing tee", colour: "Black", swatch: "#141414", sizes: TEE_SIZES,
+    images: [{ src: "/assets/img/shirts/art-grizzly-kickboxing.jpg", label: "Front" }] },
+  // White, and the artwork is the choice, exactly as on the Little Kickers page.
+  { name: "Little Kickers T-Shirt", colour: "White", swatch: "#FFFFFF",
+    sizes: ["2T", "3T", "4T", "Youth XS", "Youth S"], designs: ["Girl", "Boy"],
+    images: [{ src: "/assets/img/lk-logo-girl.png", label: "Girl design" },
+             { src: "/assets/img/lk-logo-boy.png", label: "Boy design" }] },
+];
+// A shirt's variant id is built, never stored: tee|<products.id>|<size>|<colour
+// or design>. Every part is re-checked on the way back in, and the price never
+// comes from the id.
+const TEE_PREFIX = "tee|";
+const teeVariantId = (productId: string, size: string, second: string) =>
+  TEE_PREFIX + productId + "|" + size + "|" + second;
+/** The invoice label, word for word what the checkout pages write. */
+const teeLabel = (sh: Shirt, size: string, second: string) =>
+  sh.designs ? sh.name + " (" + second + ", " + size + ", white)" : sh.name + " (" + size + ")";
 
 const ALLOWED_ORIGINS = [
   "https://www.barestkd.fit",
@@ -202,15 +245,17 @@ Deno.serve(async (req: Request) => {
           error: "The gear shop is not open right now. Call 903-561-2966 and we will sort you out.",
         }, 503, cors);
       }
-      const [pRes, vRes] = await Promise.all([
+      const [pRes, vRes, tRes] = await Promise.all([
         admin.from("shop_products")
           .select("id,title,image_url,item_type,category,logo_cents,package_role,set_order,lead_time_text,stocked")
           .eq("active", true).order("set_order"),
         admin.from("shop_variants")
           .select("id,product_id,size,color,list_cents,rank_gate")
           .eq("sellable", true).eq("available", true).order("position"),
+        admin.from("products").select("id,name,price_cents")
+          .in("name", SHIRTS.map((sh) => sh.name)).eq("active", true),
       ]);
-      if (pRes.error || vRes.error) throw (pRes.error ?? vRes.error);
+      if (pRes.error || vRes.error || tRes.error) throw (pRes.error ?? vRes.error ?? tRes.error);
 
       const byProduct = new Map<string, Record<string, unknown>[]>();
       for (const v of (vRes.data ?? []) as Record<string, unknown>[]) {
@@ -250,6 +295,38 @@ Deno.serve(async (req: Request) => {
         })
         .filter((p) => p.variants.length > 0);
 
+      // The shirts, HARD RULE 7, in the order the checkout pages list them.
+      const teeRows = new Map<string, Record<string, unknown>>();
+      for (const r of (tRes.data ?? []) as Record<string, unknown>[]) teeRows.set(String(r.name), r);
+      const shirts: Record<string, unknown>[] = SHIRTS.flatMap((sh) => {
+        const r = teeRows.get(sh.name);
+        const cents = r ? Number(r.price_cents) : 0;
+        if (!r || !(cents > 0)) return [];
+        const pairs: string[][] = sh.designs
+          ? sh.sizes.flatMap((size) => sh.designs!.map((d) => [size, d]))
+          : sh.sizes.map((size) => [size, sh.colour]);
+        return [{
+          id: "tee-" + String(r.id),
+          title: sh.name,
+          image_url: sh.images[0].src,
+          images: sh.images,
+          swatch: sh.swatch,
+          item_type: "shirt",
+          category: "T-shirts",
+          role: null,
+          in_package: false,
+          logo: false,
+          lead_time_text: null,
+          // On the Little Kickers shirt the second choice is the artwork.
+          color_label: sh.designs ? "Design" : null,
+          variants: pairs.map(([size, second]) => ({
+            id: teeVariantId(String(r.id), size, second),
+            size, color: second, cents, black_belt_only: false,
+          })),
+        }];
+      });
+      const extras: Record<string, unknown>[] = [...products.filter((p) => p.role !== "required"), ...shirts];
+
       return json({
         publishable_key: Deno.env.get("STRIPE_PUBLISHABLE_KEY") ?? "",
         tax_rate: TAX_RATE,
@@ -263,7 +340,7 @@ Deno.serve(async (req: Request) => {
         // and everything else, so a phone still holding yesterday's page keeps
         // working. The current page reads `role` off each product instead.
         package: products.filter((p) => p.role === "required"),
-        extras: products.filter((p) => p.role !== "required"),
+        extras,
       }, 200, cors);
     }
 
@@ -357,23 +434,38 @@ Deno.serve(async (req: Request) => {
 
     // ── price it OURSELVES, HARD RULE 1 ─────────────────────────────────
     const wanted: { id: string; qty: number; fromPackage: boolean }[] = [];
+    const wantedTees: { productId: string; size: string; second: string; qty: number }[] = [];
     for (const raw of rawItems) {
       const r = raw as Record<string, unknown>;
-      const id = str(r.variant_id).toLowerCase();
+      const rawId = str(r.variant_id);
       const qty = Math.max(1, Math.min(10, Math.round(Number(r.qty) || 1)));
+      if (rawId.startsWith(TEE_PREFIX)) {
+        const parts = rawId.split("|");
+        if (parts.length !== 4 || !UUID_RE.test(parts[1])) {
+          return json({ error: "Something in your order is not valid. Reload the page." }, 400, cors);
+        }
+        wantedTees.push({ productId: parts[1].toLowerCase(), size: parts[2], second: parts[3], qty });
+        continue;
+      }
+      const id = rawId.toLowerCase();
       if (!UUID_RE.test(id)) return json({ error: "Something in your order is not valid. Reload the page." }, 400, cors);
       wanted.push({ id, qty, fromPackage: r.from_package === true });
     }
-    const vRes = await admin.from("shop_variants")
-      .select("id,product_id,vendor_variant_id,variant_sku,size,color,list_cents,sellable,available")
-      .in("id", wanted.map((w) => w.id));
+    const vRes = wanted.length
+      ? await admin.from("shop_variants")
+        .select("id,product_id,vendor_variant_id,variant_sku,size,color,list_cents,sellable,available")
+        .in("id", wanted.map((w) => w.id))
+      : { data: [] as Record<string, unknown>[], error: null };
     if (vRes.error) throw vRes.error;
     const vMap = new Map<string, Record<string, unknown>>();
     for (const v of (vRes.data ?? []) as Record<string, unknown>[]) vMap.set(String(v.id), v);
 
-    const pRes = await admin.from("shop_products")
-      .select("id,title,dealer_sku,vendor,handle,logo_cents,active")
-      .in("id", Array.from(new Set((vRes.data ?? []).map((v: Record<string, unknown>) => String(v.product_id)))));
+    const gearIds = Array.from(new Set((vRes.data ?? []).map((v: Record<string, unknown>) => String(v.product_id))));
+    const pRes = gearIds.length
+      ? await admin.from("shop_products")
+        .select("id,title,dealer_sku,vendor,handle,logo_cents,active")
+        .in("id", gearIds)
+      : { data: [] as Record<string, unknown>[], error: null };
     if (pRes.error) throw pRes.error;
     const pMap = new Map<string, Record<string, unknown>>();
     for (const p of (pRes.data ?? []) as Record<string, unknown>[]) pMap.set(String(p.id), p);
@@ -400,6 +492,34 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ── the shirts, HARD RULE 7: priced from the CRM catalogue ─────────
+    type Tee = { sh: Shirt; row: Record<string, unknown>; size: string; second: string;
+                 qty: number; unit: number; label: string };
+    const tees: Tee[] = [];
+    if (wantedTees.length) {
+      const tRes = await admin.from("products").select("id,name,price_cents,active")
+        .in("id", Array.from(new Set(wantedTees.map((w) => w.productId))));
+      if (tRes.error) throw tRes.error;
+      const tMap = new Map<string, Record<string, unknown>>();
+      for (const r of (tRes.data ?? []) as Record<string, unknown>[]) tMap.set(String(r.id), r);
+      for (const w of wantedTees) {
+        const row = tMap.get(w.productId);
+        const sh = row ? SHIRTS.find((x) => x.name === row.name) : undefined;
+        if (!row || !sh || row.active !== true) {
+          return json({ error: "One of those shirts is no longer for sale. Reload the page." }, 409, cors);
+        }
+        if (!sh.sizes.includes(w.size)) return json({ error: "Pick a size for the " + sh.name + "." }, 400, cors);
+        const okSecond = sh.designs ? sh.designs.includes(w.second) : w.second === sh.colour;
+        if (!okSecond) {
+          return json({ error: (sh.designs ? "Pick the girl or boy design for the " : "That colour is not offered for the ")
+            + sh.name + ".", }, 400, cors);
+        }
+        const unit = Number(row.price_cents);
+        if (!(unit > 0)) return json({ error: "That shirt is not priced. Please call us." }, 409, cors);
+        tees.push({ sh, row, size: w.size, second: w.second, qty: w.qty, unit, label: teeLabel(sh, w.size, w.second) });
+      }
+    }
+
     // ── live stock, HARD RULE 6 ────────────────────────────────────────
     const handles = Array.from(new Set(priced.map((x) => str(x.p.handle)).filter(Boolean)));
     const gone = await centuryOutOfStock(handles);
@@ -416,7 +536,8 @@ Deno.serve(async (req: Request) => {
       }, 409, cors);
     }
 
-    const lines = priced.map((x) => ({ cents: x.unit * x.qty, taxable: true }));
+    const lines = priced.map((x) => ({ cents: x.unit * x.qty, taxable: true }))
+      .concat(tees.map((t) => ({ cents: t.unit * t.qty, taxable: true })));
     const totals = feeFor(lines, feeBps, feeFlat);
 
     // ── who is buying ───────────────────────────────────────────────────
@@ -480,43 +601,93 @@ Deno.serve(async (req: Request) => {
       }).select("id").maybeSingle();
       saleLineIds.push(ins.data ? String(ins.data.id) : null);
     }
+    // A shirt's line points at its own catalogue product, exactly as the
+    // checkout pages record it, so Reports count a shirt as that shirt.
+    const teeLineIds: (string | null)[] = [];
+    for (const t of tees) {
+      const ins = await admin.from("pos_sale_lines").insert({
+        sale_id: saleId, kind: "prod", label: t.label, qty: t.qty,
+        unit_cents: t.unit, discount_cents: 0, taxable: true,
+        line_total_cents: t.unit * t.qty,
+        student_contact_id: studentId, product_id: t.row.id,
+      }).select("id").maybeSingle();
+      teeLineIds.push(ins.data ? String(ins.data.id) : null);
+    }
 
-    // ── the fulfilment order, HARD RULES 4 and 5 ────────────────────────
-    const vendor = String((priced[0].p.vendor as string) || "century");
-    const orderIns = await admin.from("shop_orders").insert({
-      sale_id: saleId,
-      buyer_contact_id: buyerId,
-      buyer_name: buyerFirst + " " + buyerLast,
-      buyer_email: email,
-      buyer_phone: phone || null,
-      student_name: studentFirst + " " + studentLast,
-      student_contact_id: studentId,
-      vendor,
-      fulfillment_status: "requested",
-      buyer_note: buyerNote || null,
-    }).select("id").single();
-    if (orderIns.error) throw orderIns.error;
+    // ── the fulfilment orders, HARD RULES 4, 5 and 7 ────────────────────
+    // One order per vendor, so each vendor's Copy order in the queue holds
+    // only what that vendor sells, and the school's shirts are their own.
+    const orderFor = async (vendor: string): Promise<string> => {
+      const ins = await admin.from("shop_orders").insert({
+        sale_id: saleId,
+        buyer_contact_id: buyerId,
+        buyer_name: buyerFirst + " " + buyerLast,
+        buyer_email: email,
+        buyer_phone: phone || null,
+        student_name: studentFirst + " " + studentLast,
+        student_contact_id: studentId,
+        vendor,
+        fulfillment_status: "requested",
+        buyer_note: buyerNote || null,
+      }).select("id").single();
+      if (ins.error) throw ins.error;
+      return String(ins.data.id);
+    };
 
-    const orderLines = priced.map((x, i) => ({
-      order_id: orderIns.data.id,
-      product_id: x.p.id,
-      variant_id: x.v.id,
-      sale_line_id: saleLineIds[i],
-      vendor: String(x.p.vendor || "century"),
-      dealer_sku: x.p.dealer_sku ?? null,
-      variant_sku: x.v.variant_sku ?? null,
-      title: x.p.title,
-      size: str(x.v.size) || null,
-      color: str(x.v.color) || null,
-      from_package: x.fromPackage,
-      logo: x.logoCents > 0,
-      qty: x.qty,
-      unit_cents: x.unit,
-      logo_cents: x.logoCents,
-      line_total_cents: x.unit * x.qty,
-    }));
-    const olIns = await admin.from("shop_order_lines").insert(orderLines);
-    if (olIns.error) throw olIns.error;
+    const byVendor = new Map<string, number[]>();
+    priced.forEach((x, i) => {
+      const v = String(x.p.vendor || "century");
+      if (!byVendor.has(v)) byVendor.set(v, []);
+      byVendor.get(v)!.push(i);
+    });
+    for (const [vendor, idx] of byVendor) {
+      const orderId = await orderFor(vendor);
+      const olIns = await admin.from("shop_order_lines").insert(idx.map((i) => {
+        const x = priced[i];
+        return {
+          order_id: orderId,
+          product_id: x.p.id,
+          variant_id: x.v.id,
+          sale_line_id: saleLineIds[i],
+          vendor,
+          dealer_sku: x.p.dealer_sku ?? null,
+          variant_sku: x.v.variant_sku ?? null,
+          title: x.p.title,
+          size: str(x.v.size) || null,
+          color: str(x.v.color) || null,
+          from_package: x.fromPackage,
+          logo: x.logoCents > 0,
+          qty: x.qty,
+          unit_cents: x.unit,
+          logo_cents: x.logoCents,
+          line_total_cents: x.unit * x.qty,
+        };
+      }));
+      if (olIns.error) throw olIns.error;
+    }
+
+    if (tees.length) {
+      const orderId = await orderFor("school");
+      const olIns = await admin.from("shop_order_lines").insert(tees.map((t, i) => ({
+        order_id: orderId,
+        product_id: null,
+        variant_id: null,
+        sale_line_id: teeLineIds[i],
+        vendor: "school",
+        dealer_sku: null,
+        variant_sku: null,
+        title: t.sh.name,
+        size: t.size,
+        color: t.sh.designs ? t.second + " design, white" : t.sh.colour,
+        from_package: false,
+        logo: false,
+        qty: t.qty,
+        unit_cents: t.unit,
+        logo_cents: 0,
+        line_total_cents: t.unit * t.qty,
+      })));
+      if (olIns.error) throw olIns.error;
+    }
 
     // ── the payment ─────────────────────────────────────────────────────
     if (!secretKey) {

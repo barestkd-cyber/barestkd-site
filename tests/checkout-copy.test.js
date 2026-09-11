@@ -306,6 +306,48 @@ for (const page of PAGES) {
       assert.ok(/shop-checkout@website/.test(ts),
         'staff_email must end in -checkout@website so the hourly sweep abandons it');
     });
+
+    // Owner, 2026-09-11: "a t shirt tab with all the t shirts that I offer on
+    // the checkout pages". Pin every half of that: each shirt a checkout
+    // function sells is on the shop's list, in the same sizes, priced from the
+    // same catalogue, and never filed under Century.
+    test('fn shop: sells every shirt the checkout pages sell', () => {
+      const block = /const SHIRTS: Shirt\[\] = \[([\s\S]*?)\n\];/.exec(ts);
+      assert.ok(block, 'could not read the shop shirt list');
+      const listed = new Set((block[1].match(/name: "([^"]+)"/g) || []).map((x) => x.slice(7, -1)));
+      const sold = new Set();
+      ['cubs-checkout', 'program-checkout', 'lk-checkout'].forEach((fn) => {
+        const src = fs.readFileSync(path.join(SITE, 'supabase', 'functions', fn, 'index.ts'), 'utf8');
+        (src.match(/(?:SHIRT_NAMES = |shirts: )\[[^\]]*\]/g) || [])
+          .forEach((l) => (l.match(/"([^"]+)"/g) || []).forEach((q) => sold.add(q.slice(1, -1))));
+        (src.match(/(?:TSHIRT_NAME|TEE_NAME) = "[^"]+"/g) || [])
+          .forEach((d) => sold.add(/"([^"]+)"/.exec(d)[1]));
+      });
+      assert.ok(sold.size >= 5, 'found only ' + sold.size + ' shirts on the checkout pages; the scan is broken');
+      const missing = Array.from(sold).filter((n) => !listed.has(n));
+      assert.deepStrictEqual(missing, [], 'the checkout pages sell shirts the shop does not');
+    });
+    test('fn shop: sizes each shirt the way its checkout page does', () => {
+      const shopSizes = /const TEE_SIZES = (\[[^\]]*\])/.exec(ts);
+      const cubs = fs.readFileSync(path.join(SITE, 'supabase', 'functions', 'cubs-checkout', 'index.ts'), 'utf8');
+      const cubsSizes = /tee_sizes: (\[[^\]]*\])/.exec(cubs);
+      assert.ok(shopSizes && cubsSizes, 'could not read the tee size lists');
+      assert.deepStrictEqual(JSON.parse(shopSizes[1]), JSON.parse(cubsSizes[1]), 'tee sizes differ from the checkout pages');
+      const lkPage = fs.readFileSync(path.join(SITE, 'little-kickers-checkout', 'index.html'), 'utf8');
+      const sel = /<select id="lkc-size"[\s\S]*?<\/select>/.exec(lkPage);
+      const lkSizes = sel ? (sel[0].match(/<option>[^<]+<\/option>/g) || []).map((o) => o.replace(/<\/?option>/g, '')) : [];
+      const shopLk = /sizes: (\["2T"[^\]]*\])/.exec(ts);
+      assert.ok(lkSizes.length && shopLk, 'could not read the Little Kickers sizes');
+      assert.deepStrictEqual(JSON.parse(shopLk[1]), lkSizes, 'Little Kickers shirt sizes differ from its checkout page');
+    });
+    test('fn shop: prices a shirt from the CRM catalogue and files it under the school', () => {
+      assert.ok(/from\("products"\)\.select\("id,name,price_cents,active"\)/.test(ts),
+        'a shirt must be re-priced from products at checkout');
+      assert.ok(/const unit = Number\(row\.price_cents\)/.test(ts), 'the shirt price must come from the catalogue row');
+      assert.ok(/orderFor\("school"\)/.test(ts), 'shirts must go on their own school order, never Century');
+      const page = fs.readFileSync(path.join(SITE, 'shop', 'index.html'), 'utf8');
+      assert.ok(/\["shirts", "T-Shirts"\]/.test(page), 'the page has no T-Shirts tab');
+    });
   }
 
   FNS.forEach((name) => {
