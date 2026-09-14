@@ -147,12 +147,19 @@
           if (res.error || !res.setupIntent || res.setupIntent.status !== 'succeeded') {
             return fail((res.error && res.error.message) || 'That card was not accepted.');
           }
-          root.innerHTML = '<div class="done"><div class="tick">&#10003;</div>'
-            + '<h2>Your card is saved</h2>'
-            + '<p>Thank you. Nothing was charged today.</p>'
-            + '<p style="font-size:13px;color:#6A727E">Your card is held securely by Stripe. '
-            + 'The studio only ever sees the last four digits.</p></div>';
-          window.scrollTo(0, 0);
+          // Stripe has the card. Say which setup it was, so a link sent for a
+          // membership pins the card to it before the page moves on. They see
+          // the same thing either way.
+          return post({ action: 'finish', token: token, setup_intent: res.setupIntent.id })
+            .catch(function () {})
+            .then(function () {
+              root.innerHTML = '<div class="done"><div class="tick">&#10003;</div>'
+                + '<h2>Your card is saved</h2>'
+                + '<p>Thank you. Nothing was charged today.</p>'
+                + '<p style="font-size:13px;color:#6A727E">Your card is held securely by Stripe. '
+                + 'The studio only ever sees the last four digits.</p></div>';
+              window.scrollTo(0, 0);
+            });
         });
       })
       .catch(function () { fail('Could not reach the studio. Check your connection and try again.'); });
