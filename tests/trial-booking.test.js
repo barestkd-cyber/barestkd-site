@@ -42,6 +42,8 @@ const ROWS = [
   { day: 2, time_h: 17, time_m: 0,  label: 'Juniors',        prog_css: 'prog-juniors', belt: '', trial_open: true, duration: 45, starts_on: '2026-09-16', ends_on: null },
   { day: 3, time_h: 18, time_m: 0,  label: 'Kickboxing',     prog_css: 'prog-kick', belt: '', trial_open: true, duration: 60, starts_on: null, ends_on: '2026-09-01' },
   { day: 5, time_h: 11, time_m: 0,  label: 'Cubs',           prog_css: 'prog-cubs', belt: '', trial_open: false, duration: 30, starts_on: null, ends_on: null },
+  // Monday 5:00 from 2026-09-14: Green through Black Juniors with Teens/Adults of every rank.
+  { day: 0, time_h: 17, time_m: 0,  label: 'Juniors + Teens / Adults', prog_css: 'prog-juniors', belt: 'GR-BLK', trial_open: true, duration: 45, starts_on: null, ends_on: null, divisions: ['Juniors', 'Teens/Adults'] },
 ];
 
 function load(rows = ROWS) {
@@ -169,6 +171,56 @@ const at = (ymd, h, m) => {
   await test('"starts" is printed only while the start is still ahead', () => {
     assert.ok(/c\.startsOn && String\(c\.startsOn\) > today/.test(schedJs),
       'it used to print "starts Sept 16" forever, including after the 16th');
+  });
+
+  // ── who a class is for (owner, 2026-09-13) ─────────────────────────────
+  // "Let adults book a trial on it", "just filter it by who its for".
+  await test('teens and adults can book a trial in the class they share with the Juniors', async () => {
+    const out = await v('Teens/Adults Taekwondo', '2026-09-14', 17, 0);
+    assert.ok(!out.refused && !out.error, JSON.stringify(out));
+  });
+
+  await test('a Juniors trial cannot book a Green through Black class', async () => {
+    assert.ok((await v('Juniors', '2026-09-14', 17, 0)).refused,
+      'a brand-new junior was allowed to trial in the advanced class');
+  });
+
+  await test('the schedule endpoint says who each class is for', async () => {
+    const { ctx } = load();
+    const res = await ctx.handleSchedule({}, new Request('https://x.invalid/trial-booking'));
+    const shared = (await res.json()).programs.flatMap(p => p.classes).find(c => c.dow === 1 && c.h === 17);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(shared.divisions)), ['Juniors', 'Teens/Adults']);
+  });
+
+  await test('the booking page offers each Taekwondo class only to who it is for', () => {
+    const liftFn = (src, name) => {
+      const i = src.indexOf('function ' + name + '(');
+      if (i < 0) throw new Error('could not find ' + name);
+      let depth = 0;
+      for (let k = src.indexOf('{', i); k < src.length; k++) {
+        if (src[k] === '{') depth++;
+        else if (src[k] === '}') { depth--; if (!depth) return src.slice(i, k + 1); }
+      }
+      throw new Error(name + ' never closes');
+    };
+    const box = vm.createContext({ PROGRAMS: [{ program: 'Taekwondo', classes: [
+      { dow: 1, h: 17, m: 0, label: 'Juniors + Teens / Adults', belt: 'GR-BLK', divisions: ['Juniors', 'Teens/Adults'], trialOpen: true },
+      { dow: 2, h: 16, m: 30, label: 'Juniors', belt: 'WHI-ORG', divisions: ['Juniors'], trialOpen: true },
+      { dow: 2, h: 19, m: 15, label: 'Teens / Adults', belt: '', divisions: ['Teens/Adults'], trialOpen: true },
+      { dow: 4, h: 17, m: 30, label: 'Forms', belt: 'All', divisions: ['Juniors', 'Teens/Adults'], trialOpen: true },
+      // An older payload with no divisions still filters by the label.
+      { dow: 6, h: 10, m: 0, label: 'Juniors Saturday', belt: '', trialOpen: true },
+    ] }] });
+    const start = trialJs.indexOf('var ADVANCED_RANGES');
+    vm.runInContext(trialJs.slice(start, trialJs.indexOf('};', start) + 2), box);
+    ['isTrialClass', 'bookablePrograms', 'programByName', 'fitsWho', 'classesFor']
+      .forEach((n) => vm.runInContext(liftFn(trialJs, n), box));
+    const offered = (division, re) => JSON.parse(JSON.stringify(vm.runInContext(
+      'classesFor({ get: "Taekwondo", division: "' + division + '", re: ' + re + ' }).map(function (c) { return c.label; })', box)));
+    assert.deepStrictEqual(offered('Juniors', '/juniors|forms/i'), ['Juniors', 'Forms', 'Juniors Saturday'],
+      'a new junior was offered the Green through Black class');
+    assert.deepStrictEqual(offered('Teens/Adults', '/teens|adult|forms/i'), ['Juniors + Teens / Adults', 'Teens / Adults', 'Forms'],
+      'teens and adults were not offered the class they share');
   });
 
   // ── A13: a retry is recognised, not duplicated ─────────────────────────

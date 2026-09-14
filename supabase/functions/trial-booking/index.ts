@@ -255,6 +255,26 @@ const TAG_TO_PROGRAM: Record<string, string> = {
   "AMP'D": "AMP'D",
 };
 
+/** WHO A CLASS IS FOR. Juniors and Teens/Adults Taekwondo book from the same
+ *  classes, so each class lists who attends (schedule_template.divisions), and
+ *  a rank range on a class names which JUNIORS belong: a new junior is a white
+ *  belt and cannot trial in a Green through Black class, while teens and adults
+ *  of any rank join the class they share (owner, 2026-09-13: "Let adults book a
+ *  trial on it", "just filter it by who its for"). The ranges are the CRM
+ *  check-in ranges that start above White. A class with no divisions is not
+ *  held to this. The booking page applies the same rule. */
+const TAG_TO_DIVISION: Record<string, string> = {
+  "Juniors": "Juniors",
+  "Teens/Adults Taekwondo": "Teens/Adults",
+};
+const ADVANCED_RANGES = new Set(["ORG-BLK", "GR-BLK", "BR-BLK"]);
+function fitsWho(r: any, division: string | undefined): boolean {
+  const divs = Array.isArray(r.divisions) ? r.divisions : [];
+  if (!division || !divs.length) return true;
+  if (!divs.includes(division)) return false;
+  return division !== "Juniors" || !ADVANCED_RANGES.has(String(r.belt || ""));
+}
+
 /** Every booking must be a real class. Same schedule_template rows and the
  *  same "running" rule the public schedule uses, so the booker and the
  *  website cannot disagree about what is bookable. */
@@ -262,7 +282,7 @@ async function validateBookings(
   admin: ReturnType<typeof adminClient>, bookings: unknown[],
 ): Promise<{ refused?: string; error?: unknown }> {
   const { data: rows, error } = await admin.from("schedule_template")
-    .select("day, time_h, time_m, label, prog_css, trial_open, starts_on, ends_on");
+    .select("day, time_h, time_m, label, prog_css, trial_open, starts_on, ends_on, divisions, belt");
   if (error) return { error };
   const list = (rows || []) as any[];
   const nowMs = Date.now();
@@ -281,12 +301,14 @@ async function validateBookings(
     const ymd = parts.year + "-" + parts.month + "-" + parts.day;
     const want = TAG_TO_PROGRAM[str(b.program)];
     const group = want ? MARKETING.find((g) => g.program === want) : undefined;
+    const division = TAG_TO_DIVISION[str(b.program)];
     const ok = list.some((r) =>
       r.day + 1 === dow && Number(r.time_h) === h && Number(r.time_m) === m &&
       !!r.trial_open &&
       (!r.starts_on || String(r.starts_on) <= ymd) &&
       (!r.ends_on || String(r.ends_on) >= ymd) &&
-      (!group || group.match(r)));
+      (!group || group.match(r)) &&
+      fitsWho(r, division));
     if (!ok) {
       return { refused: "That class is not open for a free trial at that time. Please pick another from the list." };
     }
@@ -306,7 +328,7 @@ async function handleSchedule(cors: Record<string, string>, req: Request) {
     // for a free trial; the public schedule shows every class either way.
     const { data: rows, error } = await adminClient()
       .from("schedule_template")
-      .select("day, time_h, time_m, label, belt, prog_css, trial_open, duration, starts_on, ends_on");
+      .select("day, time_h, time_m, label, belt, prog_css, trial_open, duration, starts_on, ends_on, divisions");
     if (error) throw error;
 
     // A class that has not started yet cannot be booked for a trial, and one
@@ -330,6 +352,7 @@ async function handleSchedule(cors: Record<string, string>, req: Request) {
       // out too, so no page offers a date after the class stops.
       const ended = !!r.ends_on && String(r.ends_on) < todayCT;
       return { dow: r.day + 1, h: r.time_h, m: r.time_m, label: r.label || "", belt: r.belt || "",
+               divisions: Array.isArray(r.divisions) ? r.divisions : [],
                trialOpen: !!r.trial_open && !ended,
                startsOn: r.starts_on || null, endsOn: r.ends_on || null, notYet: notYet };
     };

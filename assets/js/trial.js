@@ -49,8 +49,8 @@
     // scheduler. (Owner, 2026-08-16: "this is a paid program only.")
     { key: "lk",      label: "Little Kickers",         desc: "Ages 2-3 · Grown-Up & Me · Enrollment only", solo: true,  noTrial: true },
     { key: "cubs",    label: "Cubs",                   desc: "Ages 3-4",  solo: true,  tag: "Cubs",         get: "Cubs",      re: null },
-    { key: "juniors", label: "Juniors",                desc: "Ages 5-12", solo: true,  tag: "Juniors",      get: "Taekwondo", re: /juniors|forms/i },
-    { key: "tkd",     label: "Teens/Adults Taekwondo", desc: "Ages 13+",  solo: false, tag: "Teens/Adults Taekwondo", get: "Taekwondo", re: /teens|adult|forms/i },
+    { key: "juniors", label: "Juniors",                desc: "Ages 5-12", solo: true,  tag: "Juniors",      get: "Taekwondo", re: /juniors|forms/i, division: "Juniors" },
+    { key: "tkd",     label: "Teens/Adults Taekwondo", desc: "Ages 13+",  solo: false, tag: "Teens/Adults Taekwondo", get: "Taekwondo", re: /teens|adult|forms/i, division: "Teens/Adults" },
     { key: "kb",      label: "Kickboxing",             desc: "Ages 13+",  solo: false, tag: "Kickboxing",   get: "Kickboxing", re: null },
     { key: "jj",      label: "Jiu Jitsu",              desc: "Ages 13+",  solo: false, tag: "Jiu Jitsu",    get: "Jiu Jitsu",  re: null }
   ];
@@ -123,14 +123,27 @@
     return PROGRAM_MENU.filter(function (m) { return m.key === key; })[0] || null;
   }
 
-  // Classes for a menu item, filtered by its label regex (Cubs=all,
-  // Juniors=Juniors+Forms, Teens/Adults=Teens/Adults+Forms, etc.).
+  // Who a class is for. A Taekwondo class lists who attends (divisions), and a
+  // rank range on it names which JUNIORS belong: a new junior is a white belt,
+  // so a Green through Black class is not theirs, while teens and adults of any
+  // rank join the class they share (owner, 2026-09-13). These are the CRM
+  // check-in ranges that start above White. The trial function checks the same.
+  var ADVANCED_RANGES = { "ORG-BLK": 1, "GR-BLK": 1, "BR-BLK": 1 };
+  function fitsWho(c, division) {
+    if (c.divisions.indexOf(division) === -1) return false;
+    return division !== "Juniors" || !ADVANCED_RANGES[c.belt || ""];
+  }
+
+  // Classes for a menu item: by who each class is for when the schedule says,
+  // otherwise by the item's label regex (Cubs=all, Juniors=Juniors+Forms,
+  // Teens/Adults=Teens/Adults+Forms, etc.).
   function classesFor(item) {
     var p = item.get ? programByName(item.get) : null;
     if (!p) return [];
-    var open = p.classes.filter(isTrialClass);
-    if (!item.re) return open;
-    return open.filter(function (c) { return item.re.test(c.label || ""); });
+    return p.classes.filter(isTrialClass).filter(function (c) {
+      if (item.division && c.divisions && c.divisions.length) return fitsWho(c, item.division);
+      return !item.re || item.re.test(c.label || "");
+    });
   }
 
   function fmtTime(h, m) {
