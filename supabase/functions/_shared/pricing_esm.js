@@ -444,6 +444,45 @@ const BTKDPricing = (function () {
   /* Builds the memberships row from a calculation result. The snapshot is taken
    * ONCE at creation and never re-derived — a later price change to the
    * pricing_plans catalog must not alter an existing membership. */
+  /* WHAT A MEMBERSHIP LINE IS CALLED on an invoice: the program, its
+   * tuition, and the stretch the payment covers - "AMP'D tuition · $50.00 ·
+   * 08/14/2026 - 09/13/2026". The dates say how often it comes round, so
+   * the words monthly and weekly are not repeated (owner, 2026-09-13: "The
+   * tuition line on invoice repeats monthly. It should just say, program,
+   * tuition price, and date range."). A price or a period that is not known
+   * is left off rather than guessed. Every writer of a membership line calls
+   * this, so the till, the server and the billing engine cannot word it
+   * three different ways. */
+  function tuitionLabel(program, priceCents, fromYmd, untilYmd) {
+    var name = String(program == null ? '' : program).trim() || 'Membership';
+    var parts = [name + ' tuition'];
+    var c = priceCents == null || priceCents === '' ? NaN : Number(priceCents);
+    if (isFinite(c)) parts.push(usMoney(c));
+    var period = tuitionPeriod(fromYmd, untilYmd);
+    if (period) parts.push(period);
+    return parts.join(' · ');
+  }
+
+  /* Dollars the way an invoice writes them: $1,400.00. */
+  function usMoney(cents) {
+    var s = (Math.abs(Math.round(cents)) / 100).toFixed(2);
+    var whole = s.slice(0, -3), grouped = '';
+    while (whole.length > 3) { grouped = ',' + whole.slice(-3) + grouped; whole = whole.slice(0, -3); }
+    return (cents < 0 ? '-$' : '$') + whole + grouped + s.slice(-3);
+  }
+
+  /* THE STRETCH ONE TUITION PAYMENT PAYS FOR, the way people read dates:
+   * "08/14/2026 - 09/13/2026". From the day it starts to the day before the
+   * next one is due. Null when either end is unknown, so a label never
+   * guesses (owner, 2026-09-13: "membership tuition payments need to show
+   * the date range of the applied payment"). */
+  function tuitionPeriod(fromYmd, untilYmd) {
+    var a = ymdToUTC(fromYmd), b = ymdToUTC(untilYmd);
+    if (a == null || b == null || b <= a) return null;
+    var us = function (ymd) { var p = ymd.split('-'); return p[1] + '/' + p[2] + '/' + p[0]; };
+    return us(utcToYmd(a)) + ' - ' + us(utcToYmd(b - DAY_MS));
+  }
+
   function buildMembershipSnapshot(opts) {
     opts = opts || {};
     var calc = opts.calc || {};
@@ -901,6 +940,8 @@ const BTKDPricing = (function () {
     nextBillOn: nextBillOn,
     firstBillOn: firstBillOn,
     paymentsRemaining: paymentsRemaining,
+    tuitionLabel: tuitionLabel,
+    tuitionPeriod: tuitionPeriod,
     allocateCents: allocateCents,
     cardFeeCents: cardFeeCents,
     shopUnitCents: shopUnitCents,
