@@ -483,6 +483,22 @@ const BTKDPricing = (function () {
     return us(utcToYmd(a)) + ' - ' + us(utcToYmd(b - DAY_MS));
   }
 
+  /* WHERE A PAID-IN-FULL YEAR ENDS. One payment, no next bill date, so
+   * nothing else says what it bought: a year of tuition from the day it
+   * starts (owner, 2026-09-15: "12 months on PIF"). Little Kickers is also
+   * one payment and is NOT a year - it is a six-week session whose dates the
+   * sale bakes into ended_on - so it gets no term from here. Anything with a
+   * next bill date or an end date already knows its own stretch. */
+  function pifTermUntil(frequency, startedOn, program) {
+    if (frequency !== 'one_time') return null;
+    if (/little kickers/i.test(String(program == null ? '' : program))) return null;
+    var a = ymdToUTC(startedOn);
+    if (a == null) return null;
+    var d = new Date(a);
+    d.setUTCFullYear(d.getUTCFullYear() + 1);
+    return utcToYmd(d.getTime());
+  }
+
   function buildMembershipSnapshot(opts) {
     opts = opts || {};
     var calc = opts.calc || {};
@@ -942,6 +958,7 @@ const BTKDPricing = (function () {
     paymentsRemaining: paymentsRemaining,
     tuitionLabel: tuitionLabel,
     tuitionPeriod: tuitionPeriod,
+    pifTermUntil: pifTermUntil,
     allocateCents: allocateCents,
     cardFeeCents: cardFeeCents,
     shopUnitCents: shopUnitCents,
