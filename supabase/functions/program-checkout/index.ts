@@ -180,6 +180,12 @@ const SITE = "https://www.barestkd.fit";
  * come to whichever each week". */
 const CLASS_TERMS = "This membership is one class a week, at the class time chosen here. "
   + "Changing that class time takes one week's written notice to BTF and space in the new class.";
+/* Classes that are chosen as ONE class. Forms and Sparring run back to back
+ * on the same night and are two halves of the same training, so a once-a-week
+ * student takes whichever they need most that week (owner, 2026-09-20) and
+ * never both in one week. Paired by label, within the same day. */
+const CLASS_PAIRS: string[][] = [["Forms", "Sparring"]];
+const PAIR_TERMS = "Forms and Sparring count as one class: come to whichever you need most that week, not both.";
 // schedule_template.day is 0 = Monday.
 const CLASS_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 function classClock(h: number, m: number): string {
@@ -449,24 +455,50 @@ Deno.serve(async (req) => {
    * schedule, minus anything that has ended. One of them becomes THEIR
    * class. The same list answers the page and checks the POST, so nobody can
    * enroll into a class this membership is not allowed to attend. */
-  type ClassRow = { id: string; label: string; day: number; mins: number; when: string };
-  let classList: ClassRow[] = [];
+  type ClassChoice = { id: string; ids: string[]; label: string; when: string; oneOf: boolean };
+  let classList: ClassChoice[] = [];
   if (cfg.pickClass) {
     const todayLocal = todayCT();
     const schedRes = await admin.from("schedule_template")
       .select("id,day,time_h,time_m,label,program,ends_on")
       .eq("program", "Taekwondo")
       .order("day").order("time_h").order("time_m");
-    classList = ((schedRes.data ?? []) as Record<string, unknown>[])
+    const live = ((schedRes.data ?? []) as Record<string, unknown>[])
       .filter((r) => !r.ends_on || String(r.ends_on) >= todayLocal)
       .filter((r) => classFitsProgram(String(r.label ?? ""), cfg.program))
       .map((r) => ({
         id: String(r.id),
         label: String(r.label ?? "Taekwondo"),
         day: Number(r.day),
+        at: classClock(Number(r.time_h), Number(r.time_m)),
         mins: Number(r.time_h) * 60 + Number(r.time_m),
-        when: CLASS_DAYS[Number(r.day)] + " " + classClock(Number(r.time_h), Number(r.time_m)),
       }));
+    const taken = new Set<string>();
+    for (const row of live) {
+      if (taken.has(row.id)) continue;
+      // The other half of a pair, same night. Two rows, one choice.
+      const pair = CLASS_PAIRS.find((p) => p.includes(row.label));
+      const mate = pair
+        ? live.find((x) => x.id !== row.id && x.day === row.day && pair.includes(x.label) && !taken.has(x.id))
+        : undefined;
+      if (mate) {
+        const both = [row, mate].sort((a, b) => a.mins - b.mins);
+        both.forEach((x) => taken.add(x.id));
+        classList.push({
+          id: both.map((x) => x.id).join(","),
+          ids: both.map((x) => x.id),
+          label: both.map((x) => x.label + " " + x.at).join(" or "),
+          when: CLASS_DAYS[row.day],
+          oneOf: true,
+        });
+      } else {
+        taken.add(row.id);
+        classList.push({
+          id: row.id, ids: [row.id], label: row.label,
+          when: CLASS_DAYS[row.day] + " " + row.at, oneOf: false,
+        });
+      }
+    }
   }
   if (!options.length) {
     return json({ error: cfg.label + " enrollment isn't open right now. Call 903-561-2966." }, 503, cors);
@@ -577,8 +609,9 @@ Deno.serve(async (req) => {
           monthly_cents: planByCode(a.code)?.recurring_cents || 0,
         })),
         add_ons_both_cents: cfg.bothCode ? (planByCode(cfg.bothCode)?.recurring_cents || 0) : null,
-        classes: classList.map((c) => ({ id: c.id, label: c.label, when: c.when })),
+        classes: classList.map((c) => ({ id: c.id, label: c.label, when: c.when, one_of: c.oneOf })),
         class_terms: cfg.pickClass ? CLASS_TERMS : null,
+        class_pair_terms: cfg.pickClass ? PAIR_TERMS : null,
         agreement_version: cfg.tpl.version,
       }, 200, cors);
     }
@@ -647,13 +680,14 @@ Deno.serve(async (req) => {
     /* Their one class. Checked against the list this page offers, so a posted
      * id cannot enroll a 7-year-old into the adult class or into a program
      * this page does not sell. */
-    let chosenClass: ClassRow | null = null;
+    let chosenClass: ClassChoice | null = null;
     if (cfg.pickClass) {
-      chosenClass = classList.find((c) => c.id === str(body.class_slot_id)) ?? null;
+      chosenClass = classList.find((c) => c.id === str(body.class_choice)) ?? null;
       if (!chosenClass) return json({ error: "Pick the class they will come to." }, 400, cors);
     }
     const classLine = chosenClass
-      ? "Class time selected: " + chosenClass.when + " (" + chosenClass.label + "). " + CLASS_TERMS
+      ? "Class time selected: " + chosenClass.when + ", " + chosenClass.label + ". "
+        + CLASS_TERMS + (chosenClass.oneOf ? " " + PAIR_TERMS : "")
       : null;
 
     const studentFirst = str(body.student_first), studentLast = str(body.student_last);
@@ -929,7 +963,8 @@ Deno.serve(async (req) => {
             : "")
         + "\n"
         + (chosenClass
-            ? "Your class: " + chosenClass.when + " (" + chosenClass.label + ")\n"
+            ? "Your class: " + chosenClass.when + ", " + chosenClass.label + "\n"
+              + (chosenClass.oneOf ? PAIR_TERMS + "\n" : "")
               + "One class a week. To change it, give us a week's notice.\n"
             : "Class times: barestkd.fit/schedule\n")
         + "1901 Deerbrook Dr, Tyler\n\n"
@@ -942,7 +977,7 @@ Deno.serve(async (req) => {
             : "")
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
       notes: cfg.label + " online enrollment, " + chosen.name
-        + (chosenClass ? ", CLASS: " + chosenClass.when : "")
+        + (chosenClass ? ", CLASS: " + chosenClass.when + " " + chosenClass.label : "")
         + (wantUniform ? ", UNIFORM PURCHASED - have one ready" : "")
         + (wantShirts.length ? ", SHIRTS: " + wantShirts.map((x) => x.row.name + " " + x.size).join(", ") : "")
         + " (" + (chosen.billing_frequency === "one_time"
@@ -961,7 +996,7 @@ Deno.serve(async (req) => {
     (snap as Record<string, unknown>).payment_count = chosen.payment_count;
     (snap as Record<string, unknown>).sale_id = saleId;
     (snap as Record<string, unknown>).status = "pending";
-    if (chosenClass) (snap as Record<string, unknown>).class_slot_id = chosenClass.id;
+    if (chosenClass) (snap as Record<string, unknown>).class_slot_ids = chosenClass.ids;
     const memIns = await admin.from("memberships").insert(snap).select("id").single();
     if (memIns.error) throw memIns.error;
     const membershipId = memIns.data.id as string;

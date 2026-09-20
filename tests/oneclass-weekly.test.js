@@ -88,6 +88,21 @@ test('the family rate is offered here and claimed here', () => {
   });
 });
 
+test('Forms and Sparring are one choice, either one a week, never both', () => {
+  // Owner, 2026-09-20: "Forms and sparring need to be chosen as a class where
+  // they can go to whichever they need most that week but not both."
+  assert.match(fn, /const CLASS_PAIRS: string\[\]\[\] = \[\["Forms", "Sparring"\]\];/);
+  assert.match(fn, /Forms and Sparring count as one class: come to whichever you need most that week, not both\./);
+  // Two schedule rows, one choice, and neither of them offered again on its own.
+  assert.match(fn, /const mate = pair[\s\S]{0,200}x\.day === row\.day && pair\.includes\(x\.label\) && !taken\.has\(x\.id\)/);
+  assert.match(fn, /id: both\.map\(\(x\) => x\.id\)\.join\(","\),/);
+  assert.match(fn, /both\.forEach\(\(x\) => taken\.add\(x\.id\)\);/);
+  // The pair rule is said wherever the class is: page, preview, document, email.
+  assert.match(fn, /chosenClass\.oneOf \? " " \+ PAIR_TERMS : ""/);
+  assert.match(fn, /chosenClass\.oneOf \? PAIR_TERMS \+ "\\n" : ""/);
+  assert.match(html, /CLASS_PICKED && CLASS_PICKED\.one_of && CFG\.class_pair_terms/);
+});
+
 test('nobody can pay before saying who it is for', () => {
   assert.match(html, /if \(!WHO\) \{ status\("error", "Pick who this is for first\."\)/);
   // A price in flight for the age they just left must not land on the page.
@@ -112,11 +127,11 @@ test('they pick the one class they will come to, from the live schedule', () => 
   assert.match(fn, /return program === "Juniors" \? juniors : teens;/);
   // The POST is checked against that same list, so a posted id cannot put a
   // child in the adult class.
-  assert.match(fn, /chosenClass = classList\.find\(\(c\) => c\.id === str\(body\.class_slot_id\)\) \?\? null;/);
+  assert.match(fn, /chosenClass = classList\.find\(\(c\) => c\.id === str\(body\.class_choice\)\) \?\? null;/);
   assert.match(fn, /if \(!chosenClass\) return json\(\{ error: "Pick the class they will come to\." \}/);
   // And the page cannot pay without one.
   assert.match(html, /if \(\(CFG\.classes \|\| \[\]\)\.length && !CLASS_PICKED\)/);
-  assert.match(html, /class_slot_id: CLASS_PICKED \? CLASS_PICKED\.id : null,/);
+  assert.match(html, /class_choice: CLASS_PICKED \? CLASS_PICKED\.id : null,/);
 });
 
 test('the class, and the rule about changing it, is in what they sign', () => {
@@ -128,7 +143,7 @@ test('the class, and the rule about changing it, is in what they sign', () => {
   assert.match(fn, /if \(ctx\.classLine\) \{/);
   assert.match(html, /hh \+= '<p>Class time selected: <b>'/);
   // The membership remembers it, so the CRM knows where they belong.
-  assert.match(fn, /if \(chosenClass\) \(snap as Record<string, unknown>\)\.class_slot_id = chosenClass\.id;/);
+  assert.match(fn, /if \(chosenClass\) \(snap as Record<string, unknown>\)\.class_slot_ids = chosenClass\.ids;/);
 });
 
 test('the terms on the page are the terms in the document they sign', () => {

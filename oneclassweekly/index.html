@@ -539,7 +539,7 @@
     var list = CFG.classes || [];
     if (!list.length) { $("ocw-class-block").hidden = true; return; }
     $("ocw-class-block").hidden = false;
-    $("ocw-terms").textContent = CFG.class_terms || "";
+    ocwTerms();
     $("ocw-classes").innerHTML = list.map(function (c) {
       return '<button type="button" role="radio" aria-checked="false" data-class="' + esc(c.id) + '">'
         + '<span class="dot"></span><span>' + esc(c.when) + ' <i>' + esc(c.label) + '</i></span></button>';
@@ -551,9 +551,16 @@
         Array.prototype.forEach.call(document.querySelectorAll("#ocw-classes button"), function (x) {
           x.setAttribute("aria-checked", String(x === b));
         });
+        ocwTerms();
         renderDoc();
       });
     });
+  }
+  /* Forms and Sparring are one choice, so the rule says so the moment it is
+     the choice they made. Same sentence the server writes into the document. */
+  function ocwTerms() {
+    $("ocw-terms").textContent = (CFG.class_terms || "")
+      + (CLASS_PICKED && CLASS_PICKED.one_of && CFG.class_pair_terms ? " " + CFG.class_pair_terms : "");
   }
 
   /* One card per shirt. The featured one sits above the fold at half price;
@@ -834,8 +841,10 @@
       + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
     if (CFG.class_terms) {
       hh += '<p>Class time selected: <b>'
-        + (CLASS_PICKED ? esc(CLASS_PICKED.when) + ' (' + esc(CLASS_PICKED.label) + ')' : "____________")
-        + '</b>. ' + esc(CFG.class_terms) + '</p>';
+        + (CLASS_PICKED ? esc(CLASS_PICKED.when) + ', ' + esc(CLASS_PICKED.label) : "____________")
+        + '</b>. ' + esc(CFG.class_terms)
+        + (CLASS_PICKED && CLASS_PICKED.one_of && CFG.class_pair_terms ? ' ' + esc(CFG.class_pair_terms) : '')
+        + '</p>';
     }
     if (docAdds.length) {
       var addTotal = docAdds.reduce(function (t, a) { return t + a.cents; }, 0);
@@ -976,8 +985,9 @@
     $("lkc-done-h").textContent = st + " is enrolled";
     $("lkc-done-p").textContent = "Welcome to the mat. Here's the plan you picked:";
     if (CLASS_PICKED) {
-      $("ocw-done-class").textContent = "Your class is " + CLASS_PICKED.when + ", " + CLASS_PICKED.label
-        + ". One class a week, and changing it takes a week's notice. See you on the mat!";
+      $("ocw-done-class").textContent = "Your class is " + CLASS_PICKED.when + ", " + CLASS_PICKED.label + ". "
+        + (CLASS_PICKED.one_of && CFG.class_pair_terms ? CFG.class_pair_terms + " " : "")
+        + "One class a week, and changing it takes a week's notice. See you on the mat!";
     }
     $("cbc-done-plan").textContent = CHOSEN ? (CHOSEN.name + " · " + (CHOSEN.billing_frequency === "one_time"
       ? money(CHOSEN.pif_cents) + " paid in full"
@@ -1060,7 +1070,7 @@
       body: JSON.stringify({
         sale_id: SALE_ID,
         plan_code: CHOSEN.code,
-        class_slot_id: CLASS_PICKED ? CLASS_PICKED.id : null,
+        class_choice: CLASS_PICKED ? CLASS_PICKED.id : null,
         uniform: $("cbc-uniform").checked === true,
         addons: chosenAddOns().map(function (a) { return a.program; }),
         shirts: pickedShirts.map(function (x) { return { name: x.name, size: x.size }; }),
