@@ -165,4 +165,17 @@ test('it never names the programs it quietly enrolls people into', () => {
     .forEach((p) => assert.ok(!body.includes(p), 'page copy names ' + p));
 });
 
+test('a sent link arrives as a card, and that does not make it findable', () => {
+  // He hands this link out by text, so the preview is the first thing a
+  // parent sees. Hiding is noindex and the empty sitemap, both asserted
+  // above, not the absence of a picture.
+  ['og:title', 'og:description', 'og:type', 'og:url', 'og:image', 'twitter:card']
+    .forEach((p) => assert.ok(html.includes(p), 'no ' + p));
+  assert.ok(html.includes('content="https://www.barestkd.fit/oneclassweekly/"'), 'og:url is not this page');
+  assert.ok(html.includes('content="https://www.barestkd.fit/assets/img/og-image.jpg"'), 'no preview image');
+  ['Juniors', 'Cubs', 'Kickboxing', 'Jiu Jitsu'].forEach((p) => {
+    assert.ok(!html.includes('og:title" content="' + p), 'the card names ' + p);
+  });
+});
+
 console.log('one class a week: ' + passed + ' passed, ' + failed + ' failed');
