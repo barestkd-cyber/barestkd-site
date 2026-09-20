@@ -54,6 +54,9 @@ type ProgramCfg = {
   // and filtered out of every other page, so an unlisted rate can stay
   // sellable at the front desk without turning up on a public page.
   codes?: string[];
+  // A membership that buys ONE class a week: the buyer picks which one, and
+  // it is recorded on the membership and in the document they sign.
+  pickClass?: boolean;
 };
 
 /* The ONLY place a program differs. Adding one is a row here, a page, and a
@@ -121,18 +124,20 @@ const PROGRAMS: Record<string, ProgramCfg> = {
    * twelve-month Taekwondo agreement everybody else signs. No add-ons: this
    * page sells the one class and nothing else. */
   "oneclass-juniors": {
-    program: "Juniors", label: "Daytime Taekwondo", tpl: TAEKWONDO_TEMPLATE,
+    program: "Juniors", label: "One class a week", tpl: TAEKWONDO_TEMPLATE,
     uniform: "Beginner uniform",
     shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
     featuredTee: null, guardianAlways: true,
     codes: ["juniors_oneclass", "juniors_oneclass_2plus"],
+    pickClass: true,
   },
   "oneclass-teens-adults": {
-    program: "Teens/Adults", label: "Daytime Taekwondo", tpl: TAEKWONDO_TEMPLATE,
+    program: "Teens/Adults", label: "One class a week", tpl: TAEKWONDO_TEMPLATE,
     uniform: "Beginner uniform",
     shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
     featuredTee: null, guardianAlways: false,
     codes: ["adults_oneclass", "adults_oneclass_2plus"],
+    pickClass: true,
   },
 };
 
@@ -168,6 +173,29 @@ function ageFrom(dob: string): number | null {
 
 const TAX_RATE = 0.0825;          // memberships are untaxed; kept for shape
 const SITE = "https://www.barestkd.fit";
+
+/* The one-class-a-week rule, in one place because it is said in two: on the
+ * page before they pay, and in the document they sign. Owner, 2026-09-20:
+ * "if they want to change their one class time I need notice etc. can't just
+ * come to whichever each week". */
+const CLASS_TERMS = "This membership is one class a week, at the class time chosen here. "
+  + "Changing that class time takes one week's written notice to BTF and space in the new class.";
+// schedule_template.day is 0 = Monday.
+const CLASS_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+function classClock(h: number, m: number): string {
+  return ((h % 12) || 12) + ":" + String(m).padStart(2, "0") + " " + (h < 12 ? "AM" : "PM");
+}
+/* Which classes a student of this program may pick. The label is what the
+ * studio calls the class, so it decides the audience: a Juniors class for the
+ * 5-12 page, a Teens / Adults class for 13+, and a class that names neither
+ * (Forms, Sparring) is open to the whole program. */
+function classFitsProgram(label: string, program: string): boolean {
+  const l = label.toLowerCase();
+  const juniors = l.includes("junior");
+  const teens = l.includes("teen") || l.includes("adult");
+  if (!juniors && !teens) return true;
+  return program === "Juniors" ? juniors : teens;
+}
 
 const ALLOWED_ORIGINS = [
   "https://www.barestkd.fit",
@@ -290,6 +318,7 @@ function buildBodyText(ctx: {
   options: PlanRow[]; chosen: PlanRow; payDate: string | null; addOnPayDate?: string | null; tpl: Tpl;
   addOns?: { program: string; monthlyCents: number }[];
   initials: string; signerName: string; signerRelationship: string;
+  classLine?: string | null;
 }): string {
   const tpl = ctx.tpl;
   const out: string[] = [];
@@ -319,6 +348,12 @@ function buildBodyText(ctx: {
   out.push("Selected option: " + ctx.chosen.name
     + "   Initials: " + ctx.initials
     + "   Payment date: " + (ctx.payDate ?? "none (paid in full)"));
+  // Their one class, in the document, because a class they can change at
+  // will is not the thing they bought.
+  if (ctx.classLine) {
+    out.push("");
+    out.push(ctx.classLine);
+  }
   if (adds.length) {
     const names = adds.map((a) => a.program).join(" and ");
     const total = adds.reduce((t, a) => t + a.monthlyCents, 0);
@@ -409,6 +444,30 @@ Deno.serve(async (req) => {
   const options = cfg.codes
     ? rows.filter((p) => cfg.codes!.includes(p.code))
     : rows.filter((p) => !claimed.has(p.code));
+
+  /* The classes a once-a-week student may pick from: the live Taekwondo
+   * schedule, minus anything that has ended. One of them becomes THEIR
+   * class. The same list answers the page and checks the POST, so nobody can
+   * enroll into a class this membership is not allowed to attend. */
+  type ClassRow = { id: string; label: string; day: number; mins: number; when: string };
+  let classList: ClassRow[] = [];
+  if (cfg.pickClass) {
+    const todayLocal = todayCT();
+    const schedRes = await admin.from("schedule_template")
+      .select("id,day,time_h,time_m,label,program,ends_on")
+      .eq("program", "Taekwondo")
+      .order("day").order("time_h").order("time_m");
+    classList = ((schedRes.data ?? []) as Record<string, unknown>[])
+      .filter((r) => !r.ends_on || String(r.ends_on) >= todayLocal)
+      .filter((r) => classFitsProgram(String(r.label ?? ""), cfg.program))
+      .map((r) => ({
+        id: String(r.id),
+        label: String(r.label ?? "Taekwondo"),
+        day: Number(r.day),
+        mins: Number(r.time_h) * 60 + Number(r.time_m),
+        when: CLASS_DAYS[Number(r.day)] + " " + classClock(Number(r.time_h), Number(r.time_m)),
+      }));
+  }
   if (!options.length) {
     return json({ error: cfg.label + " enrollment isn't open right now. Call 903-561-2966." }, 503, cors);
   }
@@ -518,6 +577,8 @@ Deno.serve(async (req) => {
           monthly_cents: planByCode(a.code)?.recurring_cents || 0,
         })),
         add_ons_both_cents: cfg.bothCode ? (planByCode(cfg.bothCode)?.recurring_cents || 0) : null,
+        classes: classList.map((c) => ({ id: c.id, label: c.label, when: c.when })),
+        class_terms: cfg.pickClass ? CLASS_TERMS : null,
         agreement_version: cfg.tpl.version,
       }, 200, cors);
     }
@@ -582,6 +643,18 @@ Deno.serve(async (req) => {
 
     const chosen = options.find((p) => p.code === str(body.plan_code));
     if (!chosen) return json({ error: "Pick a payment option." }, 400, cors);
+
+    /* Their one class. Checked against the list this page offers, so a posted
+     * id cannot enroll a 7-year-old into the adult class or into a program
+     * this page does not sell. */
+    let chosenClass: ClassRow | null = null;
+    if (cfg.pickClass) {
+      chosenClass = classList.find((c) => c.id === str(body.class_slot_id)) ?? null;
+      if (!chosenClass) return json({ error: "Pick the class they will come to." }, 400, cors);
+    }
+    const classLine = chosenClass
+      ? "Class time selected: " + chosenClass.when + " (" + chosenClass.label + "). " + CLASS_TERMS
+      : null;
 
     const studentFirst = str(body.student_first), studentLast = str(body.student_last);
     const dob = str(body.student_dob);
@@ -855,7 +928,10 @@ Deno.serve(async (req) => {
                 + money(a.monthlyCents) + "/month").join(", ") + "\n"
             : "")
         + "\n"
-        + "Class times: barestkd.fit/schedule\n"
+        + (chosenClass
+            ? "Your class: " + chosenClass.when + " (" + chosenClass.label + ")\n"
+              + "One class a week. To change it, give us a week's notice.\n"
+            : "Class times: barestkd.fit/schedule\n")
         + "1901 Deerbrook Dr, Tyler\n\n"
         + (wantUniform
             ? "Your uniform is paid for. We'll have it ready at the first class.\n"
@@ -866,6 +942,7 @@ Deno.serve(async (req) => {
             : "")
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
       notes: cfg.label + " online enrollment, " + chosen.name
+        + (chosenClass ? ", CLASS: " + chosenClass.when : "")
         + (wantUniform ? ", UNIFORM PURCHASED - have one ready" : "")
         + (wantShirts.length ? ", SHIRTS: " + wantShirts.map((x) => x.row.name + " " + x.size).join(", ") : "")
         + " (" + (chosen.billing_frequency === "one_time"
@@ -884,6 +961,7 @@ Deno.serve(async (req) => {
     (snap as Record<string, unknown>).payment_count = chosen.payment_count;
     (snap as Record<string, unknown>).sale_id = saleId;
     (snap as Record<string, unknown>).status = "pending";
+    if (chosenClass) (snap as Record<string, unknown>).class_slot_id = chosenClass.id;
     const memIns = await admin.from("memberships").insert(snap).select("id").single();
     if (memIns.error) throw memIns.error;
     const membershipId = memIns.data.id as string;
@@ -893,7 +971,7 @@ Deno.serve(async (req) => {
       tpl: cfg.tpl,
       participant: studentFirst + " " + studentLast, dob: fmtMDY(dob),
       guardian: guardianName, today: fmtMDY(today),
-      options, chosen, payDate, initials,
+      options, chosen, payDate, initials, classLine,
       addOns: pricedAddOns.map((a) => ({ program: a.program, monthlyCents: a.monthlyCents })),
       signerName, signerRelationship: signerRel,
     });

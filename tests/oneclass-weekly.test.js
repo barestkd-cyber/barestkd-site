@@ -94,11 +94,41 @@ test('nobody can pay before saying who it is for', () => {
   assert.match(html, /if \(WHO !== slug\) return;/);
 });
 
-test('it sells the one class, at one rate, with no evening add-ons', () => {
+test('it sells one class a week, at one rate, with no add-on programs', () => {
   const cfgBlock = /"oneclass-juniors":[\s\S]*?\},\s*"oneclass-teens-adults":[\s\S]*?\},/.exec(fn)[0];
-  assert.ok(!/addOns/.test(cfgBlock), 'the daytime page is offering add-on programs');
+  assert.ok(!/addOns/.test(cfgBlock), 'the page is offering add-on programs');
   assert.ok(!/bothCode/.test(cfgBlock));
-  assert.match(html, /The class is Wednesdays, 10:15 to 11:00 AM\./);
+  assert.match(cfgBlock, /pickClass: true/);
+});
+
+test('they pick the one class they will come to, from the live schedule', () => {
+  // Owner, 2026-09-20: "we need to choose which class they can come to ...
+  // can't just come to whichever each week."
+  assert.match(fn, /\.from\("schedule_template"\)[\s\S]{0,200}\.eq\("program", "Taekwondo"\)/);
+  // A class that has ended is not on offer, and a class their age cannot
+  // attend is not either.
+  assert.match(fn, /!r\.ends_on \|\| String\(r\.ends_on\) >= todayLocal/);
+  assert.match(fn, /classFitsProgram\(String\(r\.label \?\? ""\), cfg\.program\)/);
+  assert.match(fn, /return program === "Juniors" \? juniors : teens;/);
+  // The POST is checked against that same list, so a posted id cannot put a
+  // child in the adult class.
+  assert.match(fn, /chosenClass = classList\.find\(\(c\) => c\.id === str\(body\.class_slot_id\)\) \?\? null;/);
+  assert.match(fn, /if \(!chosenClass\) return json\(\{ error: "Pick the class they will come to\." \}/);
+  // And the page cannot pay without one.
+  assert.match(html, /if \(\(CFG\.classes \|\| \[\]\)\.length && !CLASS_PICKED\)/);
+  assert.match(html, /class_slot_id: CLASS_PICKED \? CLASS_PICKED\.id : null,/);
+});
+
+test('the class, and the rule about changing it, is in what they sign', () => {
+  // One sentence, written once in the function, printed on the page, in the
+  // preview and in the frozen document.
+  assert.match(fn, /const CLASS_TERMS = "This membership is one class a week, at the class time chosen here\. "/);
+  assert.match(fn, /"Changing that class time takes one week's written notice to BTF and space in the new class\."/);
+  assert.match(fn, /classLine = chosenClass[\s\S]{0,160}"Class time selected: " \+ chosenClass\.when/);
+  assert.match(fn, /if \(ctx\.classLine\) \{/);
+  assert.match(html, /hh \+= '<p>Class time selected: <b>'/);
+  // The membership remembers it, so the CRM knows where they belong.
+  assert.match(fn, /if \(chosenClass\) \(snap as Record<string, unknown>\)\.class_slot_id = chosenClass\.id;/);
 });
 
 test('the terms on the page are the terms in the document they sign', () => {

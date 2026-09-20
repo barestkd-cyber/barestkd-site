@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Daytime Taekwondo Enrollment | Bares Taekwondo Fitness | Tyler, TX</title>
-<meta name="description" content="Enrollment for the Wednesday daytime Taekwondo class at Bares Taekwondo Fitness in Tyler, TX.">
+<title>One Class a Week Enrollment | Bares Taekwondo Fitness | Tyler, TX</title>
+<meta name="description" content="Enroll in one Taekwondo class a week at Bares Taekwondo Fitness in Tyler, TX.">
 <link rel="canonical" href="https://www.barestkd.fit/oneclassweekly/">
 <meta name="robots" content="noindex">
 <link rel="icon" href="/assets/img/favicon.png">
@@ -53,12 +53,15 @@
    once and the answer decides which program the membership lands in. */
 .ocw-who{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
 @media (max-width:420px){.ocw-who{grid-template-columns:1fr}}
-.ocw-who button{display:flex;align-items:center;gap:10px;width:100%;border:2px solid #111;border-radius:12px;background:#fff;padding:13px 14px;font:inherit;font-weight:700;cursor:pointer;text-align:left}
-.ocw-who button .dot{width:18px;height:18px;border-radius:50%;border:2px solid #111;flex:none;position:relative}
-.ocw-who button[aria-checked="true"]{background:#111;color:#fff}
-.ocw-who button[aria-checked="true"] .dot{border-color:#fff}
-.ocw-who button[aria-checked="true"] .dot::after{content:"";position:absolute;inset:3px;border-radius:50%;background:#fff}
+.ocw-classes{display:grid;gap:8px;margin:0 0 8px}
+.ocw-who button,.ocw-classes button{display:flex;align-items:center;gap:10px;width:100%;border:2px solid #111;border-radius:12px;background:#fff;padding:13px 14px;font:inherit;font-weight:700;cursor:pointer;text-align:left}
+.ocw-who button .dot,.ocw-classes button .dot{width:18px;height:18px;border-radius:50%;border:2px solid #111;flex:none;position:relative}
+.ocw-who button[aria-checked="true"],.ocw-classes button[aria-checked="true"]{background:#111;color:#fff}
+.ocw-who button[aria-checked="true"] .dot,.ocw-classes button[aria-checked="true"] .dot{border-color:#fff}
+.ocw-who button[aria-checked="true"] .dot::after,.ocw-classes button[aria-checked="true"] .dot::after{content:"";position:absolute;inset:3px;border-radius:50%;background:#fff}
+.ocw-classes i{font-style:normal;font-weight:600;opacity:.72}
 .ocw-when{margin:0 0 14px;font-size:.92rem;color:#5b6570}
+.ocw-terms{margin:0 0 14px;font-size:.86rem;color:#5b6570;line-height:1.5}
 .lkc-tees{display:flex;flex-direction:row;gap:12px;flex-wrap:wrap}
 .lkc-tee{flex:1 1 150px;min-width:140px;background:#fff;border:2px solid var(--line);border-radius:12px;
   padding:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;font:inherit}
@@ -213,9 +216,9 @@
        fetchpriority="high" decoding="async" width="1800" height="833">
   <div class="hero__scrim"></div>
   <div class="container hero__inner">
-    <p class="eyebrow">Daytime Taekwondo · Wednesdays 10:15 AM</p>
+    <p class="eyebrow">Taekwondo · One class a week</p>
     <h1>One Class a Week</h1>
-    <p class="hero__sub">Taekwondo on a daytime schedule. One class a week, Wednesday mornings, earning rank on the same standards as every other student here.</p>
+    <p class="hero__sub">One class a week, at a time that fits your week, daytime or evening. Same belts, same standards as every other student here.</p>
   </div>
 </section>
 <hr class="belt-divider" aria-hidden="true">
@@ -228,7 +231,7 @@
       <h2 id="lkc-done-h">You're enrolled</h2>
       <p id="lkc-done-p"></p>
       <div id="cbc-done-plan" class="lkc-line" style="border:none;font-weight:600"></div>
-      <p class="step-sub">Your class is Wednesdays, 10:15 to 11:00 AM. See you on the mat!</p>
+      <p class="step-sub" id="ocw-done-class">See you on the mat!</p>
       <p class="step-sub" style="margin-top:14px">We've emailed a copy of all of this to <b id="lkc-done-email"></b>,
         so you can close this page whenever you like.<br>
         Questions? Call <a href="tel:903-561-2966">903-561-2966</a>.</p>
@@ -249,13 +252,19 @@
       <div class="lkc-step">
         <h2>Your Membership</h2>
         <p class="cbc-policy">This is a 12-month membership that renews on its own. Tell us in writing before the term ends and it simply does not renew: no notice period, no fee. Leaving during the term takes 30 days written notice.</p>
-        <p class="ocw-when">The class is Wednesdays, 10:15 to 11:00 AM. Students are welcome at the evening classes any time they upgrade.</p>
+        <p class="ocw-when">Pick the one class they will come to each week. Daytime and evening times are both on the list, and an upgrade to the full program opens all of them.</p>
         <p class="ocw-when">The first student in a family is $109 a month. Every student after that is $79 for this class.</p>
 
         <p class="lkc-pick" style="margin-top:0">Who is this for?</p>
         <div class="ocw-who" id="ocw-who" role="radiogroup" aria-label="Student age">
           <button type="button" role="radio" aria-checked="false" data-who="oneclass-juniors"><span class="dot"></span><span>Ages 5 to 12</span></button>
           <button type="button" role="radio" aria-checked="false" data-who="oneclass-teens-adults"><span class="dot"></span><span>Ages 13 and up</span></button>
+        </div>
+
+        <div id="ocw-class-block" hidden>
+          <p class="lkc-pick" style="margin-top:0">Which class will they come to?</p>
+          <div class="ocw-classes" id="ocw-classes" role="radiogroup" aria-label="Class time"></div>
+          <p class="ocw-terms" id="ocw-terms"></p>
         </div>
 
         <div id="cbc-options" role="radiogroup" aria-label="Payment option">Pick an age above to see the price.</div>
@@ -455,7 +464,7 @@
      above decides which one this page talks to. Both sell the one rate and
      both sign the same twelve-month agreement. */
   var FN_BASE = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/program-checkout?p=";
-  var FN = null, WHO = null;
+  var FN = null, WHO = null, CLASS_PICKED = null;
   var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
 
   var CFG = null, CHOSEN = null, SALE_ID = null;
@@ -488,7 +497,8 @@
 
   function loadCfg(slug) {
     WHO = slug; FN = FN_BASE + slug;
-    CFG = null; CHOSEN = null;
+    CFG = null; CHOSEN = null; CLASS_PICKED = null;
+    $("ocw-class-block").hidden = true;
     $("cbc-options").textContent = "Loading the price…";
     $("lkc-pay").disabled = false;
     fetch(FN, { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } })
@@ -502,6 +512,7 @@
           $("cbc-uniform-price").textContent = moneyS(cfg.uniform_cents);
         }
         if ((cfg.add_ons || []).length) renderAddOns();
+        renderClasses();
         renderOptions();
         renderPrice(); renderDoc();
       })
@@ -519,6 +530,31 @@
       loadCfg(b.getAttribute("data-who"));
     });
   });
+
+  /* The class they are buying. One class a week means one class: the times
+     come from the live schedule, filtered to what this age may attend, and
+     the rule about changing it comes down with them so the page and the
+     document they sign cannot disagree. */
+  function renderClasses() {
+    var list = CFG.classes || [];
+    if (!list.length) { $("ocw-class-block").hidden = true; return; }
+    $("ocw-class-block").hidden = false;
+    $("ocw-terms").textContent = CFG.class_terms || "";
+    $("ocw-classes").innerHTML = list.map(function (c) {
+      return '<button type="button" role="radio" aria-checked="false" data-class="' + esc(c.id) + '">'
+        + '<span class="dot"></span><span>' + esc(c.when) + ' <i>' + esc(c.label) + '</i></span></button>';
+    }).join("");
+    Array.prototype.forEach.call(document.querySelectorAll("#ocw-classes button"), function (b) {
+      b.addEventListener("click", function () {
+        CLASS_PICKED = null;
+        for (var i = 0; i < list.length; i++) if (list[i].id === b.getAttribute("data-class")) CLASS_PICKED = list[i];
+        Array.prototype.forEach.call(document.querySelectorAll("#ocw-classes button"), function (x) {
+          x.setAttribute("aria-checked", String(x === b));
+        });
+        renderDoc();
+      });
+    });
+  }
 
   /* One card per shirt. The featured one sits above the fold at half price;
      the rest live behind "See other shirts" so they are offered without
@@ -796,6 +832,11 @@
     hh += '<p>Selected option: <b>' + (CHOSEN ? esc(CHOSEN.name) : "____________") + '</b>'
       + '&nbsp;&nbsp;Initials: <b>' + esc(initials) + '</b>'
       + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
+    if (CFG.class_terms) {
+      hh += '<p>Class time selected: <b>'
+        + (CLASS_PICKED ? esc(CLASS_PICKED.when) + ' (' + esc(CLASS_PICKED.label) + ')' : "____________")
+        + '</b>. ' + esc(CFG.class_terms) + '</p>';
+    }
     if (docAdds.length) {
       var addTotal = docAdds.reduce(function (t, a) { return t + a.cents; }, 0);
       hh += '<p>I am also enrolling in <b>'
@@ -934,6 +975,10 @@
     $("lkc-done").hidden = false;
     $("lkc-done-h").textContent = st + " is enrolled";
     $("lkc-done-p").textContent = "Welcome to the mat. Here's the plan you picked:";
+    if (CLASS_PICKED) {
+      $("ocw-done-class").textContent = "Your class is " + CLASS_PICKED.when + ", " + CLASS_PICKED.label
+        + ". One class a week, and changing it takes a week's notice. See you on the mat!";
+    }
     $("cbc-done-plan").textContent = CHOSEN ? (CHOSEN.name + " · " + (CHOSEN.billing_frequency === "one_time"
       ? money(CHOSEN.pif_cents) + " paid in full"
       : money(CHOSEN.due_today_cents) + " today, then " + money(CHOSEN.recurring_cents)
@@ -960,6 +1005,11 @@
     if (!CFG) { status("error", "Enrollment isn't loading. Call 903-561-2966."); return; }
     if (!SALE_ID) { status("error", "Your browser is too old for this page. Please call us."); return; }
     if (!CHOSEN) { status("error", "Pick a payment option first."); return; }
+    if ((CFG.classes || []).length && !CLASS_PICKED) {
+      status("error", "Pick the class they will come to.");
+      $("ocw-class-block").scrollIntoView({ block: "center" });
+      return;
+    }
     var need = [["lkc-sfirst", "the student's first name"], ["lkc-slast", "the student's last name"],
       ["lkc-dob", "the student's date of birth"], ["lkc-pfirst", "your first name"],
       ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"], ["lkc-street", "your street address"], ["lkc-city", "your city"], ["lkc-zip", "your zip code"],
@@ -1010,6 +1060,7 @@
       body: JSON.stringify({
         sale_id: SALE_ID,
         plan_code: CHOSEN.code,
+        class_slot_id: CLASS_PICKED ? CLASS_PICKED.id : null,
         uniform: $("cbc-uniform").checked === true,
         addons: chosenAddOns().map(function (a) { return a.program; }),
         shirts: pickedShirts.map(function (x) { return { name: x.name, size: x.size }; }),
