@@ -49,6 +49,11 @@ type ProgramCfg = {
   addOns?: { program: string; code: string }[];
   // Where every add-on is taken at once and the pair is priced as one rate.
   bothCode?: string;
+  // The plan codes this page sells, when it sells rates of its own. A code
+  // claimed here belongs to this page alone: it is shown and accepted here,
+  // and filtered out of every other page, so an unlisted rate can stay
+  // sellable at the front desk without turning up on a public page.
+  codes?: string[];
 };
 
 /* The ONLY place a program differs. Adding one is a row here, a page, and a
@@ -108,6 +113,26 @@ const PROGRAMS: Record<string, ProgramCfg> = {
     shirts: ["Classic gray tee"],
     featuredTee: null, guardianAlways: false,
     addOns: [{ program: "Kickboxing", code: "specialty_second_kickboxing" }],
+  },
+  /* One class a week, the Wednesday daytime class (owner, 2026-09-19). The
+   * page is linked from nowhere and stays out of search; he hands the link
+   * out himself. Two slugs because that class takes every age and a
+   * student's membership has to land in their own program, on the same
+   * twelve-month Taekwondo agreement everybody else signs. No add-ons: this
+   * page sells the one class and nothing else. */
+  "oneclass-juniors": {
+    program: "Juniors", label: "Daytime Taekwondo", tpl: TAEKWONDO_TEMPLATE,
+    uniform: "Beginner uniform",
+    shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
+    featuredTee: null, guardianAlways: true,
+    codes: ["juniors_oneclass"],
+  },
+  "oneclass-teens-adults": {
+    program: "Teens/Adults", label: "Daytime Taekwondo", tpl: TAEKWONDO_TEMPLATE,
+    uniform: "Beginner uniform",
+    shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
+    featuredTee: null, guardianAlways: false,
+    codes: ["adults_oneclass"],
   },
 };
 
@@ -376,7 +401,14 @@ Deno.serve(async (req) => {
     .select("id,code,name,billing_frequency,recurring_cents,down_cents,pif_cents,payment_count,promo_label,sellable,active,display_order")
     .eq("program", cfg.program).eq("sellable", true).eq("active", true)
     .order("display_order");
-  const options = (plansRes.data ?? []) as (PlanRow & { sellable: boolean; active: boolean; display_order: number })[];
+  const rows = (plansRes.data ?? []) as (PlanRow & { sellable: boolean; active: boolean; display_order: number })[];
+  // A claimed code is sold by the page that names it and by no other. This
+  // list is what the buyer sees, what the agreement prints, and what a POST
+  // is checked against, so a page cannot sell a rate it does not offer.
+  const claimed = new Set(Object.values(PROGRAMS).flatMap((p) => p.codes ?? []));
+  const options = cfg.codes
+    ? rows.filter((p) => cfg.codes!.includes(p.code))
+    : rows.filter((p) => !claimed.has(p.code));
   if (!options.length) {
     return json({ error: cfg.label + " enrollment isn't open right now. Call 903-561-2966." }, 503, cors);
   }

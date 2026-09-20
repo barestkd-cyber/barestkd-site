@@ -73,6 +73,13 @@ const PAGES = [
     agreementName: 'Taekwondo', templateKey: 'taekwondo', term: 'twelve-month',
     forbidPhrases: ['Ages 3-4', 'preschool', 'Preschool'] },
 
+  // Unlisted: he hands this link out himself. Same twelve-month Taekwondo
+  // agreement, one class a week, so it must not borrow the evening pages'
+  // wording or name the programs it quietly enrolls people into.
+  { dir: 'oneclassweekly', kind: 'enrollment', program: 'Daytime Taekwondo',
+    agreementName: 'Taekwondo', templateKey: 'taekwondo', term: 'twelve-month',
+    forbidPhrases: ['Ages 3-4', 'preschool', 'Preschool', 'unlimited', 'any class'] },
+
   { dir: 'kickboxing-checkout', kind: 'enrollment', program: 'Kickboxing',
     templateKey: 'kickboxing', term: 'month-to-month',
     forbidPhrases: ['12-month', 'twelve (12) month', 'preschool'] },
