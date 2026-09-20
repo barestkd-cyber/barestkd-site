@@ -58,8 +58,8 @@ test('it declares its own canonical', () => {
 });
 
 test('the rate is claimed by this page and filtered off every other one', () => {
-  assert.match(fn, /"oneclass-juniors":[\s\S]{0,400}codes: \["juniors_oneclass"\]/);
-  assert.match(fn, /"oneclass-teens-adults":[\s\S]{0,400}codes: \["adults_oneclass"\]/);
+  assert.match(fn, /"oneclass-juniors":[\s\S]{0,400}codes: \["juniors_oneclass", "juniors_oneclass_2plus"\]/);
+  assert.match(fn, /"oneclass-teens-adults":[\s\S]{0,400}codes: \["adults_oneclass", "adults_oneclass_2plus"\]/);
   // The catalog a page may sell: its own codes, or everything no page claims.
   assert.match(fn, /const claimed = new Set\(Object\.values\(PROGRAMS\)\.flatMap\(\(p\) => p\.codes \?\? \[\]\)\)/);
   assert.match(fn, /cfg\.codes[\s\S]{0,120}rows\.filter\(\(p\) => !claimed\.has\(p\.code\)\)/);
@@ -75,6 +75,17 @@ test('both age groups reach their own program, from one page', () => {
   assert.match(html, /data-who="oneclass-teens-adults"[\s\S]{0,120}Ages 13 and up/);
   assert.match(html, /var FN_BASE = "https:\/\/akdncbzxiwvihfcyijvm\.supabase\.co\/functions\/v1\/program-checkout\?p=";/);
   assert.ok(!/\?p=juniors"/.test(html), 'the page still points at the public Juniors slug');
+});
+
+test('the family rate is offered here and claimed here', () => {
+  // Owner, 2026-09-20: "Second and beyond is $79 for one class only." A rate
+  // the parent picks, the way the testing page has them declare a seat, since
+  // these plans sit outside the engine's core_tkd family substitution on
+  // purpose: that one would have quoted $119, more than the rate itself.
+  assert.match(html, /The first student in a family is \$109 a month\. Every student after that is \$79 for this class\./);
+  ['juniors_oneclass_2plus', 'adults_oneclass_2plus'].forEach((c) => {
+    assert.ok(fn.includes('"' + c + '"'), c + ' is not claimed by this page');
+  });
 });
 
 test('nobody can pay before saying who it is for', () => {

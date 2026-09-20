@@ -125,14 +125,14 @@ const PROGRAMS: Record<string, ProgramCfg> = {
     uniform: "Beginner uniform",
     shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
     featuredTee: null, guardianAlways: true,
-    codes: ["juniors_oneclass"],
+    codes: ["juniors_oneclass", "juniors_oneclass_2plus"],
   },
   "oneclass-teens-adults": {
     program: "Teens/Adults", label: "Daytime Taekwondo", tpl: TAEKWONDO_TEMPLATE,
     uniform: "Beginner uniform",
     shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
     featuredTee: null, guardianAlways: false,
-    codes: ["adults_oneclass"],
+    codes: ["adults_oneclass", "adults_oneclass_2plus"],
   },
 };
 
