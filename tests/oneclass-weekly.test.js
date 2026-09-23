@@ -104,7 +104,8 @@ test('Forms and Sparring are one choice, either one a week, never both', () => {
 });
 
 test('nobody can pay before saying who it is for', () => {
-  assert.match(html, /if \(!WHO\) \{ status\("error", "Pick who this is for first\."\)/);
+  assert.ok(html.includes('if (!WHO) { refused("no_age", "Pick who this is for first.")'),
+    'the age guard is gone');
   // A price in flight for the age they just left must not land on the page.
   assert.match(html, /if \(WHO !== slug\) return;/);
 });
@@ -176,6 +177,19 @@ test('a sent link arrives as a card, and that does not make it findable', () => 
   ['Juniors', 'Cubs', 'Kickboxing', 'Jiu Jitsu'].forEach((p) => {
     assert.ok(!html.includes('og:title" content="' + p), 'the card names ' + p);
   });
+});
+
+test('a submit the page refuses is reported, not lost', () => {
+  // Owner, 2026-09-22: a parent who gave up on the form left no trace, so
+  // "did she try?" had no answer. Local refusals go to the same logger the
+  // declined cards use, marked as the page refusing rather than the bank.
+  assert.ok(html.includes('function refused(code, msg) {'), 'nothing reports a refusal');
+  assert.ok(html.includes('kind: "form"'), 'a refusal would look like a declined card');
+  ['no_age', 'no_rate', 'no_class', 'not_agreed', 'no_signature'].forEach((c) => {
+    assert.ok(html.includes("refused(\"" + c + "\""), c + " is still a silent stop");
+  });
+  // The honeypot stays silent: a bot tripping it is not a customer.
+  assert.ok(html.includes('lkc-hp").value.trim() !== "") return;'), 'the honeypot changed shape');
 });
 
 console.log('one class a week: ' + passed + ' passed, ' + failed + ' failed');

@@ -1016,15 +1016,37 @@
   }
   $("lkc-print").addEventListener("click", function () { window.print(); });
 
+  /* WHAT THE PAGE REFUSED. A stop here never reaches the server, so a
+     parent who gave up on it left no trace at all and the only answer to
+     "did she try?" was a shrug (owner, 2026-09-22). Reported the same way a
+     declined card is, recorded and not emailed, because fumbling a form is
+     ordinary and self-correcting. */
+  function refused(code, msg) {
+    status("error", msg);
+    try {
+      navigator.sendBeacon && navigator.sendBeacon(
+        "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/card-reject?src=oneclassweekly",
+        JSON.stringify({ kind: "form", code: code, message: msg, who: whoTyped() }));
+    } catch (e) {}
+  }
+  function whoTyped() {
+    var g = function (i) { var e = document.getElementById(i); return e && e.value ? String(e.value).trim() : ""; };
+    return {
+      parent: (g("lkc-pfirst") + " " + g("lkc-plast")).trim() || g("lkc-signer"),
+      student: (g("lkc-sfirst") + " " + g("lkc-slast")).trim(),
+      email: g("lkc-email"), phone: g("lkc-phone"),
+    };
+  }
+
   $("lkc-form").addEventListener("submit", async function (e) {
     e.preventDefault();
     if ($("lkc-hp").value.trim() !== "") return;
-    if (!WHO) { status("error", "Pick who this is for first."); $("ocw-who").scrollIntoView({ block: "center" }); return; }
-    if (!CFG) { status("error", "Enrollment isn't loading. Call 903-561-2966."); return; }
-    if (!SALE_ID) { status("error", "Your browser is too old for this page. Please call us."); return; }
-    if (!CHOSEN) { status("error", "Pick a payment option first."); return; }
+    if (!WHO) { refused("no_age", "Pick who this is for first."); $("ocw-who").scrollIntoView({ block: "center" }); return; }
+    if (!CFG) { refused("no_config", "Enrollment isn't loading. Call 903-561-2966."); return; }
+    if (!SALE_ID) { refused("old_browser", "Your browser is too old for this page. Please call us."); return; }
+    if (!CHOSEN) { refused("no_rate", "Pick a payment option first."); return; }
     if ((CFG.classes || []).length && !CLASS_PICKED) {
-      status("error", "Pick the class they will come to.");
+      refused("no_class", "Pick the class they will come to.");
       $("ocw-class-block").scrollIntoView({ block: "center" });
       return;
     }
@@ -1033,15 +1055,15 @@
       ["lkc-plast", "your last name"], ["lkc-email", "your email"], ["lkc-phone", "your phone"], ["lkc-street", "your street address"], ["lkc-city", "your city"], ["lkc-zip", "your zip code"],
       ["cbc-initials", "your initials"], ["lkc-signer", "the signature name"], ["lkc-rel", "your relationship to the student"]];
     for (var i = 0; i < need.length; i++) {
-      if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
+      if (!$(need[i][0]).value.trim()) { refused("missing:" + need[i][0], "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
     }
     var pickedShirts = chosenShirts();
     for (var s = 0; s < pickedShirts.length; s++) {
-      if (!pickedShirts[s].size) { status("error", "Pick a size for the " + pickedShirts[s].name + "."); return; }
+      if (!pickedShirts[s].size) { refused("no_shirt_size", "Pick a size for the " + pickedShirts[s].name + "."); return; }
     }
-    if (!$("lkc-agree").checked) { status("error", "Please read the agreement and tick the box."); return; }
-    if (!dirty) { status("error", "Please sign in the signature box."); return; }
-    if (!CARD) { status("error", "The card field did not load. Refresh and try again."); return; }
+    if (!$("lkc-agree").checked) { refused("not_agreed", "Please read the agreement and tick the box."); return; }
+    if (!dirty) { refused("no_signature", "Please sign in the signature box."); return; }
+    if (!CARD) { refused("no_card_field", "The card field did not load. Refresh and try again."); return; }
 
     // The card is checked HERE, before a single record is written. This is
     // not a charge: createPaymentMethod only asks Stripe to validate the
