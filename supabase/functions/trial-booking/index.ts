@@ -268,6 +268,42 @@ const TAG_TO_DIVISION: Record<string, string> = {
   "Teens/Adults Taekwondo": "Teens/Adults",
 };
 const ADVANCED_RANGES = new Set(["ORG-BLK", "GR-BLK", "BR-BLK"]);
+
+/** A FREE TRIAL WEEK IS A MEMBERSHIP (owner, 2026-09-29: "Trials are ACTIVE
+ *  ... Trial IS a membership type"). The page's program tags, mapped to the
+ *  CRM's programs and their free-week plans. A tag not listed here still
+ *  books, with no week recorded. */
+const TAG_TO_TRIAL: Record<string, { program: string; plan: string }> = {
+  "Cubs": { program: "Cubs", plan: "trial_cubs" },
+  "Juniors": { program: "Juniors", plan: "trial_juniors" },
+  "Teens/Adults Taekwondo": { program: "Teens/Adults", plan: "trial_teens_adults" },
+  "Kickboxing": { program: "Kickboxing", plan: "trial_kickboxing" },
+  "Jiu Jitsu": { program: "Jiu Jitsu", plan: "trial_jiujitsu" },
+};
+
+/** One free week per program, from the first class booked in it (the
+ *  studio's date) to six days later. It bills nothing and nobody. When the
+ *  week has passed the CRM flags it as Trial ended; nothing ends by itself. */
+function trialMemberships(contactId: string, rows: { program: string; class_datetime: string }[]) {
+  const first: Record<string, string> = {};
+  for (const r of rows) {
+    const t = TAG_TO_TRIAL[r.program];
+    const at = new Date(r.class_datetime);
+    if (!t || isNaN(at.getTime())) continue;
+    const day = at.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+    if (!first[t.program] || day < first[t.program]) first[t.program] = day;
+  }
+  return Object.values(TAG_TO_TRIAL).filter((t) => first[t.program]).map((t) => {
+    const end = new Date(first[t.program] + "T12:00:00Z");
+    end.setUTCDate(end.getUTCDate() + 6);
+    return {
+      contact_id: contactId, program: t.program, plan_code: t.plan, plan_label: "Free trial week",
+      status: "active", is_trial: true, billing_method: "invoice", billing_frequency: "one_time",
+      final_recurring_cents: 0, final_down_cents: 0,
+      started_on: first[t.program], ended_on: end.toISOString().slice(0, 10),
+    };
+  });
+}
 function fitsWho(r: any, division: string | undefined): boolean {
   const divs = Array.isArray(r.divisions) ? r.divisions : [];
   if (!division || !divs.length) return true;
@@ -560,13 +596,15 @@ Deno.serve(async (req) => {
       }
 
       // ONE contact per student. program stays NULL; trial-interest programs
-      // live in tags (text[]) and on the booking rows.
+      // live in tags (text[]) and on the booking rows. A trial is Active from
+      // the booking (owner, 2026-09-29: "Trials are ACTIVE"); the trial
+      // itself is the free-week membership made below.
       const { data: contact, error: cErr } = await admin
         .from("contacts")
         .insert({
           first_name: studentFirst,
           last_name: studentLast,
-          segment: "trial",
+          segment: "active",
           member_role: "student",
           program: null,
           source: "website-trial",
@@ -610,6 +648,15 @@ Deno.serve(async (req) => {
         const undo = await admin.from("contacts").delete().eq("id", contact.id);
         if (undo.error) console.error("[trial-booking] could not undo contact", contact.id, undo.error);
         throw bErr;
+      }
+
+      // The free week for each program booked. The booking stands either
+      // way: a family is never turned away over the CRM's bookkeeping, and
+      // the log names whose week is missing.
+      const weeks = trialMemberships(contact.id, rows);
+      if (weeks.length) {
+        const { error: wErr } = await admin.from("memberships").insert(weeks);
+        if (wErr) console.error("[trial-booking] trial week not recorded for", contact.id, wErr);
       }
 
       // Record the parent/guardian email as a guardian row (kids always; adults

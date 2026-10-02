@@ -234,6 +234,49 @@ const at = (ymd, h, m) => {
     assert.ok(/admin\.from\("contacts"\)\.delete\(\)\.eq\("id", contact\.id\)/.test(source.slice(i, i + 900)));
   });
 
+  // ── the free trial week (owner, 2026-09-29: "Trials are ACTIVE ... Trial
+  //    IS a membership type") ──────────────────────────────────────────────
+  await test('a trial is Active from the booking', () => {
+    assert.ok(/segment: "active",\s*member_role: "student"/.test(source), 'the trial path no longer makes them Active');
+    assert.ok(!/segment: "trial"/.test(source), 'a booking still files the person as a trial');
+  });
+
+  await test('each program booked gets one free week from its first class, ending six days later', () => {
+    const { ctx } = load();
+    const weeks = JSON.parse(JSON.stringify(ctx.trialMemberships('c1', [
+      { program: 'Juniors', class_datetime: at('2026-09-17', 17, 0) },
+      { program: 'Juniors', class_datetime: at('2026-09-15', 17, 0) },
+      { program: 'Teens/Adults Taekwondo', class_datetime: at('2026-09-30', 19, 15) },
+      { program: "AMP'D", class_datetime: at('2026-09-15', 18, 0) },
+    ])));
+    assert.deepStrictEqual(weeks.map((w) => [w.program, w.plan_code, w.started_on, w.ended_on]), [
+      ['Juniors', 'trial_juniors', '2026-09-15', '2026-09-21'],
+      ['Teens/Adults', 'trial_teens_adults', '2026-09-30', '2026-10-06'],
+    ]);
+    for (const w of weeks) {
+      assert.strictEqual(w.is_trial, true);
+      assert.strictEqual(w.status, 'active');
+      assert.strictEqual(w.billing_frequency, 'one_time', 'a free week must never come due');
+      assert.strictEqual(w.final_recurring_cents, 0);
+      assert.strictEqual(w.billing_method, 'invoice', 'autopay would go looking for a card');
+    }
+  });
+
+  await test('a late class is dated by the studio clock, not UTC', () => {
+    const { ctx } = load();
+    // 7:15pm in Texas on the 30th is already the 1st in UTC.
+    const [w] = ctx.trialMemberships('c1', [{ program: 'Kickboxing', class_datetime: at('2026-09-30', 19, 15) }]);
+    assert.strictEqual(w.started_on, '2026-09-30');
+  });
+
+  await test('the week is written after the booking, and a failure there never refuses the family', () => {
+    const i = source.indexOf('const weeks = trialMemberships(contact.id, rows);');
+    assert.ok(i > source.indexOf('await admin.from("trial_bookings").insert(rows)'), 'the week is written before the booking');
+    const after = source.slice(i, i + 400);
+    assert.ok(/console\.error\("\[trial-booking\] trial week not recorded for"/.test(after));
+    assert.ok(!/throw wErr/.test(after), 'a failed week turns the family away');
+  });
+
   await test('the guardian becomes a real person through the shared helper', () => {
     assert.ok(/findOrCreateGuardian\(admin,/.test(source));
     assert.ok(!/await admin\.from\("student_guardians"\)\.insert\(\{\s*student_id: contact\.id,\s*email: parentEmail \|\| null/.test(source),
