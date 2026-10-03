@@ -609,8 +609,11 @@ Deno.serve(async (req) => {
           program: null,
           source: "website-trial",
           entered_on: today,
-          email: contactEmail,   // parent's for kids; the adult's otherwise
-          phone: contactPhone,
+          // A child's email and phone belong to the parent, who is linked
+          // below (owner, 2026-10-02: "still lists an email under a 4 year
+          // old and mom"). An adult keeps their own.
+          email: needsGuardian && parentEmail ? null : contactEmail,
+          phone: needsGuardian && parentEmail ? null : contactPhone,
           dob,
           tags: programs,        // e.g. ["Taekwondo","Jiu Jitsu"]
           intake_key: intakeKey,
@@ -675,7 +678,15 @@ Deno.serve(async (req) => {
           phone: needsGuardian ? contactPhone : guardianPhone,
           studentId: contact.id, label: "Parent",
         });
-        if (!gid) console.error("[trial-booking] guardian not linked for", contact.id);
+        if (!gid) {
+          console.error("[trial-booking] guardian not linked for", contact.id);
+          // No parent to hold them: keep the details on the child rather
+          // than lose the only way to reach the family.
+          if (needsGuardian) {
+            const keep = await admin.from("contacts").update({ email: contactEmail, phone: contactPhone }).eq("id", contact.id);
+            if (keep.error) console.error("[trial-booking] could not keep the details on", contact.id, keep.error);
+          }
+        }
       }
 
       // One clean line per class: program, day, date, time once (no repeated

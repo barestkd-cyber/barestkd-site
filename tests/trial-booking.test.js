@@ -277,6 +277,15 @@ const at = (ymd, h, m) => {
     assert.ok(!/throw wErr/.test(after), 'a failed week turns the family away');
   });
 
+  await test("a child's email and phone go on the parent, not on the child", () => {
+    // Owner, 2026-10-02: "still lists an email under a 4 year old and mom".
+    assert.ok(/email: needsGuardian && parentEmail \? null : contactEmail,/.test(source), 'a child is still given the parent email');
+    assert.ok(/phone: needsGuardian && parentEmail \? null : contactPhone,/.test(source), 'a child is still given the parent phone');
+    const i = source.indexOf('if (!gid) {');
+    assert.ok(i > 0 && /update\(\{ email: contactEmail, phone: contactPhone \}\)/.test(source.slice(i, i + 500)),
+      'with no parent linked, the family could become unreachable');
+  });
+
   await test('the guardian becomes a real person through the shared helper', () => {
     assert.ok(/findOrCreateGuardian\(admin,/.test(source));
     assert.ok(!/await admin\.from\("student_guardians"\)\.insert\(\{\s*student_id: contact\.id,\s*email: parentEmail \|\| null/.test(source),
