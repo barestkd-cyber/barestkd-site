@@ -167,6 +167,7 @@
 
 /* Footer: match the form column so it reads as centred with the page. */
 .lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
+.cbc-deck-link{background:none;border:0;padding:0;font:inherit;color:var(--belt-red);text-decoration:underline;cursor:pointer}
 </style>
 </head>
 <body>
@@ -239,6 +240,7 @@
       <div class="lkc-step">
         <h2>Your Membership</h2>
         <p class="cbc-policy">AMP'D runs month to month with no minimum term. Cancel any time with 30 days notice.</p>
+        <p class="cbc-policy-link"><button type="button" class="cbc-deck-link" id="cbc-deck">View pricing and policies</button></p>
         
         <div id="cbc-options" role="radiogroup" aria-label="Payment option">Loading options…</div>
 
@@ -427,6 +429,31 @@
 <!-- The agreement text comes from the CRM's generated templates - the same
      file the front desk signs from, so the web can never drift from it. -->
 <script src="https://crm.barestkd.fit/agreements.js" defer></script>
+<script src="https://crm.barestkd.fit/presentation.js?v=1" defer></script>
+<script>
+  // Pricing and policies: the same presentation the desk shows, with every
+  // number read from the catalog as it opens (presentation.js, pricing-deck).
+  (function () {
+    var btn = document.getElementById("cbc-deck"); if (!btn) return;
+    var DECK = "ampd", DATA = null, busy = false;
+    var KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
+    function open() {
+      if (!window.pzOpen) { setTimeout(open, 150); return; }
+      busy = false; btn.textContent = "View pricing and policies";
+      window.pzOpen(DECK, DATA, { logo: "/assets/img/logo-reverse.png" });
+    }
+    btn.addEventListener("click", function () {
+      if (busy) return;
+      if (DATA) { open(); return; }
+      busy = true; btn.textContent = "Loading…";
+      fetch("https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/pricing-deck?deck=" + DECK,
+        { headers: { "apikey": KEY, "Authorization": "Bearer " + KEY } })
+        .then(function (r) { if (!r.ok) throw new Error("deck " + r.status); return r.json(); })
+        .then(function (d) { DATA = d; open(); })
+        .catch(function () { busy = false; btn.textContent = "Pricing is not loading. Call 903-561-2966."; });
+    });
+  })();
+</script>
 <script src="/assets/js/main.js" defer></script>
 <script>
 (function () {

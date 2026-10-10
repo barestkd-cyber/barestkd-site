@@ -1118,7 +1118,12 @@ Deno.serve(async (req) => {
             + p.plan.name + " (" + planLine(p) + ")").join("; ")
         + (chosenClass ? ", CLASS: " + chosenClass.when + " " + chosenClass.label : "")
         + (wantUniform ? ", UNIFORM PURCHASED - have one ready" : "")
-        + (wantShirts.length ? ", SHIRTS: " + wantShirts.map((x) => x.row.name + " " + x.size).join(", ") : ""),
+        + (wantShirts.length ? ", SHIRTS: " + wantShirts.map((x) => x.row.name + " " + x.size).join(", ") : "")
+        // Said out loud on the invoice, so a family rate earned by typing a
+        // parent's email is something he sees, not something he finds later.
+        + (familyHolders(household) >= 1
+            ? ", FAMILY RATE: this email already pays for " + familyHolders(household) + " Taekwondo student" + (familyHolders(household) > 1 ? "s" : "") + " here"
+            : ""),
     }).select("view_token").single();
     if (saleIns.error) throw saleIns.error;
     const token = saleIns.data.view_token as string;

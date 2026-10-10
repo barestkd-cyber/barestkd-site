@@ -229,6 +229,7 @@ test('a sibling of a current student is priced as the second family member on th
   assert.equal(s.pos_sales[0].total_cents, 11900 + fee(11900));
   const a = s.membership_agreements[0];
   assert.ok(a.body_text.includes('Selected option: Juniors Taekwondo — 2nd family member'), a.body_text.slice(0, 600));
+  assert.ok(/FAMILY RATE: this email already pays for 1 Taekwondo student here/.test(s.pos_sales[0].notes), s.pos_sales[0].notes);
 });
 
 test('a third student lands on the third-and-beyond rate', async () => {
