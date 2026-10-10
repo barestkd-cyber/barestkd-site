@@ -296,6 +296,9 @@ type PlanRow = {
   id: string; code: string; name: string; billing_frequency: string;
   recurring_cents: number | null; down_cents: number | null;
   pif_cents: number | null; payment_count: number | null;
+  // What the pricing engine reads to place a student in a family.
+  program?: string | null; category?: string | null; family_position?: number | null;
+  supports_household_discount?: boolean | null;
 };
 
 /* One fee-table line per catalog option, exactly the shape the printed
@@ -387,6 +390,55 @@ function buildBodyText(ctx: {
 }
 
 
+/* Everyone this parent already pays for, with their active memberships, in
+ * the shape the pricing engine reads. Who counts as family: the address on a
+ * guardian record, the address on a student's guardian link, or the address
+ * on a member's own record. A family's second Taekwondo student is $119 and
+ * a third $79 at the desk; the page prices the same way, so a sibling
+ * enrolling online is not quoted the first-student rate (owner, 2026-10-10). */
+type HouseholdMember = { contact_id: string; activeMemberships: Record<string, unknown>[] };
+async function householdForEmail(
+  admin: { from: (t: string) => any }, email: string,
+): Promise<HouseholdMember[]> {
+  const e = String(email || "").trim().toLowerCase();
+  if (!EMAIL_RE.test(e)) return [];
+  const ids = new Set<string>();
+  const own = await admin.from("contacts").select("id").ilike("email", e).limit(5);
+  for (const r of (own.data ?? []) as { id: string }[]) ids.add(String(r.id));
+  const gm = await admin.from("guardian_emails").select("guardian_id").ilike("email", e).limit(5);
+  const gids = ((gm.data ?? []) as { guardian_id: string }[]).map((r) => String(r.guardian_id));
+  if (gids.length) {
+    const sg = await admin.from("student_guardians").select("student_id").in("guardian_id", gids);
+    for (const r of (sg.data ?? []) as { student_id: string }[]) ids.add(String(r.student_id));
+  }
+  const legacy = await admin.from("student_guardians").select("student_id").ilike("email", e).limit(20);
+  for (const r of (legacy.data ?? []) as { student_id: string }[]) ids.add(String(r.student_id));
+  if (!ids.size) return [];
+  const ms = await admin.from("memberships")
+    .select("contact_id,plan_code,program,billing_frequency,status,started_on")
+    .in("contact_id", [...ids]).eq("status", "active");
+  const rows = (ms.data ?? []) as Record<string, unknown>[];
+  if (!rows.length) return [];
+  // A membership row carries no category; the engine wants the plan's.
+  const cats = await admin.from("pricing_plans").select("code,category")
+    .in("code", [...new Set(rows.map((m) => String(m.plan_code)))]);
+  const catOf = new Map<string, string>();
+  for (const p of (cats.data ?? []) as { code: string; category: string }[]) catOf.set(p.code, p.category);
+  const by = new Map<string, Record<string, unknown>[]>();
+  for (const m of rows) {
+    const id = String(m.contact_id);
+    if (!by.has(id)) by.set(id, []);
+    by.get(id)!.push({ ...m, category: catOf.get(String(m.plan_code)) ?? null });
+  }
+  return [...by.entries()].map(([contact_id, activeMemberships]) => ({ contact_id, activeMemberships }));
+}
+/* How many of them hold Taekwondo, which is what moves a new student down
+ * the family rates. */
+function familyHolders(members: HouseholdMember[]): number {
+  return members.filter((h) => h.activeMemberships.some((m) =>
+    m.category === "core_tkd" && m.status === "active" && m.plan_code !== "specialty_dropin")).length;
+}
+
 /* Brand and last four of the card that paid, wherever Stripe put them on
  * this object. Missing is normal (cash, ACH) and returns nulls rather than
  * guessing. Same walk the stripe-webhook uses. */
@@ -439,10 +491,16 @@ Deno.serve(async (req) => {
 
   // ── the live catalog: both verbs price from the same rows ────────────────
   const plansRes = await admin.from("pricing_plans")
-    .select("id,code,name,billing_frequency,recurring_cents,down_cents,pif_cents,payment_count,promo_label,sellable,active,display_order")
-    .eq("program", cfg.program).eq("sellable", true).eq("active", true)
+    .select("id,code,name,program,category,family_position,supports_household_discount,billing_frequency,recurring_cents,down_cents,pif_cents,payment_count,promo_label,sellable,active,display_order")
+    .eq("program", cfg.program).eq("active", true)
     .order("display_order");
-  const rows = (plansRes.data ?? []) as (PlanRow & { sellable: boolean; active: boolean; display_order: number })[];
+  const allRows = (plansRes.data ?? []) as (PlanRow & { sellable: boolean; active: boolean; display_order: number })[];
+  const rows = allRows.filter((p) => p.sellable === true);
+  // The family rates: never picked from the page, applied by the student's
+  // place in the household, exactly as the till applies them. A program with
+  // none (Cubs, the specialties) enrolls one student per checkout.
+  const familyPlans = allRows.filter((p) => p.family_position != null)
+    .sort((a, b) => Number(a.family_position) - Number(b.family_position));
   // A claimed code is sold by the page that names it and by no other. This
   // list is what the buyer sees, what the agreement prints, and what a POST
   // is checked against, so a page cannot sell a rate it does not offer.
@@ -575,7 +633,19 @@ Deno.serve(async (req) => {
   try {
     if (req.method === "GET") {
       if (!pageLive) return json({ error: closedMsg, closed: true }, 503, cors);
+      // The page asks this once the parent has typed their email, so a
+      // sibling of a current student is quoted the family rate before paying.
+      const famEmail = str(reqUrl.searchParams.get("family_email"));
+      if (famEmail) {
+        const members = await householdForEmail(admin, famEmail);
+        return json({ position: BTKDPricing.familyPosition(members), found: familyHolders(members) }, 200, cors);
+      }
       return json({
+        family_rates: familyPlans.map((p) => ({
+          position: p.family_position, code: p.code, name: p.name,
+          down_cents: p.down_cents || 0, recurring_cents: p.recurring_cents || 0,
+          due_today_cents: dueFor(p),
+        })),
         publishable_key: Deno.env.get("STRIPE_PUBLISHABLE_KEY") ?? null,
         program: cfg.program,
         options: options.map((p) => ({
@@ -690,8 +760,20 @@ Deno.serve(async (req) => {
         + CLASS_TERMS + (chosenClass.oneOf ? " " + PAIR_TERMS : "")
       : null;
 
-    const studentFirst = str(body.student_first), studentLast = str(body.student_last);
-    const dob = str(body.student_dob);
+    // Everyone enrolling on this checkout. One student is the common case; a
+    // family can add a second and a third, and each is priced by their place
+    // in the household exactly as the till prices them (owner, 2026-10-10:
+    // "if you wanted to register 2 in one go that should be doable").
+    type StudentIn = { first: string; last: string; dob: string };
+    const rawStudents = Array.isArray(body.students) ? (body.students as unknown[]).slice(0, 4) : [];
+    const students: StudentIn[] = rawStudents.length
+      ? rawStudents.map((r) => {
+          const o = (r && typeof r === "object") ? r as Record<string, unknown> : {};
+          return { first: str(o.first), last: str(o.last), dob: str(o.dob) };
+        })
+      : [{ first: str(body.student_first), last: str(body.student_last), dob: str(body.student_dob) }];
+    const studentFirst = students[0].first, studentLast = students[0].last;
+    const dob = students[0].dob;
     const parentFirst = str(body.parent_first), parentLast = str(body.parent_last);
     const email = str(body.email).toLowerCase(), phone = str(body.phone);
     const address = str(body.address).slice(0, 300);
@@ -718,16 +800,21 @@ Deno.serve(async (req) => {
     const signerName = str(body.signer_name), signerRel = str(body.signer_relationship) || "Parent";
     const signature = str(body.signature_png);
 
-    if (!studentFirst || !studentLast) return json({ error: "Enter the student's name." }, 400, cors);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return json({ error: "Enter the student's date of birth." }, 400, cors);
+    for (const st of students) {
+      if (!st.first || !st.last) return json({ error: students.length > 1 ? "Enter every student's name." : "Enter the student's name." }, 400, cors);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(st.dob)) return json({ error: students.length > 1 ? "Enter every student's date of birth." : "Enter the student's date of birth." }, 400, cors);
+    }
+    if (students.length > 1 && !familyPlans.length) {
+      return json({ error: cfg.label + " has no family rate online. Enroll one student at a time, or call 903-561-2966." }, 400, cors);
+    }
     // Who signs. Where every student is a child the guardian is the
     // contracting adult and is always required. Where a program takes adults,
     // an adult enrolling themselves should not have to invent a guardian, so
     // the requirement follows the student's actual age. A teenager still
     // needs one: a minor's contract with a blank guardian line is precisely
     // the document that fails when it matters.
-    const studentAge = ageFrom(dob);
-    const needsGuardian = cfg.guardianAlways || studentAge === null || studentAge < 18;
+    const needsGuardian = cfg.guardianAlways
+      || students.some((st) => { const a = ageFrom(st.dob); return a === null || a < 18; });
     if (needsGuardian && (!parentFirst || !parentLast)) {
       return json({ error: "Enter the parent or guardian's name." }, 400, cors);
     }
@@ -741,6 +828,45 @@ Deno.serve(async (req) => {
       return json({ error: "Please sign in the signature box." }, 400, cors);
     }
 
+    // ── price every student with the engine the POS uses ──────────────────
+    // The first student takes the option they picked, and the engine swaps
+    // in the family rate when this parent already pays for a Taekwondo
+    // student. Everyone added after them is a family member by definition:
+    // second at the second-student rate, third and beyond at the third.
+    const household = await householdForEmail(admin, email);
+    const allPlans: PlanRow[] = [...options, ...familyPlans];
+    type Priced = { student: StudentIn; calc: Record<string, any>; plan: PlanRow; due: number; position: number };
+    const priced: Priced[] = [];
+    for (let i = 0; i < students.length; i++) {
+      // The students ahead in this same checkout count as family already
+      // enrolled, which is what they are about to be.
+      const members: HouseholdMember[] = household.concat(priced.map((p, j) => ({
+        contact_id: "checkout-" + j,
+        activeMemberships: [{
+          plan_code: p.plan.code, program: cfg.program, category: p.plan.category ?? null,
+          billing_frequency: p.plan.billing_frequency, status: "active", started_on: todayCT(),
+        }],
+      })));
+      const position = BTKDPricing.familyPosition(members);
+      let requested: PlanRow = chosen;
+      if (i > 0) {
+        const fam = familyPlans.find((p) => Number(p.family_position) === (position >= 3 ? 3 : 2))
+          ?? familyPlans[familyPlans.length - 1];
+        if (!fam) return json({ error: cfg.label + " has no family rate online. Call 903-561-2966." }, 400, cors);
+        requested = fam;
+      }
+      const c = BTKDPricing.calculatePrice({
+        plan: requested, settings, person: { contact_id: null, activeMemberships: [] },
+        householdMembers: members, plans: allPlans,
+      });
+      if (!c.eligible) return json({ error: "That option can't be sold right now." }, 409, cors);
+      const plan = allPlans.find((p) => p.code === c.planCode) ?? requested;
+      priced.push({ student: students[i], calc: c, plan, due: BTKDPricing.dueTodayCents(c, null), position });
+    }
+    const primary = priced[0];
+    const calc = primary.calc;
+    const due = primary.due;   // down + first payment; PIF = the full amount
+
     // Idempotency: a resubmit returns the SAME sale and a usable intent.
     // Only reuse a payment that was priced for the SAME plan. Switching
     // options after a decline used to hand back the old PaymentIntent,
@@ -748,7 +874,7 @@ Deno.serve(async (req) => {
     // agreement kept the plan the buyer had moved off.
     const priorMem = await admin.from("memberships")
       .select("plan_code").eq("sale_id", saleId).limit(1).maybeSingle();
-    if (priorMem.data && priorMem.data.plan_code && priorMem.data.plan_code !== chosen.code) {
+    if (priorMem.data && priorMem.data.plan_code && priorMem.data.plan_code !== primary.plan.code) {
       return json({
         error: "Your selection changed. Please reload the page and start again.",
         reload: true,
@@ -797,7 +923,7 @@ Deno.serve(async (req) => {
           rf.set("payment_method_types[]", "card");
           rf.set("metadata[sale_id]", saleId);
           rf.set("metadata[source]", "program-checkout-retry");
-          rf.set("description", chosen.name + " - " + studentFirst + " " + studentLast);
+          rf.set("description", primary.plan.name + " - " + students.map((st) => st.first + " " + st.last).join(", "));
           if (email) rf.set("receipt_email", email);
           // KEEP THE CARD. Without this the family who had trouble paying
           // is the one family that enrols with nothing on file, and a
@@ -821,14 +947,6 @@ Deno.serve(async (req) => {
       }
       return json({ error: "We could not start the payment. Please call 903-561-2966 and we will finish this for you." }, 503, cors);
     }
-
-    // ── price it OURSELVES with the engine the POS uses ────────────────────
-    const calc = BTKDPricing.calculatePrice({
-      plan: chosen, settings, person: { contact_id: null, activeMemberships: [] },
-      householdMembers: [], plans: [chosen],
-    });
-    if (!calc.eligible) return json({ error: "That option can't be sold right now." }, 409, cors);
-    const due = BTKDPricing.dueTodayCents(calc, null);   // down + first payment; PIF = the full amount
 
     // Add-on programs. Each is a real membership with its own roster row, but
     // rides the PRIMARY agreement as a priced line, so the buyer signs once.
@@ -865,7 +983,7 @@ Deno.serve(async (req) => {
     }
     const shirtsCents = wantShirts.reduce((a, x) => a + x.cents, 0);
 
-    const lines = [{ cents: due, taxable: false }];
+    const lines = priced.map((p) => ({ cents: p.due, taxable: false }));
     pricedAddOns.forEach((a) => lines.push({ cents: a.monthlyCents, taxable: false }));
     if (wantUniform) lines.push({ cents: uniformCents, taxable: true });
     wantShirts.forEach((x) => lines.push({ cents: x.cents, taxable: true }));
@@ -883,80 +1001,99 @@ Deno.serve(async (req) => {
     });
 
     const today = todayCT();
-    const payDate = agreedPaymentDate(chosen.billing_frequency, today);
+    const payDate = agreedPaymentDate(primary.plan.billing_frequency, today);
+    // A family member added here bills monthly from today whatever the first
+    // student picked.
+    const famPayDate = agreedPaymentDate("monthly", today);
     const problems: string[] = [];
 
-    // 1. The student. Email and phone are the guardian's: for a 3-year-old
+    // 1. The students. Email and phone are the guardian's: for a 3-year-old
     //    the guardian IS the contact channel.
-    const contactIns = await admin.from("contacts").insert({
-      first_name: studentFirst, last_name: studentLast,
-      segment: "lead", member_role: "student",
-      source: "website-" + slug + "-checkout", entered_on: today,
-      dob, address,
-      // An ADULT enrolling themselves owns these; for a minor they are the
-      // guardian's and belong on the guardian, not on the child.
-      email: needsGuardian ? null : email,
-      phone: needsGuardian ? null : phone,
-    }).select("id").single();
-    if (contactIns.error) throw contactIns.error;
-    const studentId = contactIns.data.id as string;
+    const studentIds: string[] = [];
+    for (const st of students) {
+      const stAge = ageFrom(st.dob);
+      const minor = cfg.guardianAlways || stAge === null || stAge < 18;
+      const contactIns = await admin.from("contacts").insert({
+        first_name: st.first, last_name: st.last,
+        segment: "lead", member_role: "student",
+        source: "website-" + slug + "-checkout", entered_on: today,
+        dob: st.dob, address,
+        // An ADULT enrolling themselves owns these; for a minor they are the
+        // guardian's and belong on the guardian, not on the child.
+        email: minor ? null : email,
+        phone: minor ? null : phone,
+      }).select("id").single();
+      if (contactIns.error) throw contactIns.error;
+      studentIds.push(contactIns.data.id as string);
+    }
+    const studentId = studentIds[0];
 
-    // 2. The guardian, name and all.
+    // 2. The guardian, name and all, linked to every student.
     const guardianName = (parentFirst + " " + parentLast).trim();
     // The payer becomes (or already is) a real guardians PERSON, linked to
     // the student (_shared/family.ts). The old inserts wrote legacy
     // name/email link rows with no guardian person behind them - data the
-    // CRM\u0027s guardian UI cannot see. The legacy insert survives only for
+    // CRM's guardian UI cannot see. The legacy insert survives only for
     // the case find-or-create refuses: two guardians sharing one address.
-    const gId = await findOrCreateGuardian(admin,
-      { name: guardianName, email, phone, studentId, label: "parent" });
-    if (!gId) {
-      const gIns = await admin.from("student_guardians").insert({
-        student_id: studentId, email, name: guardianName, label: "parent",
-      });
-      if (gIns.error) problems.push("guardian row: " + gIns.error.message);
-    }
-
-    if (guardian2 && (guardian2.name || guardian2.email || guardian2.phone)) {
-      const g2Id = guardian2.email
-        ? await findOrCreateGuardian(admin, { name: guardian2.name || guardian2.email,
-            email: guardian2.email, phone: guardian2.phone, studentId, label: "guardian" })
-        : null;   // no email = nothing to match a person on; keep the legacy row
-      if (!g2Id) {
-        const g2Ins = await admin.from("student_guardians").insert({
-          student_id: studentId, label: "guardian",
-          name: guardian2.name || null, email: guardian2.email || null,
-          phone: guardian2.phone || null, address: guardian2.address || null,
+    for (const sid of studentIds) {
+      const gId = await findOrCreateGuardian(admin,
+        { name: guardianName, email, phone, studentId: sid, label: "parent" });
+      if (!gId) {
+        const gIns = await admin.from("student_guardians").insert({
+          student_id: sid, email, name: guardianName, label: "parent",
         });
-        if (g2Ins.error) problems.push("second guardian: " + g2Ins.error.message);
+        if (gIns.error) problems.push("guardian row: " + gIns.error.message);
       }
-    }
-    if (extraPeople.length) {
-      const epIns = await admin.from("student_contacts").insert(
-        extraPeople.map((r) => ({ student_id: studentId, ...r })));
-      if (epIns.error) problems.push("extra contacts: " + epIns.error.message);
+
+      if (guardian2 && (guardian2.name || guardian2.email || guardian2.phone)) {
+        const g2Id = guardian2.email
+          ? await findOrCreateGuardian(admin, { name: guardian2.name || guardian2.email,
+              email: guardian2.email, phone: guardian2.phone, studentId: sid, label: "guardian" })
+          : null;   // no email = nothing to match a person on; keep the legacy row
+        if (!g2Id) {
+          const g2Ins = await admin.from("student_guardians").insert({
+            student_id: sid, label: "guardian",
+            name: guardian2.name || null, email: guardian2.email || null,
+            phone: guardian2.phone || null, address: guardian2.address || null,
+          });
+          if (g2Ins.error) problems.push("second guardian: " + g2Ins.error.message);
+        }
+      }
+      if (extraPeople.length) {
+        const epIns = await admin.from("student_contacts").insert(
+          extraPeople.map((r) => ({ student_id: sid, ...r })));
+        if (epIns.error) problems.push("extra contacts: " + epIns.error.message);
+      }
     }
 
     // 3. The sale header FIRST (memberships carry sale_id).
-    const monthlyLine = chosen.billing_frequency === "one_time"
+    const planLine = (p: Priced) => p.plan.billing_frequency === "one_time"
+      ? money(p.plan.pif_cents || 0) + " paid in full"
+      : money(p.calc.finalDownCents || 0) + " down + " + money(p.calc.finalRecurringCents || 0)
+        + "/" + (p.plan.billing_frequency === "weekly" ? "wk" : "mo");
+    const monthlyLine = (p: Priced) => p.plan.billing_frequency === "one_time"
       ? "Paid in full today. No recurring payments."
-      : "After today, your " + (chosen.billing_frequency === "weekly" ? "weekly" : "monthly")
-        + " payment is " + money(chosen.recurring_cents || 0) + ", due " + payDate + ".";
+      : "After today, " + (students.length > 1 ? p.student.first + "'s" : "your") + " "
+        + (p.plan.billing_frequency === "weekly" ? "weekly" : "monthly")
+        + " payment is " + money(p.calc.finalRecurringCents || 0) + ", due "
+        + (p.plan.billing_frequency === "weekly" ? payDate : famPayDate) + ".";
+    const names = students.map((st) => st.first);
+    const nameList = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
     const saleIns = await admin.from("pos_sales").insert({
       id: saleId, buyer_contact_id: studentId, payer_name: guardianName || null, payer_email: email || null, sale_date: today,
       staff_email: "program-checkout@website", brand: "btkd",
       // pending_payment, not unpaid: an abandoned checkout must not leave a
-      // debt on anybody\u0027s profile (owner 2026-08-25). Payment flips it
+      // debt on anybody's profile (owner 2026-08-25). Payment flips it
       // paid; the sweep abandons it after 24h.
       tender_method: null, status: "pending_payment",
       subtotal_cents: totals.subtotalCents, discount_cents: 0,
       admin_fee_cents: fee, tax_cents: totals.taxCents,
       total_cents: totals.totalCents,
       customer_note:
-        studentFirst + " is enrolled in " + cfg.label + ".\n\n"
-        + "Your plan: " + chosen.name + "\n"
+        nameList + (students.length > 1 ? " are" : " is") + " enrolled in " + cfg.label + ".\n\n"
+        + priced.map((p) => (students.length > 1 ? p.student.first + ": " : "Your plan: ") + p.plan.name + "\n"
+            + monthlyLine(p) + "\n").join("")
         + "Today you paid " + money(totals.totalCents) + " (includes card processing).\n"
-        + monthlyLine + "\n"
         + (pricedAddOns.length
             ? "Also enrolled: " + pricedAddOns.map((a) => a.program + " at "
                 + money(a.monthlyCents) + "/month").join(", ") + "\n"
@@ -976,76 +1113,93 @@ Deno.serve(async (req) => {
               + wantShirts.map((x) => x.row.name + " (" + x.size + ")").join(", ") + "\n"
             : "")
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
-      notes: cfg.label + " online enrollment, " + chosen.name
+      notes: cfg.label + " online enrollment, "
+        + priced.map((p) => (students.length > 1 ? p.student.first + " " + p.student.last + ": " : "")
+            + p.plan.name + " (" + planLine(p) + ")").join("; ")
         + (chosenClass ? ", CLASS: " + chosenClass.when + " " + chosenClass.label : "")
         + (wantUniform ? ", UNIFORM PURCHASED - have one ready" : "")
-        + (wantShirts.length ? ", SHIRTS: " + wantShirts.map((x) => x.row.name + " " + x.size).join(", ") : "")
-        + " (" + (chosen.billing_frequency === "one_time"
-            ? money(chosen.pif_cents || 0) + " paid in full"
-            : money(chosen.down_cents || 0) + " down + " + money(chosen.recurring_cents || 0)
-              + "/" + (chosen.billing_frequency === "weekly" ? "wk" : "mo")) + ")",
+        + (wantShirts.length ? ", SHIRTS: " + wantShirts.map((x) => x.row.name + " " + x.size).join(", ") : ""),
     }).select("view_token").single();
     if (saleIns.error) throw saleIns.error;
     const token = saleIns.data.view_token as string;
 
-    // 4. The membership - frozen snapshot of the CHOSEN option.
-    const snap = BTKDPricing.buildMembershipSnapshot({
-      calc, contactId: studentId, program: cfg.program,
-      startedOn: today, createdBy: "program-checkout (website)", override: null,
-    });
-    (snap as Record<string, unknown>).payment_count = chosen.payment_count;
-    (snap as Record<string, unknown>).sale_id = saleId;
-    (snap as Record<string, unknown>).status = "pending";
-    if (chosenClass) (snap as Record<string, unknown>).class_slot_ids = chosenClass.ids;
-    const memIns = await admin.from("memberships").insert(snap).select("id").single();
-    if (memIns.error) throw memIns.error;
-    const membershipId = memIns.data.id as string;
+    // 4 to 7, once per student: the membership (a frozen snapshot of the
+    // plan they got), the signed agreement naming them, the ledger line and
+    // the roster place. One signature covers every student on the checkout:
+    // the signer is the same parent, and each document says who it is for.
+    const lineRows: Record<string, unknown>[] = [];
+    let membershipId = "";
+    let agreementRow: Record<string, unknown> = {};
+    for (let i = 0; i < priced.length; i++) {
+      const p = priced[i], sid = studentIds[i];
+      const snap = BTKDPricing.buildMembershipSnapshot({
+        calc: p.calc, contactId: sid, program: cfg.program,
+        startedOn: today, createdBy: "program-checkout (website)", override: null,
+      });
+      (snap as Record<string, unknown>).payment_count = p.plan.payment_count;
+      (snap as Record<string, unknown>).sale_id = saleId;
+      (snap as Record<string, unknown>).status = "pending";
+      if (chosenClass) (snap as Record<string, unknown>).class_slot_ids = chosenClass.ids;
+      const memIns = await admin.from("memberships").insert(snap).select("id").single();
+      if (memIns.error) throw memIns.error;
+      const mid = memIns.data.id as string;
 
-    // 5. The signed agreement, frozen with the option they picked.
-    const bodyText = buildBodyText({
-      tpl: cfg.tpl,
-      participant: studentFirst + " " + studentLast, dob: fmtMDY(dob),
-      guardian: guardianName, today: fmtMDY(today),
-      options, chosen, payDate, initials, classLine,
-      addOns: pricedAddOns.map((a) => ({ program: a.program, monthlyCents: a.monthlyCents })),
-      signerName, signerRelationship: signerRel,
-    });
-    const agreementRow = {
-      membership_id: membershipId, contact_id: studentId, sale_id: saleId,
-      template_key: cfg.tpl.key, template_version: cfg.tpl.version,
-      document_title: cfg.tpl.title, program: cfg.program,
-      plan_code: chosen.code,
-      body_json: {
-        title: cfg.tpl.title, version: cfg.tpl.version,
-        plan: { code: chosen.code, name: chosen.name },
-        due_today_cents: due,
-        participant: studentFirst + " " + studentLast, dob, guardian: guardianName,
-        agreed_payment_date: payDate,
-      },
-      body_text: bodyText,
-      down_cents: calc.finalDownCents ?? 0,
-      recurring_cents: chosen.billing_frequency === "one_time" ? null : (calc.finalRecurringCents ?? null),
-      pif_cents: chosen.billing_frequency === "one_time" ? (chosen.pif_cents || 0) : null,
-      agreed_payment_date: payDate,
-      signer_name: signerName, signer_relationship: signerRel, signer_initials: initials,
-      signature_png: signature, signed_with_staff: "website checkout",
-      // Stamped here because the column has no default: without it the CRM
-      // showed website agreements as signed-on-(nothing) (found 2026-08-30).
-      signed_at: new Date().toISOString(),
-      user_agent: str(req.headers.get("User-Agent")).slice(0, 300),
-    };
-    const agrIns = await admin.from("membership_agreements").insert(agreementRow);
-    // Fatal on purpose. Taking the card with no contract of record is worse
-    // than refusing the sale, and this used to be swallowed into problems[].
-    if (agrIns.error) throw new Error("agreement could not be saved: " + agrIns.error.message);
+      // The fee table lists every option the page sells; a family rate is
+      // none of them, so it joins the list to be the one marked selected.
+      const docOptions = options.some((o) => o.code === p.plan.code) ? options : [...options, p.plan];
+      const pPayDate = p.plan.billing_frequency === "one_time" ? null
+        : (p.plan.billing_frequency === "weekly" ? payDate : famPayDate);
+      const bodyText = buildBodyText({
+        tpl: cfg.tpl,
+        participant: p.student.first + " " + p.student.last, dob: fmtMDY(p.student.dob),
+        guardian: guardianName, today: fmtMDY(today),
+        options: docOptions, chosen: p.plan, payDate: pPayDate, initials, classLine,
+        addOns: i === 0 ? pricedAddOns.map((a) => ({ program: a.program, monthlyCents: a.monthlyCents })) : [],
+        signerName, signerRelationship: signerRel,
+      });
+      const row = {
+        membership_id: mid, contact_id: sid, sale_id: saleId,
+        template_key: cfg.tpl.key, template_version: cfg.tpl.version,
+        document_title: cfg.tpl.title, program: cfg.program,
+        plan_code: p.plan.code,
+        body_json: {
+          title: cfg.tpl.title, version: cfg.tpl.version,
+          plan: { code: p.plan.code, name: p.plan.name },
+          due_today_cents: p.due,
+          participant: p.student.first + " " + p.student.last, dob: p.student.dob, guardian: guardianName,
+          agreed_payment_date: pPayDate,
+          family_position: p.position,
+        },
+        body_text: bodyText,
+        down_cents: p.calc.finalDownCents ?? 0,
+        recurring_cents: p.plan.billing_frequency === "one_time" ? null : (p.calc.finalRecurringCents ?? null),
+        pif_cents: p.plan.billing_frequency === "one_time" ? (p.plan.pif_cents || 0) : null,
+        agreed_payment_date: pPayDate,
+        signer_name: signerName, signer_relationship: signerRel, signer_initials: initials,
+        signature_png: signature, signed_with_staff: "website checkout",
+        // Stamped here because the column has no default: without it the CRM
+        // showed website agreements as signed-on-(nothing) (found 2026-08-30).
+        signed_at: new Date().toISOString(),
+        user_agent: str(req.headers.get("User-Agent")).slice(0, 300),
+      };
+      const agrIns = await admin.from("membership_agreements").insert(row);
+      // Fatal on purpose. Taking the card with no contract of record is worse
+      // than refusing the sale, and this used to be swallowed into problems[].
+      if (agrIns.error) throw new Error("agreement could not be saved: " + agrIns.error.message);
+      if (i === 0) { membershipId = mid; agreementRow = row; }
 
-    // 6. Ledger line.
-    const lineRows: Record<string, unknown>[] = [{
-      sale_id: saleId, kind: "mem", label: chosen.name, qty: 1,
-      unit_cents: due, discount_cents: 0, taxable: false, line_total_cents: due,
-      student_contact_id: studentId, product_id: null,
-      membership_row: snap, membership_id: membershipId,
-    }];
+      lineRows.push({
+        sale_id: saleId, kind: "mem", label: p.plan.name, qty: 1,
+        unit_cents: p.due, discount_cents: 0, taxable: false, line_total_cents: p.due,
+        student_contact_id: sid, product_id: null,
+        membership_row: snap, membership_id: mid,
+      });
+      const eIns = await admin.from("enrollments").insert({
+        student_id: sid, program: cfg.program, status: "pending", sale_id: saleId,
+      });
+      if (eIns.error) problems.push("roster: " + eIns.error.message);
+    }
+
     if (wantUniform) {
       lineRows.push({
         sale_id: saleId, kind: "prod", label: uniform.name, qty: 1,
@@ -1063,9 +1217,9 @@ Deno.serve(async (req) => {
         student_contact_id: null, product_id: x.row.id, membership_row: null, membership_id: null,
       });
     });
-    // Each add-on becomes its own membership and roster row: check-in is
-    // gated per program, and billing has to know what each one costs. Only
-    // the CONTRACT is shared, which is the whole point.
+    // Each add-on becomes its own membership and roster row for the FIRST
+    // student: check-in is gated per program, and billing has to know what
+    // each one costs. Only the CONTRACT is shared, which is the whole point.
     for (const a of pricedAddOns) {
       const aPlan = addOnPlans.find((p) => p.code === a.code);
       if (!aPlan) { problems.push("add-on plan missing: " + a.code); continue; }
@@ -1111,12 +1265,7 @@ Deno.serve(async (req) => {
 
     const lIns = await admin.from("pos_sale_lines").insert(lineRows);
     if (lIns.error) problems.push("sale lines: " + lIns.error.message);
-
-    // 7. Class roster.
-    const eIns = await admin.from("enrollments").insert({
-      student_id: studentId, program: cfg.program, status: "pending", sale_id: saleId,
-    });
-    if (eIns.error) problems.push("roster: " + eIns.error.message);
+    void membershipId;
 
     if (problems.length) console.error("[program-checkout] partial writes:", saleId, problems);
 
@@ -1141,7 +1290,8 @@ Deno.serve(async (req) => {
     f.set("amount", String(totals.totalCents));
     f.set("currency", "usd");
     f.set("payment_method_types[]", "card");
-    f.set("description", cfg.label + " (" + chosen.name + ") - " + studentFirst + " " + studentLast);
+    f.set("description", cfg.label + " (" + priced.map((p) => p.plan.name).join(" + ") + ") - "
+      + students.map((st) => st.first + " " + st.last).join(", "));
     f.set("receipt_email", email);
     f.set("customer", fam.custId);
     f.set("setup_future_usage", "off_session");

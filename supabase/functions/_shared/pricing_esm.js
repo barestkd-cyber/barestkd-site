@@ -112,15 +112,17 @@ const BTKDPricing = (function () {
    * status is exactly 'active'. trial / complimentary / paused / canceled /
    * ended never count.
    *
-   * ASSUMPTION (flagged to the owner): the spec says "Drop-ins (one_time) never
-   * count", so ALL one_time billing is excluded here — which also excludes the
-   * paid-in-full plans (tkd_pif, cubs_pif). If a PIF sibling should trigger
-   * family pricing, remove the one_time test below. */
+   * Paid in full counts like any paying membership (owner, 2026-10-05: Samuel
+   * Root is paid in full for the year, so his mom Katie is the household's 2nd
+   * family member at $119). Other one-time memberships still never count: a
+   * free trial week, a Little Kickers session and a drop-in are not a family
+   * member's membership. A paid-in-full plan is a one-time Taekwondo or Cubs
+   * plan (category core_tkd or cubs); every other one-time plan is 'other' or
+   * 'specialty', and one with no category on it is left out. */
   function isQualifying(m) {
     if (!m || m.status !== 'active') return false;
-    if (m.billing_frequency === 'one_time') return false;
+    if (m.billing_frequency === 'one_time' && m.category !== 'core_tkd' && m.category !== 'cubs') return false;
     if (m.plan_code === 'specialty_dropin') return false;
-    if (m.plan_code === 'tkd_pif' || m.plan_code === 'cubs_pif') return false;
     return true;
   }
 

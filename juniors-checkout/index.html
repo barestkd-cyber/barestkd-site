@@ -164,6 +164,9 @@
 .lkc-person{display:flex;gap:8px;margin-top:8px;align-items:center}
 .lkc-person input{flex:1 1 0;min-width:0;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
 .lkc-person-x{flex:0 0 auto;background:none;border:none;color:#9AA4AF;font-size:20px;cursor:pointer;padding:2px 6px}
+.cbc-fam-student{border:1.5px solid var(--line);border-radius:10px;padding:12px 12px 4px;margin-top:10px}
+.cbc-fam-student .form-field{margin-bottom:10px}
+.cbc-fam-x{background:none;border:none;color:var(--belt-red);font:inherit;font-size:.9rem;cursor:pointer;padding:0 0 10px;text-decoration:underline}
 
 /* Footer: match the form column so it reads as centred with the page. */
 .lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
@@ -240,6 +243,7 @@
         <h2>Your Membership</h2>
         <p class="cbc-policy">Juniors Taekwondo is a 12-month program. Monthly/weekly payments may be canceled with 30 days notice given.</p>
         
+        <p class="cbc-policy" id="cbc-fam-banner" hidden></p>
         <div id="cbc-options" role="radiogroup" aria-label="Payment option">Loading options…</div>
 
         <div class="lkc-shirt" id="cbc-uniform-block" hidden>
@@ -275,6 +279,7 @@
           <div class="lkc-line" id="cbc-r-rec" hidden><span id="cbc-l-rec">Monthly payment</span><span class="amt" id="cbc-p-rec">-</span></div>
           <div class="lkc-line" id="cbc-r-uni" hidden><span>Beginner uniform</span><span class="amt" id="cbc-p-uni">-</span></div>
           <div id="cbc-r-addons"></div>
+          <div id="cbc-r-fam"></div>
           <div id="cbc-r-shirts"></div>
           <div class="lkc-line" id="cbc-r-tax" hidden><span>Sales tax</span><span class="amt" id="cbc-p-tax">-</span></div>
           <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
@@ -303,6 +308,16 @@
         <div class="form-field" style="margin-bottom:0">
           <label for="lkc-dob">Student's date of birth</label>
           <input id="lkc-dob" type="date" required>
+        </div>
+        <!-- More students from the same family, on this same checkout.
+             Each one after the first is priced by their place in the
+             household, as the desk prices them: the second Taekwondo
+             student at the second-student rate, the third and beyond at
+             the third. The rates come from the server with the options. -->
+        <div class="lkc-extras" id="cbc-fam" style="margin-top:14px" hidden>
+          <div id="cbc-fam-list"></div>
+          <button type="button" class="lkc-addbtn" id="cbc-fam-add">+ Add a second family member</button>
+          <p class="tst-seatnote" id="cbc-fam-note" style="font-size:.82rem;color:#5b6570;margin:8px 0 0"></p>
         </div>
       </div>
 
@@ -436,6 +451,10 @@
   var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
 
   var CFG = null, CHOSEN = null, SALE_ID = null;
+  // The family on this checkout: the rates the server offers, how many
+  // Taekwondo students this parent already pays for (found by their email),
+  // and the students added after the first.
+  var FAM = { rates: [], found: 0, extra: [], ready: false, timer: null };
   var $ = function (id) { return document.getElementById(id); };
   var money = function (c) { return "$" + (c / 100).toFixed(2); };
   var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
@@ -580,15 +599,24 @@
     return o.down_cents > 0 ? "down payment + first " + unit : "first " + unit;
   }
   function renderOptions() {
+    famInit();
     var hh = "";
+    // When this parent already pays for Taekwondo here, a monthly option
+    // costs the family rate, so that is the figure the button shows.
+    var fp = FAM.found >= 1 ? famPlanFor(FAM.found + 1) : null;
     CFG.options.forEach(function (o) {
-      hh += '<button type="button" class="cbc-opt" role="radio" aria-checked="false" data-code="' + esc(o.code) + '">'
+      var v = o;
+      if (fp && o.billing_frequency === "monthly") {
+        v = { code: o.code, name: o.name, billing_frequency: "monthly", down_cents: 0,
+          recurring_cents: fp.recurring_cents, due_today_cents: fp.due_today_cents, promo: "Family rate" };
+      }
+      hh += '<button type="button" class="cbc-opt" role="radio" aria-checked="' + String(!!(CHOSEN && CHOSEN.code === o.code)) + '" data-code="' + esc(o.code) + '">'
         + '<span class="radio"></span>'
-        + '<span class="nm">' + esc(o.name)
-        + (o.promo ? ' <b class="cbc-save">' + esc(o.promo) + '</b>' : '') + '</span>'
-        + '<span class="due">' + moneyS(o.due_today_cents) + ' <small>due today</small>'
-        + (dueSub(o) ? '<i>' + esc(dueSub(o)) + '</i>' : '') + '</span>'
-        + '<span class="tm">' + esc(optTerms(o)) + '</span>'
+        + '<span class="nm">' + esc(v.name)
+        + (v.promo ? ' <b class="cbc-save">' + esc(v.promo) + '</b>' : '') + '</span>'
+        + '<span class="due">' + moneyS(v.due_today_cents) + ' <small>due today</small>'
+        + (dueSub(v) ? '<i>' + esc(dueSub(v)) + '</i>' : '') + '</span>'
+        + '<span class="tm">' + esc(optTerms(v)) + '</span>'
         + '</button>';
     });
     $("cbc-options").innerHTML = hh;
@@ -602,6 +630,128 @@
         renderPrice(); renderDoc();
       });
     });
+  }
+
+  /* ── the family ──────────────────────────────────────────────────────────
+     The server prices every student; this mirrors its rule so the page quotes
+     the same number it will charge. The first student keeps the option they
+     picked, unless this parent already pays for a Taekwondo student here and
+     the option is monthly: then the family rate replaces it. Everyone added
+     after the first is a family member by definition: second at the
+     second-student rate, third and beyond at the third. Paid in full and
+     weekly are never swapped. */
+  function famPlanFor(position) {
+    var key = position >= 3 ? 3 : 2, i;
+    for (i = 0; i < FAM.rates.length; i++) if (FAM.rates[i].position === key) return FAM.rates[i];
+    return FAM.rates.length ? FAM.rates[FAM.rates.length - 1] : null;
+  }
+  function famInit() {
+    if (FAM.ready || !CFG) return;
+    FAM.ready = true;
+    FAM.rates = CFG.family_rates || [];
+    if (!FAM.rates.length) return;
+    var r2 = famPlanFor(2), r3 = famPlanFor(3);
+    $("cbc-fam").hidden = false;
+    $("cbc-fam-note").textContent = "Family pricing: a second Taekwondo student is " + moneyS(r2.recurring_cents) + " a month"
+      + (r3 && r3 !== r2 ? ", a third " + moneyS(r3.recurring_cents) : "") + ", with no down payment.";
+    $("cbc-fam-add").addEventListener("click", famAdd);
+    $("lkc-email").addEventListener("input", famLookupSoon);
+    if ($("lkc-email").value) famLookupSoon();
+  }
+  function famAdd() {
+    if (FAM.extra.length >= 3) return;
+    var row = document.createElement("div");
+    row.className = "cbc-fam-student";
+    row.innerHTML = '<p class="lkc-pick" style="margin:0 0 8px">Family member ' + (FAM.extra.length + 2) + '</p>'
+      + '<div class="form-field"><label>Their first name</label><input type="text" data-f="first" autocomplete="off"></div>'
+      + '<div class="form-field"><label>Their last name</label><input type="text" data-f="last" autocomplete="off"></div>'
+      + '<div class="form-field"><label>Their date of birth</label><input type="date" data-f="dob"></div>'
+      + '<button type="button" class="cbc-fam-x">Remove this student</button>';
+    var rec = { row: row };
+    FAM.extra.push(rec);
+    row.querySelector(".cbc-fam-x").addEventListener("click", function () {
+      FAM.extra.splice(FAM.extra.indexOf(rec), 1);
+      row.remove();
+      famRelabel();
+      renderPrice(); renderDoc();
+    });
+    row.querySelectorAll("input").forEach(function (i) {
+      i.addEventListener("input", function () { renderPrice(); renderDoc(); if (typeof syncWhoPays === "function") syncWhoPays(); });
+    });
+    $("cbc-fam-list").appendChild(row);
+    famRelabel();
+    row.querySelector("input").focus();
+    renderPrice(); renderDoc();
+    if (typeof syncWhoPays === "function") syncWhoPays();
+  }
+  function famRelabel() {
+    FAM.extra.forEach(function (r, i) { r.row.querySelector(".lkc-pick").textContent = "Family member " + (i + 2); });
+    $("cbc-fam-add").hidden = FAM.extra.length >= 3;
+    $("cbc-fam-add").textContent = FAM.extra.length ? "+ Add another family member" : "+ Add a second family member";
+  }
+  /* Does this parent already pay for a Taekwondo student here? Asked once the
+     email is typed, so a sibling is quoted the family rate before paying. */
+  function famLookupSoon() {
+    clearTimeout(FAM.timer);
+    FAM.timer = setTimeout(famLookup, 600);
+  }
+  function famLookup() {
+    var email = ($("lkc-email").value || "").trim();
+    if (!FAM.rates.length || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { famFound(0); return; }
+    fetch(FN + "&family_email=" + encodeURIComponent(email), { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { if (($("lkc-email").value || "").trim() === email) famFound(j && j.found ? j.found : 0); })
+      .catch(function () {});
+  }
+  function famFound(n) {
+    if (FAM.found === n) return;
+    FAM.found = n;
+    var b = $("cbc-fam-banner");
+    if (n >= 1 && CFG) {
+      var fp = famPlanFor(n + 1);
+      b.textContent = "This email already pays for " + n + " Taekwondo student" + (n > 1 ? "s" : "") + " here, so "
+        + (studentName(0) || "this student") + " gets the family rate: " + moneyS(fp.recurring_cents)
+        + " a month with no down payment on any monthly option.";
+      b.hidden = false;
+    } else b.hidden = true;
+    if (CFG) { renderOptions(); renderPrice(); renderDoc(); }
+  }
+  function studentName(i) {
+    if (i === 0) return (($("lkc-sfirst").value || "").trim() + " " + ($("lkc-slast").value || "").trim()).trim();
+    var r = FAM.extra[i - 1]; if (!r) return "";
+    return ((r.row.querySelector('[data-f="first"]').value || "").trim() + " " + (r.row.querySelector('[data-f="last"]').value || "").trim()).trim();
+  }
+  function studentDob(i) {
+    if (i === 0) return $("lkc-dob").value;
+    var r = FAM.extra[i - 1]; return r ? r.row.querySelector('[data-f="dob"]').value : "";
+  }
+  function studentsPayload() {
+    var out = [{ first: ($("lkc-sfirst").value || "").trim(), last: ($("lkc-slast").value || "").trim(), dob: $("lkc-dob").value }];
+    FAM.extra.forEach(function (r) {
+      out.push({ first: r.row.querySelector('[data-f="first"]').value.trim(), last: r.row.querySelector('[data-f="last"]').value.trim(),
+        dob: r.row.querySelector('[data-f="dob"]').value });
+    });
+    return out;
+  }
+  /* What each student on this checkout pays: [{ plan, name, position }]. */
+  function studentPlans() {
+    if (!CHOSEN) return [];
+    var out = [], holders = FAM.found;
+    var first = (holders >= 1 && CHOSEN.billing_frequency === "monthly") ? (famPlanFor(holders + 1) || CHOSEN) : CHOSEN;
+    out.push({ plan: first, name: studentName(0), position: holders + 1 });
+    holders++;
+    for (var i = 0; i < FAM.extra.length; i++) {
+      out.push({ plan: famPlanFor(holders + 1) || CHOSEN, name: studentName(i + 1), position: holders + 1 });
+      holders++;
+    }
+    return out;
+  }
+  function famExtrasAllAdults(ageFn) {
+    for (var i = 0; i < FAM.extra.length; i++) {
+      var a = ageFn(studentDob(i + 1));
+      if (a === null || a < 18) return false;
+    }
+    return true;
   }
 
   /* Same arithmetic the server runs; the server's answer reaches the ledger,
@@ -646,7 +796,8 @@
 
   function priceParts() {
     if (!CHOSEN) return null;
-    var due = CHOSEN.due_today_cents;
+    var sp = studentPlans();
+    var due = sp.reduce(function (a, x) { return a + x.plan.due_today_cents; }, 0);
     var uni = ($("cbc-uniform").checked && CFG.uniform_available) ? CFG.uniform_cents : 0;
     var picked = chosenShirts();
     var tee = picked.reduce(function (a, x) { return a + x.cents; }, 0);
@@ -658,7 +809,7 @@
     // the whole charge. Same order the server uses, so the quote matches the
     // charge exactly (ledger audit 2026-09-09).
     var fee = cardFeeCents(base + tax, CFG.admin_fee_bps, CFG.admin_fee_flat_cents);
-    return { due: due, uni: uni, tee: tee, adds: adds, fee: fee, tax: tax, total: base + fee + tax };
+    return { due: due, uni: uni, tee: tee, adds: adds, fee: fee, tax: tax, total: base + fee + tax, students: sp };
   }
   function renderPrice() {
     var pp = priceParts();
@@ -675,10 +826,19 @@
     // click around. Paid in full is simply the whole amount down and nothing
     // recurring.
     show("cbc-r-pick", false); show("cbc-r-down", true); show("cbc-r-rec", true);
-    var pif = CHOSEN.billing_frequency === "one_time";
-    $("cbc-p-down").textContent = money(pif ? CHOSEN.pif_cents : CHOSEN.down_cents);
-    $("cbc-l-rec").textContent = CHOSEN.billing_frequency === "weekly" ? "Weekly payment" : "Monthly payment";
-    $("cbc-p-rec").textContent = money(pif ? 0 : CHOSEN.recurring_cents);
+    var p1 = pp.students[0].plan;
+    var pif = p1.billing_frequency === "one_time";
+    var who = pp.students.length > 1 ? (studentName(0) || "First student") + ": " : "";
+    $("cbc-p-down").textContent = money(pif ? p1.pif_cents : p1.down_cents);
+    $("cbc-l-rec").textContent = who + (p1.billing_frequency === "weekly" ? "Weekly payment" : "Monthly payment")
+      + (p1 !== CHOSEN ? " (family rate)" : "");
+    $("cbc-p-rec").textContent = money(pif ? 0 : p1.recurring_cents);
+    // Everyone added after the first: their first month, due today.
+    $("cbc-r-fam").innerHTML = pp.students.slice(1).map(function (x, i) {
+      return '<div class="lkc-line"><span>' + esc(x.name || ("Family member " + (i + 2))) + ': '
+        + esc(x.position >= 3 ? "3rd+ family member" : "2nd family member") + ', first month</span>'
+        + '<span class="amt">' + money(x.plan.due_today_cents) + '</span></div>';
+    }).join("");
     show("cbc-r-uni", pp.uni > 0);
     $("cbc-r-addons").innerHTML = (pp.adds || []).map(function (a) {
       return '<div class="lkc-line"><span>' + esc(a.program) + ' (first month)</span>'
@@ -696,9 +856,13 @@
 
     $("lkc-p-fee").textContent = money(pp.fee);
     $("lkc-p-total").textContent = money(pp.total);
-    $("cbc-after").textContent = CHOSEN.billing_frequency === "one_time"
-      ? "Nothing more to pay"
-      : "Then " + money(CHOSEN.recurring_cents) + " " + (CHOSEN.billing_frequency === "weekly" ? "weekly" : "monthly");
+    var monthly = 0, weekly = 0;
+    pp.students.forEach(function (x) {
+      if (x.plan.billing_frequency === "monthly") monthly += x.plan.recurring_cents;
+      if (x.plan.billing_frequency === "weekly") weekly += x.plan.recurring_cents;
+    });
+    $("cbc-after").textContent = !monthly && !weekly ? "Nothing more to pay"
+      : "Then " + [monthly ? money(monthly) + " monthly" : "", weekly ? money(weekly) + " weekly" : ""].filter(Boolean).join(" and ");
   }
 
   // The agreement, rendered live from the CRM's template so the page and the
@@ -712,63 +876,76 @@
     for (var i = 0; i < A.TEMPLATES.length; i++) if (A.TEMPLATES[i].key === "taekwondo") tpl = A.TEMPLATES[i];
     if (!tpl) { box.textContent = "The agreement could not load. Call us at 903-561-2966."; return; }
 
-    var student = (($("lkc-sfirst").value || "") + " " + ($("lkc-slast").value || "")).trim() || "____________________";
     var guardian = (($("lkc-pfirst").value || "") + " " + ($("lkc-plast").value || "")).trim() || "____________________";
-    var dob = fmtMDY($("lkc-dob").value) || "____________";
     var today = fmtMDY(new Date().toLocaleDateString("en-CA"));
     var initials = ($("cbc-initials").value || "").toUpperCase().trim() || "____";
-
-    var hh = '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
-      + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
-      + '<p>Participant (Student) Name: <b>' + esc(student) + '</b><br>'
-      + 'Date of Birth: <b>' + esc(dob) + '</b><br>'
-      + 'Parent / Guardian: <b>' + esc(guardian) + '</b><br>'
-      + "Today's Date: <b>" + esc(today) + '</b><br>'
-      + 'Membership Start Date: <b>' + esc(today) + '</b></p>'
-      + '<h4>FEES</h4>';
-    CFG.options.forEach(function (o) {
-      var line;
-      if (o.billing_frequency === "one_time") {
-        line = esc(o.name) + " is a single payment of <b>" + money(o.pif_cents) + "</b> for the full twelve (12) month term.";
-      } else {
-        line = esc(o.name) + " is a down payment of <b>" + money(o.down_cents) + "</b> and a "
-          + (o.billing_frequency === "weekly" ? "weekly" : "monthly") + " payment of <b>" + money(o.recurring_cents) + "</b>.";
+    var plans = studentPlans();
+    var count = Math.max(1, 1 + FAM.extra.length);
+    var hh = "";
+    // One document per student, each naming its own student and its own
+    // rate, exactly what the server files for each of them. One signature
+    // covers them all: the signer is the same parent.
+    for (var si = 0; si < count; si++) {
+      var student = studentName(si) || "____________________";
+      var dob = fmtMDY(studentDob(si)) || "____________";
+      var mine = plans[si] ? plans[si].plan : null;
+      if (count > 1) hh += '<p class="ttl" style="margin-top:' + (si ? '28px' : '0') + '">Agreement ' + (si + 1) + ' of ' + count + ': ' + esc(student) + '</p>';
+      hh += '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
+        + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
+        + '<p>Participant (Student) Name: <b>' + esc(student) + '</b><br>'
+        + 'Date of Birth: <b>' + esc(dob) + '</b><br>'
+        + 'Parent / Guardian: <b>' + esc(guardian) + '</b><br>'
+        + "Today's Date: <b>" + esc(today) + '</b><br>'
+        + 'Membership Start Date: <b>' + esc(today) + '</b></p>'
+        + '<h4>FEES</h4>';
+      // The options the page sells, plus this student's family rate when
+      // that is what they get, so the line marked selected is on the page.
+      var listed = CFG.options.slice();
+      if (mine && !listed.some(function (o) { return o.code === mine.code; })) listed.push(mine);
+      listed.forEach(function (o) {
+        var line;
+        if (o.billing_frequency === "one_time") {
+          line = esc(o.name) + " is a single payment of <b>" + money(o.pif_cents) + "</b> for the full twelve (12) month term.";
+        } else {
+          line = esc(o.name) + " is a down payment of <b>" + money(o.down_cents) + "</b> and a "
+            + (o.billing_frequency === "weekly" ? "weekly" : "monthly") + " payment of <b>" + money(o.recurring_cents) + "</b>.";
+        }
+        var sel = mine && mine.code === o.code;
+        hh += '<p' + (sel ? ' style="background:#FFF6D9;border-radius:6px;padding:4px 6px"' : '') + '>' + line + (sel ? ' <b>&larr; selected</b>' : '') + '</p>';
+      });
+      var payDate = "";
+      if (mine) {
+        if (mine.billing_frequency === "monthly") {
+          var d = new Date(); var n = d.getDate();
+          var suf = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th";
+          payDate = "the " + n + suf + " of each month";
+        } else if (mine.billing_frequency === "weekly") {
+          payDate = "each " + ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
+        } else payDate = "none (paid in full)";
       }
-      var sel = CHOSEN && CHOSEN.code === o.code;
-      hh += '<p' + (sel ? ' style="background:#FFF6D9;border-radius:6px;padding:4px 6px"' : '') + '>' + line + (sel ? ' <b>&larr; selected</b>' : '') + '</p>';
-    });
-    var payDate = "";
-    if (CHOSEN) {
-      if (CHOSEN.billing_frequency === "monthly") {
-        var d = new Date(); var n = d.getDate();
-        var suf = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th";
-        payDate = "the " + n + suf + " of each month";
-      } else if (CHOSEN.billing_frequency === "weekly") {
-        payDate = "each " + ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
-      } else payDate = "none (paid in full)";
+      var docAdds = si === 0 ? chosenAddOns() : [];
+      docAdds.forEach(function (a) {
+        hh += '<p>Add-on: ' + esc(a.program) + ' is ' + money(a.cents) + ' per month.</p>';
+      });
+      hh += '<p>Selected option: <b>' + (mine ? esc(mine.name) : "____________") + '</b>'
+        + '&nbsp;&nbsp;Initials: <b>' + esc(initials) + '</b>'
+        + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
+      if (docAdds.length) {
+        var addTotal = docAdds.reduce(function (t, a) { return t + a.cents; }, 0);
+        hh += '<p>I am also enrolling in <b>'
+          + docAdds.map(function (a) { return esc(a.program); }).join(" and ")
+          + '</b> for <b>' + money(addTotal) + '</b> per month, billed on the agreed'
+          + ' payment date above under the same payment authorization, and'
+          + ' cancellable on the same notice.&nbsp;&nbsp;Initials: <b>'
+          + esc(initials) + '</b></p>';
+      }
+      for (var f = 0; f < tpl.feesTail.length; f++) hh += '<p>' + esc(tpl.feesTail[f]) + '</p>';
+      for (var s2 = 0; s2 < tpl.sections.length; s2++) {
+        hh += '<h4>' + esc(tpl.sections[s2].h) + '</h4>';
+        for (var q = 0; q < tpl.sections[s2].p.length; q++) hh += '<p>' + esc(tpl.sections[s2].p[q]) + '</p>';
+      }
+      hh += '<p><i>' + esc(tpl.signNote) + '</i></p>';
     }
-    var docAdds = chosenAddOns();
-    docAdds.forEach(function (a) {
-      hh += '<p>Add-on: ' + esc(a.program) + ' is ' + money(a.cents) + ' per month.</p>';
-    });
-    hh += '<p>Selected option: <b>' + (CHOSEN ? esc(CHOSEN.name) : "____________") + '</b>'
-      + '&nbsp;&nbsp;Initials: <b>' + esc(initials) + '</b>'
-      + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
-    if (docAdds.length) {
-      var addTotal = docAdds.reduce(function (t, a) { return t + a.cents; }, 0);
-      hh += '<p>I am also enrolling in <b>'
-        + docAdds.map(function (a) { return esc(a.program); }).join(" and ")
-        + '</b> for <b>' + money(addTotal) + '</b> per month, billed on the agreed'
-        + ' payment date above under the same payment authorization, and'
-        + ' cancellable on the same notice.&nbsp;&nbsp;Initials: <b>'
-        + esc(initials) + '</b></p>';
-    }
-    for (var f = 0; f < tpl.feesTail.length; f++) hh += '<p>' + esc(tpl.feesTail[f]) + '</p>';
-    for (var s = 0; s < tpl.sections.length; s++) {
-      hh += '<h4>' + esc(tpl.sections[s].h) + '</h4>';
-      for (var q = 0; q < tpl.sections[s].p.length; q++) hh += '<p>' + esc(tpl.sections[s].p[q]) + '</p>';
-    }
-    hh += '<p><i>' + esc(tpl.signNote) + '</i></p>';
     box.innerHTML = hh;
   }
   ["lkc-sfirst", "lkc-slast", "lkc-dob", "lkc-pfirst", "lkc-plast", "cbc-initials"].forEach(function (id) {
@@ -888,14 +1065,20 @@
   }
   function showDone(receiptUrl) {
     $("lkc-form").hidden = true;
-    var st = $("lkc-sfirst").value.trim();
+    var names = [];
+    for (var ni = 0; ni <= FAM.extra.length; ni++) names.push((studentName(ni).split(" ")[0]) || "Your student");
+    var st = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
+    var verb = names.length > 1 ? " are" : " is";
     $("lkc-done").hidden = false;
-    $("lkc-done-h").textContent = st + " is enrolled in Juniors";
+    $("lkc-done-h").textContent = st + verb + " enrolled in Juniors";
     $("lkc-done-p").textContent = "Welcome to the mat. Here's the plan you picked:";
-    $("cbc-done-plan").textContent = CHOSEN ? (CHOSEN.name + " · " + (CHOSEN.billing_frequency === "one_time"
-      ? money(CHOSEN.pif_cents) + " paid in full"
-      : money(CHOSEN.due_today_cents) + " today, then " + money(CHOSEN.recurring_cents)
-        + (CHOSEN.billing_frequency === "weekly" ? " weekly" : " monthly"))) : "";
+    $("cbc-done-plan").textContent = studentPlans().map(function (x) {
+      var p = x.plan;
+      return (names.length > 1 ? x.name.split(" ")[0] + ": " : "") + p.name + " · " + (p.billing_frequency === "one_time"
+        ? money(p.pif_cents) + " paid in full"
+        : money(p.due_today_cents) + " today, then " + money(p.recurring_cents)
+          + (p.billing_frequency === "weekly" ? " weekly" : " monthly"));
+    }).join("  ·  ");
     $("lkc-done-email").textContent = $("lkc-email").value.trim();
     var tok = (receiptUrl || "").split("t=")[1];
     if (tok) {
@@ -923,6 +1106,15 @@
       ["cbc-initials", "your initials"], ["lkc-signer", "the signature name"], ["lkc-rel", "your relationship to the student"]];
     for (var i = 0; i < need.length; i++) {
       if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
+    }
+    for (var fi = 0; fi < FAM.extra.length; fi++) {
+      var fr = FAM.extra[fi].row;
+      if (!fr.querySelector('[data-f="first"]').value.trim() || !fr.querySelector('[data-f="last"]').value.trim()) {
+        status("error", "Please enter family member " + (fi + 2) + "'s name."); fr.querySelector('[data-f="first"]').focus(); return;
+      }
+      if (!fr.querySelector('[data-f="dob"]').value) {
+        status("error", "Please enter family member " + (fi + 2) + "'s date of birth."); fr.querySelector('[data-f="dob"]').focus(); return;
+      }
     }
     var pickedShirts = chosenShirts();
     for (var s = 0; s < pickedShirts.length; s++) {
@@ -972,6 +1164,7 @@
         shirts: pickedShirts.map(function (x) { return { name: x.name, size: x.size }; }),
         student_first: $("lkc-sfirst").value.trim(), student_last: $("lkc-slast").value.trim(),
         student_dob: $("lkc-dob").value,
+        students: studentsPayload(),
         parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
         email: $("lkc-email").value.trim(), phone: $("lkc-phone").value.trim(),
         address: [$("lkc-street").value.trim(), $("lkc-city").value.trim(),
