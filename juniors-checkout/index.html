@@ -171,6 +171,7 @@
 /* Footer: match the form column so it reads as centred with the page. */
 .lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
 .cbc-deck-link{background:none;border:0;padding:0;font:inherit;color:var(--belt-red);text-decoration:underline;cursor:pointer}
+.cbc-uni-fam{display:block;color:#5b6570;font-weight:400;white-space:normal}.cbc-uni-fam[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -251,7 +252,7 @@
         <div class="lkc-shirt" id="cbc-uniform-block" hidden>
           <label class="lkc-shirt-q" for="cbc-uniform">
             <input id="cbc-uniform" type="checkbox">
-            <span class="grow" style="white-space:nowrap">Beginner uniform. <b id="cbc-uniform-price">$82.25</b> + tax</span>
+            <span class="grow" style="white-space:nowrap">Beginner uniform. <b id="cbc-uniform-price">$82.25</b> + tax<small class="cbc-uni-fam" id="cbc-uniform-fam" hidden>Half off for a family member</small></span>
           </label>
         </div>
 
@@ -445,7 +446,7 @@
 <!-- The agreement text comes from the CRM's generated templates - the same
      file the front desk signs from, so the web can never drift from it. -->
 <script src="https://crm.barestkd.fit/agreements.js" defer></script>
-<script src="https://crm.barestkd.fit/presentation.js?v=2" defer></script>
+<script src="https://crm.barestkd.fit/presentation.js?v=3" defer></script>
 <script>
   // Pricing and policies: the same presentation the desk shows, with every
   // number read from the catalog as it opens (presentation.js, pricing-deck).
@@ -700,6 +701,9 @@
       + '<div class="form-field"><label for="' + id + '-first">Their first name</label><input id="' + id + '-first" type="text" data-f="first" autocomplete="off"></div>'
       + '<div class="form-field"><label for="' + id + '-last">Their last name</label><input id="' + id + '-last" type="text" data-f="last" autocomplete="off"></div>'
       + '<div class="form-field"><label for="' + id + '-dob">Their date of birth</label><input id="' + id + '-dob" type="date" data-f="dob"></div>'
+      + ((CFG && CFG.uniform_available) ? '<label class="lkc-shirt-q" style="margin:0 0 10px"><input type="checkbox" data-f="uniform">'
+          + '<span class="grow">Beginner uniform for this student. <b>' + moneyS(famUniformCents()) + '</b> + tax'
+          + '<small class="cbc-uni-fam">Half off for a family member</small></span></label>' : '')
       + '<button type="button" class="cbc-fam-x">Remove this student</button>';
     var rec = { row: row };
     FAM.extra.push(rec);
@@ -748,7 +752,7 @@
         + " a month with no down payment on any monthly option.";
       b.hidden = false;
     } else b.hidden = true;
-    if (CFG) { renderOptions(); renderPrice(); renderDoc(); }
+    if (CFG) { uniformLabel(); renderOptions(); renderPrice(); renderDoc(); }
   }
   function studentName(i) {
     if (i === 0) return (($("lkc-sfirst").value || "").trim() + " " + ($("lkc-slast").value || "").trim()).trim();
@@ -778,6 +782,39 @@
       out.push({ plan: famPlanFor(holders + 1) || CHOSEN, name: studentName(i + 1), position: holders + 1 });
       holders++;
     }
+    return out;
+  }
+  function famUniformCents() {
+    return Math.round(CFG.uniform_cents * (10000 - (CFG.family_uniform_bps || 0)) / 10000);
+  }
+  /* The first student's uniform box: half off once their family already
+     pays for a student here. */
+  function uniformLabel() {
+    if (!CFG || !CFG.uniform_available) return;
+    var half = FAM.found >= 1;
+    $("cbc-uniform-price").textContent = moneyS(half ? famUniformCents() : CFG.uniform_cents);
+    $("cbc-uniform-fam").hidden = !half;
+  }
+  /* Every uniform on this checkout: the first student's at the family rate
+     when they are the family's second or beyond, everyone after them at
+     half off. Mirrors the server. */
+  function uniformsChosen() {
+    if (!CFG || !CFG.uniform_available) return [];
+    var out = [];
+    if ($("cbc-uniform").checked) {
+      var half = FAM.found >= 1;
+      out.push({ i: 0, name: studentName(0), cents: half ? famUniformCents() : CFG.uniform_cents, half: half });
+    }
+    FAM.extra.forEach(function (r, k) {
+      var cb = r.row.querySelector('[data-f="uniform"]');
+      if (cb && cb.checked) out.push({ i: k + 1, name: studentName(k + 1), cents: famUniformCents(), half: true });
+    });
+    return out;
+  }
+  function uniformsPayload() {
+    var want = uniformsChosen();
+    var out = [];
+    for (var i = 0; i <= FAM.extra.length; i++) out.push(want.some(function (u) { return u.i === i; }));
     return out;
   }
   function famExtrasAllAdults(ageFn) {
@@ -832,7 +869,8 @@
     if (!CHOSEN) return null;
     var sp = studentPlans();
     var due = sp.reduce(function (a, x) { return a + x.plan.due_today_cents; }, 0);
-    var uni = ($("cbc-uniform").checked && CFG.uniform_available) ? CFG.uniform_cents : 0;
+    var unis = uniformsChosen();
+    var uni = unis.reduce(function (a, u) { return a + u.cents; }, 0);
     var picked = chosenShirts();
     var tee = picked.reduce(function (a, x) { return a + x.cents; }, 0);
     var adds = chosenAddOns();
@@ -843,7 +881,7 @@
     // the whole charge. Same order the server uses, so the quote matches the
     // charge exactly (ledger audit 2026-09-09).
     var fee = cardFeeCents(base + tax, CFG.admin_fee_bps, CFG.admin_fee_flat_cents);
-    return { due: due, uni: uni, tee: tee, adds: adds, fee: fee, tax: tax, total: base + fee + tax, students: sp };
+    return { due: due, uni: uni, unis: unis, tee: tee, adds: adds, fee: fee, tax: tax, total: base + fee + tax, students: sp };
   }
   function renderPrice() {
     var pp = priceParts();
@@ -873,12 +911,20 @@
         + esc(x.position >= 3 ? "3rd+ family member" : "2nd family member") + ', first month</span>'
         + '<span class="amt">' + money(x.plan.due_today_cents) + '</span></div>';
     }).join("");
-    show("cbc-r-uni", pp.uni > 0);
+    // The first student's uniform keeps its row; a family member's is listed
+    // under them, at half off.
+    var first = pp.unis.filter(function (u) { return u.i === 0; })[0];
+    show("cbc-r-uni", !!first);
+    if (first) $("cbc-r-uni").querySelector("span").textContent = "Beginner uniform" + (first.half ? " (half off, family)" : "");
+    $("cbc-r-fam").innerHTML += pp.unis.filter(function (u) { return u.i > 0; }).map(function (u) {
+      return '<div class="lkc-line"><span>Beginner uniform (' + esc(u.name || ("Family member " + (u.i + 1))) + ', half off)</span>'
+        + '<span class="amt">' + money(u.cents) + '</span></div>';
+    }).join("");
     $("cbc-r-addons").innerHTML = (pp.adds || []).map(function (a) {
       return '<div class="lkc-line"><span>' + esc(a.program) + ' (first month)</span>'
         + '<span class="amt">' + money(a.cents) + '</span></div>';
     }).join("");
-    if (pp.uni > 0) $("cbc-p-uni").textContent = money(pp.uni);
+    if (first) $("cbc-p-uni").textContent = money(first.cents);
     (CFG.shirts || []).forEach(function (sh, i) {
       var on = chosenShirts().some(function (x) { return String(x.i) === String(i); });
       var row = document.querySelector('[data-row="' + i + '"]');
@@ -1194,6 +1240,7 @@
         sale_id: SALE_ID,
         plan_code: CHOSEN.code,
         uniform: $("cbc-uniform").checked === true,
+        uniforms: uniformsPayload(),
         addons: chosenAddOns().map(function (a) { return a.program; }),
         shirts: pickedShirts.map(function (x) { return { name: x.name, size: x.size }; }),
         student_first: $("lkc-sfirst").value.trim(), student_last: $("lkc-slast").value.trim(),

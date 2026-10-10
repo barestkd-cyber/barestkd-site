@@ -172,6 +172,10 @@ function ageFrom(dob: string): number | null {
 }
 
 const TAX_RATE = 0.0825;          // memberships are untaxed; kept for shape
+// A family's second student and beyond gets the uniform at half off (owner,
+// 2026-10-10). Basis points, like the tee discount, so the page and the
+// ledger round the same way.
+const FAMILY_UNIFORM_DISCOUNT_BPS = 5000;
 const SITE = "https://www.barestkd.fit";
 
 /* The one-class-a-week rule, in one place because it is said in two: on the
@@ -657,6 +661,7 @@ Deno.serve(async (req) => {
         })),
         uniform_available: !!uniform,
         uniform_cents: uniform ? uniform.price_cents : 0,
+        family_uniform_bps: FAMILY_UNIFORM_DISCOUNT_BPS,
         tee_available: !!tee,
         tee_full_cents: teeFull,
         tee_cents: teeNow,
@@ -962,12 +967,31 @@ Deno.serve(async (req) => {
     }
     const pricedAddOns = priceAddOns(wantAddOns);
     const addOnCents = pricedAddOns.reduce((t, a) => t + a.monthlyCents, 0);
-    // The uniform is a normal taxable product riding the same invoice.
-    const wantUniform = body.uniform === true && !!uniform;
-    if (body.uniform === true && !uniform) {
+    // The uniform is a normal taxable product riding the same invoice, one
+    // per student who wants one: `uniforms` lists them by student, and the
+    // old `uniform` flag is the first student's. A student who is the family's
+    // second or beyond gets theirs at half off (owner, 2026-10-10).
+    const rawUniforms = Array.isArray(body.uniforms) ? (body.uniforms as unknown[]) : [];
+    const uniformWants: boolean[] = students.map((_, i) =>
+      rawUniforms.length ? rawUniforms[i] === true : (i === 0 && body.uniform === true));
+    if (uniformWants.some(Boolean) && !uniform) {
       return json({ error: "The uniform is not available right now. Uncheck it to continue." }, 409, cors);
     }
-    const uniformCents = wantUniform ? uniform.price_cents : 0;
+    type Uni = { i: number; cents: number; full: number };
+    const wantUniforms: Uni[] = [];
+    uniformWants.forEach((w, i) => {
+      if (!w || !uniform) return;
+      const full = uniform.price_cents;
+      const cents = priced[i].position >= 2 ? Math.round(full * (10000 - FAMILY_UNIFORM_DISCOUNT_BPS) / 10000) : full;
+      wantUniforms.push({ i, cents, full });
+    });
+    const wantUniform = wantUniforms.length > 0;
+    const uniformLabel = (u: Uni) => {
+      const parts: string[] = [];
+      if (students.length > 1) parts.push(students[u.i].first);
+      if (u.cents < u.full) parts.push("half off");
+      return uniform!.name + (parts.length ? " (" + parts.join(", ") + ")" : "");
+    };
 
     // Shirts: a list of { name, size }. Prices come from the catalog here, so
     // the discount on the featured shirt can never be claimed for the others.
@@ -985,7 +1009,7 @@ Deno.serve(async (req) => {
 
     const lines = priced.map((p) => ({ cents: p.due, taxable: false }));
     pricedAddOns.forEach((a) => lines.push({ cents: a.monthlyCents, taxable: false }));
-    if (wantUniform) lines.push({ cents: uniformCents, taxable: true });
+    wantUniforms.forEach((u) => lines.push({ cents: u.cents, taxable: true }));
     wantShirts.forEach((x) => lines.push({ cents: x.cents, taxable: true }));
     // The fee grosses up on what Race must NET, which is goods PLUS sales
     // tax: Stripe takes its percentage of the whole charge, tax included.
@@ -1106,7 +1130,10 @@ Deno.serve(async (req) => {
             : "Class times: barestkd.fit/schedule\n")
         + "1901 Deerbrook Dr, Tyler\n\n"
         + (wantUniform
-            ? "Your uniform is paid for. We'll have it ready at the first class.\n"
+            ? (students.length > 1
+                ? "Uniforms paid for: " + wantUniforms.map((u) => students[u.i].first + (u.cents < u.full ? " (half off, family)" : "")).join(", ")
+                  + ". We'll have them ready at the first class.\n"
+                : "Your uniform is paid for" + (wantUniforms[0].cents < wantUniforms[0].full ? " at the family rate, half off" : "") + ". We'll have it ready at the first class.\n")
             : "Wear comfortable clothes for the first class. Uniforms are available at the front desk.\n")
         + (wantShirts.length
             ? "Shirts paid for and ready at the first class: "
@@ -1117,7 +1144,9 @@ Deno.serve(async (req) => {
         + priced.map((p) => (students.length > 1 ? p.student.first + " " + p.student.last + ": " : "")
             + p.plan.name + " (" + planLine(p) + ")").join("; ")
         + (chosenClass ? ", CLASS: " + chosenClass.when + " " + chosenClass.label : "")
-        + (wantUniform ? ", UNIFORM PURCHASED - have one ready" : "")
+        + (wantUniform ? ", UNIFORM" + (wantUniforms.length > 1 ? "S" : "") + " PURCHASED - have "
+            + (students.length > 1 ? wantUniforms.map((u) => students[u.i].first).join(" and ") + "'s ready" : "one ready")
+            + (wantUniforms.some((u) => u.cents < u.full) ? " (family half off)" : "") : "")
         + (wantShirts.length ? ", SHIRTS: " + wantShirts.map((x) => x.row.name + " " + x.size).join(", ") : "")
         // Said out loud on the invoice, so a family rate earned by typing a
         // parent's email is something he sees, not something he finds later.
@@ -1205,13 +1234,15 @@ Deno.serve(async (req) => {
       if (eIns.error) problems.push("roster: " + eIns.error.message);
     }
 
-    if (wantUniform) {
+    // One line per uniform, against the student it is for. A family half
+    // off is recorded as full price with the discount beside it.
+    wantUniforms.forEach((u) => {
       lineRows.push({
-        sale_id: saleId, kind: "prod", label: uniform.name, qty: 1,
-        unit_cents: uniformCents, discount_cents: 0, taxable: true, line_total_cents: uniformCents,
-        student_contact_id: null, product_id: uniform.id, membership_row: null, membership_id: null,
+        sale_id: saleId, kind: "prod", label: uniformLabel(u), qty: 1,
+        unit_cents: u.full, discount_cents: u.full - u.cents, taxable: true, line_total_cents: u.cents,
+        student_contact_id: studentIds[u.i], product_id: uniform!.id, membership_row: null, membership_id: null,
       });
-    }
+    });
     // Recorded honestly: full price with the discount alongside it, so the
     // ledger shows what was given away rather than a mystery cheap shirt.
     wantShirts.forEach((x) => {

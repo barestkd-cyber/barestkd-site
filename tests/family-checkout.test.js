@@ -283,12 +283,55 @@ test('the Juniors and Teens/Adults pages take a family, and Cubs is untouched', 
   for (const dir of ['juniors-checkout', 'teens-adults-checkout']) {
     const html = fs.readFileSync(path.join(SITE, dir, 'index.html'), 'utf8');
     for (const need of ['id="cbc-fam-add"', 'students: studentsPayload()', '&family_email=', 'billing_frequency: "monthly"',
+      'uniforms: uniformsPayload()', 'data-f="uniform"', 'id="cbc-uniform-fam"', 'family_uniform_bps',
       'Agreement ', '-first', 'famLookup', 'cbc-fam-banner']) {
       assert.ok(html.includes(need), dir + ' lacks ' + need);
     }
   }
   const cubs = fs.readFileSync(path.join(SITE, 'cubs-checkout', 'index.html'), 'utf8');
   assert.ok(!cubs.includes('cbc-fam-add') && cubs.includes('cubs-pricing.pdf'), 'the Cubs page changed');
+});
+
+// Owner, 2026-10-10: "Need second family member uniform at half off".
+test('a family member\'s uniform is half off, on its own ledger line against that student', async () => {
+  const uniform = () => [{ id: 'uni', name: 'Beginner uniform', price_cents: 8225, taxable: true, active: true }];
+  const s = store({ products: uniform() });
+  const r = await call(s, 'juniors', 'POST', enroll({
+    students: [{ first: 'Liam', last: 'Le', dob: '2020-03-04' }, { first: 'Tammy', last: 'Le', dob: '2021-06-07' }],
+    uniforms: [true, true],
+  }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const unis = s.pos_sale_lines.filter((l) => l.kind === 'prod');
+  assert.deepEqual(unis.map((l) => [l.label, l.unit_cents, l.discount_cents, l.line_total_cents, l.student_contact_id]), [
+    ['Beginner uniform (Liam)', 8225, 0, 8225, 'contacts-1'],
+    ['Beginner uniform (Tammy, half off)', 8225, 4112, 4113, 'contacts-2'],
+  ]);
+  const goods = 8225 + 4113, tax = Math.floor(goods * 0.0825 + 0.5);
+  assert.equal(s.pos_sales[0].total_cents, 48800 + goods + tax + fee(48800 + goods + tax));
+  assert.equal(r.body.total_cents, s.pos_sales[0].total_cents);
+  assert.ok(/Uniforms paid for: Liam, Tammy \(half off, family\)/.test(s.pos_sales[0].customer_note), s.pos_sales[0].customer_note);
+  assert.ok(/UNIFORMS PURCHASED - have Liam and Tammy's ready \(family half off\)/.test(s.pos_sales[0].notes), s.pos_sales[0].notes);
+  // Only the second wants one: no line for the first, and the old flag is ignored.
+  const s1 = store({ products: uniform() });
+  await call(s1, 'juniors', 'POST', enroll({
+    students: [{ first: 'Liam', last: 'Le', dob: '2020-03-04' }, { first: 'Tammy', last: 'Le', dob: '2021-06-07' }],
+    uniform: true, uniforms: [false, true],
+  }));
+  assert.deepEqual(s1.pos_sale_lines.filter((l) => l.kind === 'prod').map((l) => [l.label, l.line_total_cents]),
+    [['Beginner uniform (Tammy, half off)', 4113]]);
+  // A sibling of a current student is the family's second: half off on their own.
+  const s2 = withSibling(); s2.products = uniform();
+  const r2 = await call(s2, 'juniors', 'POST', enroll({ student_first: 'Ava', student_last: 'Root', student_dob: '2018-01-01', uniform: true }));
+  assert.equal(r2.status, 200, JSON.stringify(r2.body));
+  const u2 = s2.pos_sale_lines.find((l) => l.kind === 'prod');
+  assert.deepEqual([u2.label, u2.line_total_cents, u2.student_contact_id], ['Beginner uniform (half off)', 4113, 'contacts-1'], 'a sibling pays full price');
+  assert.ok(/paid for at the family rate, half off/.test(s2.pos_sales[0].customer_note), s2.pos_sales[0].customer_note);
+  // A first student with no family here pays the full price, as before.
+  const s3 = store({ products: uniform() });
+  await call(s3, 'juniors', 'POST', enroll({ student_first: 'Ava', student_last: 'New', student_dob: '2018-01-01', uniform: true }));
+  const u3 = s3.pos_sale_lines.find((l) => l.kind === 'prod');
+  assert.deepEqual([u3.label, u3.unit_cents, u3.discount_cents, u3.line_total_cents], ['Beginner uniform', 8225, 0, 8225]);
+  assert.equal((await call(store(), 'juniors', 'GET')).body.family_uniform_bps, 5000, 'the page is not told the discount');
 });
 
 (async () => {
