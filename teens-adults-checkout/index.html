@@ -453,7 +453,7 @@
   // The family on this checkout: the rates the server offers, how many
   // Taekwondo students this parent already pays for (found by their email),
   // and the students added after the first.
-  var FAM = { rates: [], found: 0, extra: [], ready: false, timer: null };
+  var FAM = { rates: [], found: 0, extra: [], ready: false, timer: null, seq: 0 };
   var $ = function (id) { return document.getElementById(id); };
   var money = function (c) { return "$" + (c / 100).toFixed(2); };
   var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
@@ -647,7 +647,13 @@
   function famInit() {
     if (FAM.ready || !CFG) return;
     FAM.ready = true;
-    FAM.rates = CFG.family_rates || [];
+    // A family rate is a monthly plan with nothing down, in the same shape
+    // as the options, so every line that reads a plan reads it the same way.
+    FAM.rates = (CFG.family_rates || []).map(function (r) {
+      return { position: r.position, code: r.code, name: r.name, billing_frequency: "monthly",
+        down_cents: r.down_cents || 0, recurring_cents: r.recurring_cents || 0, pif_cents: 0,
+        due_today_cents: r.due_today_cents || r.recurring_cents || 0, promo: null };
+    });
     if (!FAM.rates.length) return;
     var r2 = famPlanFor(2), r3 = famPlanFor(3);
     $("cbc-fam").hidden = false;
@@ -661,10 +667,11 @@
     if (FAM.extra.length >= 3) return;
     var row = document.createElement("div");
     row.className = "cbc-fam-student";
+    var id = 'cbc-fam-' + (++FAM.seq);
     row.innerHTML = '<p class="lkc-pick" style="margin:0 0 8px">Family member ' + (FAM.extra.length + 2) + '</p>'
-      + '<div class="form-field"><label>Their first name</label><input type="text" data-f="first" autocomplete="off"></div>'
-      + '<div class="form-field"><label>Their last name</label><input type="text" data-f="last" autocomplete="off"></div>'
-      + '<div class="form-field"><label>Their date of birth</label><input type="date" data-f="dob"></div>'
+      + '<div class="form-field"><label for="' + id + '-first">Their first name</label><input id="' + id + '-first" type="text" data-f="first" autocomplete="off"></div>'
+      + '<div class="form-field"><label for="' + id + '-last">Their last name</label><input id="' + id + '-last" type="text" data-f="last" autocomplete="off"></div>'
+      + '<div class="form-field"><label for="' + id + '-dob">Their date of birth</label><input id="' + id + '-dob" type="date" data-f="dob"></div>'
       + '<button type="button" class="cbc-fam-x">Remove this student</button>';
     var rec = { row: row };
     FAM.extra.push(rec);

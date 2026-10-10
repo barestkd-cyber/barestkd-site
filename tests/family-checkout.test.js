@@ -276,6 +276,20 @@ test('the old one-student request still enrolls one student exactly as before', 
   assert.ok(/Your plan: Juniors Taekwondo — Option C/.test(s.pos_sales[0].customer_note));
 });
 
+// The two Taekwondo pages carry the controls, send every student, and price
+// a family rate as a monthly plan.
+test('the Juniors and Teens/Adults pages take a family, and Cubs is untouched', async () => {
+  for (const dir of ['juniors-checkout', 'teens-adults-checkout']) {
+    const html = fs.readFileSync(path.join(SITE, dir, 'index.html'), 'utf8');
+    for (const need of ['id="cbc-fam-add"', 'students: studentsPayload()', '&family_email=', 'billing_frequency: "monthly"',
+      'Agreement ', '-first', 'famLookup', 'cbc-fam-banner']) {
+      assert.ok(html.includes(need), dir + ' lacks ' + need);
+    }
+  }
+  const cubs = fs.readFileSync(path.join(SITE, 'cubs-checkout', 'index.html'), 'utf8');
+  assert.ok(!cubs.includes('cbc-fam-add') && cubs.includes('cubs-pricing.pdf'), 'the Cubs page changed');
+});
+
 (async () => {
   let failed = 0;
   for (const [name, fn] of tests) {
