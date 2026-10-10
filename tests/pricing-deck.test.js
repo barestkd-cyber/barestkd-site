@@ -100,6 +100,7 @@ test('six pages carry the button and load the shared deck; Cubs keeps its PDF li
     assert.ok(html.includes('https://crm.barestkd.fit/presentation.js'), dir + ' does not load the shared deck');
     assert.ok(html.includes('functions/v1/pricing-deck?deck='), dir + ' does not fetch the numbers');
     assert.ok(/var DECK = "(tkd|kickboxing|jiujitsu|ampd|lk)"/.test(html), dir + ' names no deck');
+    assert.ok(html.includes('web: true'), dir + ' shows the desk deck, not the website one');
   }
   const cubs = fs.readFileSync(path.join(SITE, 'cubs-checkout', 'index.html'), 'utf8');
   assert.ok(!cubs.includes('cbc-deck') && cubs.includes('cubs-pricing.pdf'), 'the Cubs page changed');
