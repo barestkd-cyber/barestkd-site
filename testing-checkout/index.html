@@ -128,6 +128,15 @@
         <p style="margin-top:14px"><a class="btn btn--primary" href="tel:903-561-2966">Call 903-561-2966</a></p>
       </div>
 
+      <!-- A testing's own link, once that testing has stopped taking
+           registrations: a record of when it was, not a form. -->
+      <div class="tst-closed" id="tst-finished" hidden>
+        <h2 id="tst-finished-h">This testing is finished</h2>
+        <p id="tst-finished-p">It is no longer taking registrations.</p>
+        <ul class="tst-sched" id="tst-finished-sched" style="text-align:left;margin:14px 0 0"></ul>
+        <p style="margin-top:14px"><a class="btn btn--primary" href="tel:903-561-2966">Call 903-561-2966</a></p>
+      </div>
+
       <!-- Shown after a successful payment. -->
       <div class="tst-done" id="tst-done" hidden>
         <h2>You're registered</h2>
@@ -156,14 +165,40 @@
         </div>
 
         <!-- ============================================================
-             THE TESTING WEEK. Hand-written, and it changes every testing
-             cycle: update the days, the times and the no-class notes here
-             when the next testing is set. Deliberately not generated - the
+             THE TESTING WEEK. Hand-written, one block per testing, and the
+             page shows only the block whose data-cycle matches the testing
+             on screen (the cycle_ref, "nov-2026"). Add a block when the next
+             testing is set; the old ones stay, so a finished testing's own
+             link still shows its week. Deliberately not generated - the
              owner writes these schedules by hand everywhere else on the
-             site, and a generator for something edited twice a year is more
-             to maintain than the thing it replaces.
+             site, and a generator for something edited a few times a year
+             is more to maintain than the thing it replaces.
              ============================================================ -->
-        <div class="tst-step">
+        <div class="tst-step" data-cycle="nov-2026" hidden>
+          <h2>Testing Week</h2>
+          <p class="step-sub">The testing days and awards night.</p>
+          <ul class="tst-sched">
+            <li><div class="g">Friday, November 13</div>
+                <div class="w">Cubs testing, 5:30 PM</div></li>
+            <li><div class="g">Saturday, November 14</div>
+                <div class="w">Juniors, White through Orange Belt, 9:30 AM<br>
+                Juniors Green Belt and up, and all Teens and Adults, 11:00 AM</div></li>
+            <li><div class="g">Tuesday, November 17</div>
+                <div class="w">Late testing, 5:30 PM</div></li>
+            <li><div class="g">Thursday, November 19</div>
+                <div class="w">Awards ceremony</div></li>
+          </ul>
+          <div class="tst-who">
+            <strong>On testing day</strong>
+            <ul>
+              <li>Arrive at least 5 minutes early for your scheduled time.</li>
+              <li>Full uniform, and bring all required gear.</li>
+              <li>Family and friends are welcome to come and watch.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tst-step" data-cycle="aug-2026" hidden>
           <h2>Testing Week</h2>
           <p class="step-sub">What the whole week looks like, including the classes that do not meet.</p>
           <ul class="tst-sched">
@@ -278,6 +313,15 @@
   var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/testing-checkout";
   var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
 
+  // Which testing this page is for (owner, 2026-10-20: "each testing its own
+  // separate page rather than a testing page as a whole"). ?t=nov-2026 opens
+  // November whether or not it is still selling; the plain link opens the
+  // newest testing still open. The name rides on every call, so the server
+  // checks a signup against the same testing the parent is looking at.
+  var T = "";
+  try { T = (new URLSearchParams(location.search).get("t") || "").trim(); } catch (e0) {}
+  var FN_T = FN + (T ? "?t=" + encodeURIComponent(T) : "");
+
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -293,7 +337,7 @@
   if (window.crypto && crypto.randomUUID) SALE_ID = crypto.randomUUID();
 
   /* ---- boot ------------------------------------------------------------- */
-  fetch(FN, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } })
+  fetch(FN_T, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } })
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (cfg) {
       CFG = cfg;
@@ -302,6 +346,11 @@
         $("tst-closed").hidden = false;
         return;
       }
+      $("tst-sub").textContent = cycleName(cfg.testing);
+      // A testing that has stopped selling still has its own page: a record
+      // of when it was, never a form that would take money for it.
+      if (cfg.selling === false) { renderFinished(); return; }
+      showWeek(cfg.testing);
       $("tst-form").hidden = false;
       renderSchedule();
       addStudent();
@@ -343,6 +392,39 @@
     var by = CFG.groups.map(function (g) { return g.signup_by; })
       .filter(Boolean).sort()[0];
     $("tst-deadline").textContent = by ? "Please register by " + prettyDate(by) + "." : "";
+  }
+
+  /* "nov-2026" to "November 2026 Testing". Anything else reads as nothing,
+     rather than a garbled heading. */
+  function cycleName(ref) {
+    var m = /^([a-z]{3})-(\d{4})$/.exec(String(ref || ""));
+    var months = { jan: "January", feb: "February", mar: "March", apr: "April", may: "May", jun: "June",
+      jul: "July", aug: "August", sep: "September", oct: "October", nov: "November", dec: "December" };
+    return m && months[m[1]] ? months[m[1]] + " " + m[2] + " Testing" : "";
+  }
+
+  /* Only this testing's hand-written week shows. */
+  function showWeek(ref) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-cycle]"), function (el) {
+      el.hidden = el.getAttribute("data-cycle") !== String(ref || "");
+    });
+  }
+
+  function renderFinished() {
+    // Not selling means one of two things: it is over, or it has not opened
+    // yet. A testing still to come must never read as finished.
+    var today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+    var ahead = CFG.groups.some(function (g) { return String(g.test_date) >= today; });
+    if (ahead) {
+      $("tst-finished-h").textContent = "Registration is not open yet";
+      $("tst-finished-p").textContent = "Registration for this testing has not opened. Here is when it is.";
+    }
+    $("tst-finished-sched").innerHTML = CFG.groups.map(function (g) {
+      var when = g.pretty_day + (g.start_time ? " at " + g.start_time : "");
+      return '<li><div class="g">' + esc(g.label) + "</div>"
+        + '<div class="w">' + esc(when) + "</div></li>";
+    }).join("");
+    $("tst-finished").hidden = false;
   }
 
   /* yyyy-mm-dd to "Thursday, August 27", built without new Date(str) - that
@@ -600,7 +682,7 @@
     btn.disabled = true; btn.textContent = "Working…";
     status("", "Setting up your registration…");
 
-    fetch(FN, {
+    fetch(FN_T, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
       body: JSON.stringify({
@@ -629,7 +711,7 @@
           .then(function (r2) {
             if (r2.error) throw new Error(r2.error.message || "Your card was declined.");
             status("", "Confirming…");
-            return fetch(FN, {
+            return fetch(FN_T, {
               method: "POST",
               headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
               body: JSON.stringify({

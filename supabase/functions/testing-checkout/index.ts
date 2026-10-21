@@ -241,7 +241,8 @@ Deno.serve(async (req) => {
     // testing specifically, finished or not, so a past one keeps a permanent
     // address (owner, 2026-09-09: "I might do some testing stuff two weeks
     // after testing's over and need to access that app in that specific
-    // testing"). Without it the page behaves as it always did.
+    // testing"). Without it the page shows the newest testing still open
+    // (below).
     const wantEvent = (new URL(req.url).searchParams.get("t") ?? "").trim();
 
     let q = admin.from("testing_dates")
@@ -250,7 +251,21 @@ Deno.serve(async (req) => {
     // still gated below by signups_open, so looking is not buying.
     q = wantEvent ? q.eq("cycle_ref", wantEvent) : q.eq("signups_open", true);
     const groupsRes = await q.order("test_date").order("sort_order");
-    const groups = groupsRes.data ?? [];
+    let groups = groupsRes.data ?? [];
+
+    // ONE TESTING PER PAGE (owner, 2026-10-20, finishing 2026-09-09: "each
+    // testing its own separate page rather than a testing page as a whole").
+    // The plain link used to show every open date, so a finished testing held
+    // open for late payers sat in the same list as the next one. Now it shows
+    // the newest testing still open, and an older one is reached by its own
+    // ?t= link. Dates with no cycle_ref stay with whatever is shown.
+    let cycle: string | null = wantEvent || null;
+    if (!wantEvent && groups.length) {
+      const newest = groups.reduce((a: Record<string, unknown>, g: Record<string, unknown>) =>
+        String(g.test_date) > String(a.test_date) ? g : a, groups[0]);
+      cycle = newest.cycle_ref ? String(newest.cycle_ref) : null;
+      if (cycle) groups = groups.filter((g: Record<string, unknown>) => !g.cycle_ref || g.cycle_ref === cycle);
+    }
 
     // Is this testing actually taking money? For a named one, only if its
     // dates are open. This is what the buy button hangs off.
@@ -268,7 +283,7 @@ Deno.serve(async (req) => {
         page_live: pageLive,
         // Which testing this is, and whether it is still selling. A named
         // past testing renders as a record of what happened, not a form.
-        testing: wantEvent || null,
+        testing: cycle,
         selling: pageLive && sellingNow,
         // Publishable keys are meant to be public; this is how the page boots
         // Stripe.js with nothing hardcoded, so test and live follow the
@@ -277,6 +292,7 @@ Deno.serve(async (req) => {
         groups: groups.map((g: Record<string, unknown>) => ({
           id: g.id,
           label: g.label,
+          cycle_ref: g.cycle_ref ?? null,
           program: g.program,
           test_date: g.test_date,
           start_time: g.start_time,
