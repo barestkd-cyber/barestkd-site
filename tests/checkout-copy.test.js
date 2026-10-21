@@ -98,6 +98,15 @@ const PAGES = [
       'automatically renews', '12-month', 'twelve (12) month', 'down payment',
       'paid in full at enrollment', 'cancellation notice'] },
 
+  // A tournament the studio enters its students into (owner, 2026-10-20).
+  // It names every program on purpose, like testing, and must borrow none of
+  // testing's own wording or any enrollment language.
+  { dir: 'tournament-checkout', kind: 'event', program: 'Tournament',
+    forbidPhrases: ['Membership Agreement', 'membership agreement', 'auto-renew',
+      'automatically renews', '12-month', 'twelve (12) month', 'down payment',
+      'cancellation notice', 'Belt Testing', 'Testing Week', 'testing group',
+      'Family rate', 'free week', 'free trial'] },
+
   // A private lesson is a service someone buys once, not a membership. It
   // must not inherit a single word of enrollment language, and it must not
   // borrow the trial page's free-week promise either.
@@ -236,12 +245,14 @@ for (const page of PAGES) {
 {
   const PAGES = ['ampd-checkout', 'cubs-checkout', 'jiu-jitsu-checkout', 'juniors-checkout',
     'kickboxing-checkout', 'little-kickers-checkout', 'teens-adults-checkout', 'testing-checkout',
+    'tournament-checkout',
     // The gear shop. Its SERVER side is deliberately absent from FNS below:
     // it imports BTKDPricing.cardFeeCents from the vendored engine instead of
     // carrying a copy, which is the better arrangement and is checked on its
     // own further down.
     'shop'];
-  const FNS = ['cubs-checkout', 'lk-checkout', 'private-checkout', 'program-checkout', 'testing-checkout'];
+  const FNS = ['cubs-checkout', 'lk-checkout', 'private-checkout', 'program-checkout', 'testing-checkout',
+    'tournament-checkout'];
 
   // The engine is the reference. Everything else has to match it.
   const engine = require(path.join(SITE, '..', 'BaresCRM', 'pricing.js')).cardFeeCents;

@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Texas Showdown Tournament Registration | Bares Taekwondo Fitness | Tyler, TX</title>
+<meta name="description" content="Register for the 2026 Texas Showdown Regional Tournament with Bares Taekwondo Fitness.">
+<link rel="canonical" href="https://www.barestkd.fit/tournament-checkout/">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/assets/css/styles.css">
+<style>
+/* Page-local styles, built from the testing page so the two read as one
+   site. One narrow column at every width: this is a form. */
+.trn-col{max-width:640px;margin-inline:auto}
+.trn-step{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px}
+.trn-step > h2{margin:0 0 4px;font-size:1.15rem}
+.trn-step .step-sub{margin:0 0 14px;font-size:.9rem;color:#5b6570}
+.trn-step p{line-height:1.6}
+
+/* The facts people come back to re-read: when, where, by when. */
+.trn-facts{margin:0 0 14px;display:grid;gap:10px}
+.trn-facts > div{display:grid;grid-template-columns:110px 1fr;gap:12px;align-items:baseline}
+.trn-facts dt{font-size:.78rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#5b6570}
+.trn-facts dd{margin:0;font-weight:700;line-height:1.5}
+.trn-facts dd a{font-weight:600;font-size:.9rem}
+.trn-host{font-size:.88rem;color:#5b6570;margin:10px 0 0}
+
+/* The day. A plain list of times, read far more than it is filled in. */
+.trn-sched{list-style:none;padding:0;margin:0}
+.trn-sched li{display:grid;grid-template-columns:86px 1fr;gap:12px;padding:9px 0;border-bottom:1px solid #f0f0f0}
+.trn-sched li:last-child{border-bottom:none}
+.trn-sched .t{font-weight:800;font-variant-numeric:tabular-nums}
+.trn-who{border-left:4px solid var(--belt-red);background:#FFF6F6;padding:12px 14px;
+  border-radius:0 10px 10px 0;font-size:.93rem;line-height:1.6;margin-top:14px}
+.trn-who ul{margin:8px 0 0;padding-left:20px}
+.trn-who li{padding:2px 0}
+
+.trn-prices{list-style:none;padding:0;margin:0}
+.trn-prices li{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid #f0f0f0}
+.trn-prices li:last-child{border-bottom:none}
+.trn-prices .amt{font-weight:800;font-variant-numeric:tabular-nums}
+.trn-prices .by{display:block;font-size:.82rem;color:#5b6570}
+
+/* One competitor per card, the unit people think in. */
+.trn-stu{border:1.5px solid #cbd2d9;border-radius:10px;background:#fafbfc;padding:14px;margin:0 0 12px}
+.trn-stu-hd{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.trn-stu-n{font-weight:800;font-size:.95rem;flex:1 1 auto}
+.trn-x{flex:0 0 auto;background:none;border:none;color:#9AA4AF;font-size:20px;
+  cursor:pointer;padding:2px 8px;line-height:1}
+.trn-x:hover{color:var(--belt-red)}
+.trn-row{display:flex;gap:10px;flex-wrap:wrap}
+.trn-row > *{flex:1 1 160px;min-width:0}
+.trn-f{display:flex;flex-direction:column;gap:4px;margin:0 0 10px}
+.trn-f label{font-size:.82rem;font-weight:700;color:#4a545e}
+.trn-f input,.trn-f select,.trn-f textarea{font:inherit;padding:.62rem .7rem;border:2px solid var(--line);
+  border-radius:8px;background:#fff;width:100%}
+.trn-f textarea{min-height:80px;resize:vertical}
+.trn-hint{font-size:.82rem;color:#5b6570;margin:2px 0 0;line-height:1.5}
+.trn-check{display:flex;align-items:center;gap:10px;margin:2px 0 10px;font-size:.93rem;font-weight:600;cursor:pointer}
+.trn-check input{width:20px;height:20px;accent-color:var(--belt-red)}
+.trn-price{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;font-size:1.02rem;margin-top:4px}
+.trn-shirt{display:flex;align-items:flex-end;gap:10px;margin:0 0 10px}
+.trn-shirt .trn-f{flex:1 1 auto;margin:0}
+.trn-add{width:100%;background:#fff;border:2px dashed #cbd2d9;border-radius:10px;
+  padding:11px 14px;margin-top:2px;font:inherit;font-weight:800;font-size:.92rem;cursor:pointer}
+.trn-add:hover{border-color:var(--belt-red);color:var(--belt-red)}
+
+/* Money */
+.trn-line{display:flex;justify-content:space-between;gap:16px;padding:7px 0;
+  border-bottom:1px solid #eee;font-size:.97rem}
+.trn-line .amt{font-variant-numeric:tabular-nums;white-space:nowrap}
+.trn-total{display:flex;justify-content:space-between;align-items:center;gap:16px;
+  background:var(--ink);color:#fff;border-radius:12px;padding:14px 16px;margin-top:14px}
+.trn-total .lbl{font-weight:700}
+.trn-total .amt{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* Card + status */
+.trn-card{border:2px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+.trn-cardload{color:#5b6570;font-size:13.5px}
+.trn-carderr{display:none;color:var(--belt-red);font-size:13.5px;margin-top:8px;font-weight:600}
+.trn-status{margin-top:12px;font-size:.95rem;line-height:1.5}
+.trn-status.error{color:var(--belt-red);font-weight:600}
+.trn-pay{width:100%;margin-top:14px}
+.trn-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
+.trn-closed,.trn-done{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 20px;text-align:center}
+.trn-closed h2{margin:0 0 10px;font-size:1.25rem}
+.trn-done h2{font-size:1.4rem;margin:0 0 8px}
+@media (max-width:560px){
+  .trn-row > *{flex:1 1 100%}
+  .trn-facts > div{grid-template-columns:1fr;gap:2px}
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href="/">
+      <img src="/assets/img/logo.png" alt="Bares Taekwondo Fitness" width="101" height="54">
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/mommy-and-me-martial-arts-tyler-tx">Little Kickers</a></li>
+        <li><a href="/schedule/events">Schedule/Events</a></li>
+        <li><a href="/contact-form">Contact</a></li>
+      </ul>
+    </nav>
+    <a class="call-link" href="tel:903-561-2966" aria-label="Call Bares Taekwondo Fitness at 903-561-2966">
+      <svg class="call-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24 11.36 11.36 0 0 0 3.57.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02l-2.2 2.2z"/></svg>
+      <span class="call-link__num">903-561-2966</span>
+    </a>
+  </div>
+</header>
+
+<main id="main-content">
+  <section class="section">
+    <div class="container trn-col">
+
+      <p class="eyebrow" style="text-align:center">Bares Taekwondo Fitness</p>
+      <h1 style="text-align:center;margin:0 0 6px">2026 Texas Showdown Regional Tournament</h1>
+      <p style="text-align:center;color:#5b6570;margin:0 0 22px">Saturday, November 14 in Watauga, TX</p>
+
+      <!-- Shown instead of the form when the CRM event is not open. -->
+      <div class="trn-closed" id="trn-closed" hidden>
+        <h2>Registration is not open right now</h2>
+        <p>Give us a call and we will help you get registered.</p>
+        <p style="margin-top:14px"><a class="btn btn--primary" href="tel:903-561-2966">Call 903-561-2966</a></p>
+      </div>
+
+      <!-- Shown after a successful payment. -->
+      <div class="trn-done" id="trn-done" hidden>
+        <h2>You're registered</h2>
+        <p id="trn-done-msg"></p>
+        <p style="margin-top:16px"><a class="btn btn--primary" id="trn-done-link" href="/">View your receipt</a></p>
+      </div>
+
+      <form id="trn-form" novalidate hidden>
+
+        <!-- 1. When, where and by when. -->
+        <div class="trn-step">
+          <h2>The Tournament</h2>
+          <dl class="trn-facts">
+            <div><dt>When</dt><dd>Saturday, November 14, 2026</dd></div>
+            <div><dt>Where</dt><dd>Watauga Community Center<br>7901 Indian Springs Rd, Watauga, TX 76148<br>
+              <a href="https://www.google.com/maps/search/?api=1&amp;query=7901+Indian+Springs+Rd+Watauga+TX+76148" target="_blank" rel="noopener">Open in Maps</a></dd></div>
+            <div><dt>Sign up by</dt><dd>Wednesday, November 4</dd></div>
+            <div><dt>Shirts</dt><dd>Order by Friday, October 30</dd></div>
+          </dl>
+          <p>A full day of Taekwondo competition. Students get several chances to compete in different events and win gold, silver and bronze medals.</p>
+          <p>Open to Cubs, Juniors, Teens and Adults, white belt through black belt. We encourage every student to compete.</p>
+          <p class="trn-host">Hosted by Stricklands Martial Arts.</p>
+        </div>
+
+        <!-- 2. The day. Hand-written from the host's tentative schedule:
+             update it here if the host changes the times. -->
+        <div class="trn-step">
+          <h2>Tournament Schedule</h2>
+          <p class="step-sub">Saturday, November 14. This schedule is tentative and times may change.</p>
+          <ul class="trn-sched">
+            <li><span class="t">8:00 AM</span><span>Judges meeting</span></li>
+            <li><span class="t">9:00 AM</span><span>Board breaking opens</span></li>
+            <li><span class="t">9:00 AM</span><span>Black belt divisions</span></li>
+            <li><span class="t">12:00 PM</span><span>Cubs (Tiny Tigers)</span></li>
+            <li><span class="t">12:00 PM</span><span>Color belt Juniors</span></li>
+            <li><span class="t">2:00 PM</span><span>Teen and Adult divisions</span></li>
+          </ul>
+          <div class="trn-who">
+            <strong>Good to know</strong>
+            <ul>
+              <li>Each competitor's time is sent two days before the tournament.</li>
+              <li>Competition takes 60 to 90 minutes on average.</li>
+              <li>Spectators are $10 at the door. Under 4 is free.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 3. What it costs. Filled from the server so it can never quote a
+             different price from the one charged. -->
+        <div class="trn-step">
+          <h2>Prices</h2>
+          <ul class="trn-prices" id="trn-prices"></ul>
+        </div>
+
+        <!-- 4. The person paying and receiving the receipt. Asked once. -->
+        <div class="trn-step">
+          <h2>Your Information</h2>
+          <p class="step-sub">The receipt and the details come to you.</p>
+          <div class="trn-row">
+            <div class="trn-f"><label for="trn-pfirst">Your first name</label>
+              <input id="trn-pfirst" autocomplete="given-name"></div>
+            <div class="trn-f"><label for="trn-plast">Your last name</label>
+              <input id="trn-plast" autocomplete="family-name"></div>
+          </div>
+          <div class="trn-row">
+            <div class="trn-f"><label for="trn-email">Email</label>
+              <input id="trn-email" type="email" inputmode="email" autocomplete="email"></div>
+            <div class="trn-f"><label for="trn-phone">Phone</label>
+              <input id="trn-phone" type="tel" inputmode="tel" autocomplete="tel"></div>
+          </div>
+        </div>
+
+        <!-- 5. Competitors. Repeatable, so a family pays once. -->
+        <div class="trn-step">
+          <h2>Who is Competing</h2>
+          <p class="step-sub">Add everyone from your family who is competing.</p>
+          <div class="trn-who" style="margin:0 0 14px">
+            <strong>Placement depends on these details, so please be accurate</strong>
+            <ul>
+              <li>Age is worked out from the birthday, as of the tournament day.</li>
+              <li>Height puts your student in the right ring.</li>
+              <li>Pick the belt your student will have on November 14.</li>
+              <li>Orange belts and up compete in sparring.</li>
+            </ul>
+          </div>
+          <div id="trn-students"></div>
+          <button type="button" class="trn-add" id="trn-addstu">Add another competitor</button>
+        </div>
+
+        <!-- 6. Shirts for the people cheering. -->
+        <div class="trn-step">
+          <h2>Shirts for Family</h2>
+          <p class="step-sub">Optional. Tournament T-shirts for parents, siblings or anyone coming to cheer. Order by Friday, October 30.</p>
+          <div id="trn-fshirts"></div>
+          <button type="button" class="trn-add" id="trn-addshirt">Add a family shirt</button>
+        </div>
+
+        <!-- 7. Anything they want us to know. -->
+        <div class="trn-step">
+          <h2>Anything We Should Know?</h2>
+          <p class="step-sub">Optional.</p>
+          <div class="trn-f">
+            <label for="trn-comments" class="sr-only">Comments</label>
+            <textarea id="trn-comments" placeholder="Injuries, questions, anything for your instructor…"></textarea>
+          </div>
+        </div>
+
+        <!-- 8. Money, then the card. -->
+        <div class="trn-step">
+          <h2>Total</h2>
+          <div id="trn-lines"></div>
+          <div class="trn-total">
+            <span class="lbl">Total due today</span>
+            <span class="amt" id="trn-p-total">-</span>
+          </div>
+
+          <div style="margin-top:18px">
+            <div class="trn-f"><label for="trn-card">Card</label>
+              <div class="trn-card" id="trn-card"><span class="trn-cardload">Loading the card field…</span></div>
+              <div class="trn-carderr" id="trn-carderr"></div>
+            </div>
+          </div>
+
+          <button class="btn btn--primary btn--lg trn-pay" type="submit" id="trn-pay">Pay and Register</button>
+          <div class="trn-status" id="trn-statusmsg"></div>
+
+          <!-- Honeypot. Real people never see it; bots fill it in. -->
+          <div style="position:absolute;left:-9999px" aria-hidden="true">
+            <label for="trn-hp">Leave this empty</label>
+            <input id="trn-hp" tabindex="-1" autocomplete="off">
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="trn-foot">
+      <strong>Bares Taekwondo Fitness</strong><br>
+      1901 Deerbrook Dr, Tyler, TX 75703<br>
+      <a href="tel:903-561-2966">903-561-2966</a> · <a href="mailto:race@barestkd.fit">race@barestkd.fit</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/assets/js/main.js" defer></script>
+<script>
+(function () {
+  "use strict";
+  var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/tournament-checkout";
+  var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
+
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+    });
+  };
+  var money = function (c) { return "$" + (Number(c || 0) / 100).toFixed(2); };
+
+  var CFG = null, SALE_ID = null, STRIPE = null, CARD = null;
+  var students = [];      // { key, first, last, dob, gender, height, division, rank, board, shirt }
+  var fshirts = [];       // { key, size }
+  var nextKey = 1;
+
+  if (window.crypto && crypto.randomUUID) SALE_ID = crypto.randomUUID();
+
+  /* ---- boot ------------------------------------------------------------- */
+  fetch(FN, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (cfg) {
+      CFG = cfg;
+      if (!cfg.page_live) { $("trn-closed").hidden = false; return; }
+      $("trn-form").hidden = false;
+      renderPrices();
+      addStudent();
+      renderShirts();
+      mountCard();
+    })
+    .catch(function () { $("trn-closed").hidden = false; });
+
+  /* The pass-through card fee, GROSSED UP: Stripe charges its percentage on
+     the TOTAL it collects, and the total includes the fee, so a fee worked
+     out on the subtotal always falls short. This is the smallest total that
+     still nets the studio the price on the page. Byte-identical on every
+     checkout page and in BTKDPricing.cardFeeCents; tests/checkout-copy.test.js
+     fails if any copy drifts. */
+  function cardFeeCents(baseCents, bps, flatCents) {
+    var base = Math.round(Number(baseCents) || 0);
+    var rate = Math.round(Number(bps) || 0);
+    var flat = Math.round(Number(flatCents) || 0);
+    if (base <= 0) return 0;
+    if (!rate && !flat) return 0;
+    if (rate >= 10000) return 0;
+    var nets = function (t) { return t - (Math.floor(t * rate / 10000 + 0.5) + flat); };
+    var total = Math.ceil((base + flat) * 10000 / (10000 - rate));
+    while (total > base && nets(total - 1) >= base) total--;
+    while (nets(total) < base) total++;
+    return total - base;
+  }
+
+  /* yyyy-mm-dd to "Wednesday, November 4", built without new Date(str) -
+     that parses as UTC and reads a day early in Central. */
+  function prettyDate(ymd) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
+    if (!m) return String(ymd || "");
+    var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    return d.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric" });
+  }
+
+  /* Age in whole years on the tournament day, exactly as the server works
+     it out, so the number shown is the number the host gets. */
+  function ageOn(dob, on) {
+    var b = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dob || ""));
+    var t = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(on || ""));
+    if (!b || !t) return null;
+    var age = +t[1] - +b[1];
+    if (+t[2] < +b[2] || (+t[2] === +b[2] && +t[3] < +b[3])) age--;
+    return age;
+  }
+
+  function division(key) {
+    for (var i = 0; i < CFG.divisions.length; i++) if (CFG.divisions[i].key === key) return CFG.divisions[i];
+    return null;
+  }
+  function ranksFor(key) {
+    var d = division(key);
+    if (!d) return [];
+    return d.program === "Cubs" ? CFG.ranks.cub : CFG.ranks.tkd;
+  }
+
+  function renderPrices() {
+    var rows = CFG.divisions.map(function (d) {
+      return '<li><span>' + esc(d.label) + ' entry</span><span class="amt">' + money(d.cents) + "</span></li>";
+    });
+    rows.push('<li><span>Board breaking add-on</span><span class="amt">' + money(CFG.board_cents) + "</span></li>");
+    rows.push('<li><span>Tournament T-shirt<span class="by">Order by ' + esc(prettyDate(CFG.tournament.shirts_by)) + "</span></span>"
+      + '<span class="amt">' + money(CFG.shirt_cents) + "</span></li>");
+    $("trn-prices").innerHTML = rows.join("");
+  }
+
+  /* ---- competitors ------------------------------------------------------ */
+  function addStudent() {
+    // Division, belt, gender and height all start BLANK: a default that is
+    // wrong for this child would place them in the wrong ring, and nothing
+    // here may be right by accident.
+    students.push({ key: nextKey++, first: "", last: "", dob: "", gender: "", height: "",
+      division: "", rank: "", board: false, shirt: "" });
+    renderStudents();
+  }
+
+  function seatCents(s) {
+    var d = division(s.division);
+    if (!d) return 0;
+    return d.cents + (s.board ? CFG.board_cents : 0) + (s.shirt ? CFG.shirt_cents : 0);
+  }
+
+  function options(list, current, blank) {
+    return '<option value=""' + (current ? "" : " selected") + ">" + esc(blank) + "</option>"
+      + list.map(function (o) {
+        var v = typeof o === "object" ? o.value : o, lab = typeof o === "object" ? o.label : o;
+        return '<option value="' + esc(v) + '"' + (String(v) === String(current) ? " selected" : "") + ">" + esc(lab) + "</option>";
+      }).join("");
+  }
+
+  function renderStudents() {
+    $("trn-students").innerHTML = students.map(function (s, i) {
+      var d = division(s.division);
+      var age = s.dob ? ageOn(s.dob, CFG.tournament.date) : null;
+      var ageNote = age != null && age >= 0
+        ? "Age " + age + " on " + prettyDate(CFG.tournament.date) + "."
+        : "We work out the age from this.";
+      var divOpts = options(CFG.divisions.map(function (x) {
+        return { value: x.key, label: x.label + " (" + money(x.cents) + ")" };
+      }), s.division, "Choose a division");
+      var rankOpts = d ? options(ranksFor(s.division), s.rank, "Pick a belt")
+        : '<option value="">Choose a division first</option>';
+      var heightOpts = options(CFG.heights.map(function (h) { return { value: h.inches, label: h.label }; }),
+        s.height, "Choose a height");
+      var shirtOpts = options(CFG.shirt_sizes, s.shirt, "No shirt");
+
+      return '<div class="trn-stu">'
+        + '<div class="trn-stu-hd"><span class="trn-stu-n">Competitor ' + (i + 1) + "</span>"
+        + (students.length > 1
+            ? '<button type="button" class="trn-x" data-rm="' + s.key + '" aria-label="Remove competitor ' + (i + 1) + '">&times;</button>'
+            : "")
+        + "</div>"
+        + '<div class="trn-row">'
+        + '<div class="trn-f"><label for="trn-first-' + s.key + '">First name</label><input id="trn-first-' + s.key + '" data-f="first" data-k="' + s.key + '" value="' + esc(s.first) + '"></div>'
+        + '<div class="trn-f"><label for="trn-last-' + s.key + '">Last name</label><input id="trn-last-' + s.key + '" data-f="last" data-k="' + s.key + '" value="' + esc(s.last) + '"></div>'
+        + "</div>"
+        + '<div class="trn-row">'
+        + '<div class="trn-f"><label for="trn-dob-' + s.key + '">Date of birth</label><input id="trn-dob-' + s.key + '" type="date" data-f="dob" data-k="' + s.key + '" value="' + esc(s.dob) + '">'
+        + '<p class="trn-hint" id="trn-age-' + s.key + '">' + esc(ageNote) + "</p></div>"
+        + '<div class="trn-f"><label for="trn-gender-' + s.key + '">Gender</label><select id="trn-gender-' + s.key + '" data-f="gender" data-k="' + s.key + '">' + options(CFG.genders, s.gender, "Choose") + "</select></div>"
+        + "</div>"
+        + '<div class="trn-f"><label for="trn-height-' + s.key + '">Height</label><select id="trn-height-' + s.key + '" data-f="height" data-k="' + s.key + '">' + heightOpts + "</select></div>"
+        + '<div class="trn-f"><label for="trn-div-' + s.key + '">Division</label><select id="trn-div-' + s.key + '" data-f="division" data-k="' + s.key + '">' + divOpts + "</select></div>"
+        + '<div class="trn-f"><label for="trn-rank-' + s.key + '">Belt on ' + esc(prettyDate(CFG.tournament.date)) + '</label><select id="trn-rank-' + s.key + '" data-f="rank" data-k="' + s.key + '"' + (d ? "" : " disabled") + ">" + rankOpts + "</select></div>"
+        + '<label class="trn-check"><input type="checkbox" data-f="board" data-k="' + s.key + '"' + (s.board ? " checked" : "") + "> Add board breaking (" + money(CFG.board_cents) + ")</label>"
+        + '<div class="trn-f"><label for="trn-shirt-' + s.key + '">Tournament T-shirt (' + money(CFG.shirt_cents) + ')</label><select id="trn-shirt-' + s.key + '" data-f="shirt" data-k="' + s.key + '">' + shirtOpts + "</select></div>"
+        + '<div class="trn-price">' + (d ? money(seatCents(s)) : "Choose a division") + "</div>"
+        + "</div>";
+    }).join("");
+
+    Array.prototype.forEach.call($("trn-students").querySelectorAll("[data-f]"), function (el) {
+      var ev = (el.tagName === "SELECT" || el.type === "checkbox" || el.type === "date") ? "change" : "input";
+      el.addEventListener(ev, function () {
+        var s = byKey(students, +el.getAttribute("data-k"));
+        if (!s) return;
+        var f = el.getAttribute("data-f");
+        s[f] = el.type === "checkbox" ? el.checked : el.value;
+        if (f === "division") {
+          // A new division can make the chosen belt impossible.
+          if (ranksFor(s.division).indexOf(s.rank) === -1) s.rank = "";
+          renderStudents();
+        } else if (f === "dob") {
+          var a = s.dob ? ageOn(s.dob, CFG.tournament.date) : null;
+          $("trn-age-" + s.key).textContent = a != null && a >= 0
+            ? "Age " + a + " on " + prettyDate(CFG.tournament.date) + "."
+            : "We work out the age from this.";
+        } else if (f === "board" || f === "shirt") {
+          renderStudents();
+        } else {
+          renderPrice();
+        }
+      });
+    });
+    Array.prototype.forEach.call($("trn-students").querySelectorAll("[data-rm]"), function (b) {
+      b.addEventListener("click", function () {
+        students = students.filter(function (x) { return x.key !== +b.getAttribute("data-rm"); });
+        renderStudents();
+      });
+    });
+    renderPrice();
+  }
+
+  /* ---- family shirts ---------------------------------------------------- */
+  function renderShirts() {
+    $("trn-fshirts").innerHTML = fshirts.map(function (t, i) {
+      return '<div class="trn-shirt">'
+        + '<div class="trn-f"><label for="trn-fs-' + t.key + '">Family shirt ' + (i + 1) + " (" + money(CFG.shirt_cents) + ")</label>"
+        + '<select id="trn-fs-' + t.key + '" data-fs="' + t.key + '">' + options(CFG.shirt_sizes, t.size, "Choose a size") + "</select></div>"
+        + '<button type="button" class="trn-x" data-fsrm="' + t.key + '" aria-label="Remove family shirt ' + (i + 1) + '">&times;</button>'
+        + "</div>";
+    }).join("");
+    $("trn-addshirt").hidden = fshirts.length >= CFG.max_family_shirts;
+    Array.prototype.forEach.call($("trn-fshirts").querySelectorAll("[data-fs]"), function (el) {
+      el.addEventListener("change", function () {
+        var t = byKey(fshirts, +el.getAttribute("data-fs"));
+        if (t) { t.size = el.value; renderPrice(); }
+      });
+    });
+    Array.prototype.forEach.call($("trn-fshirts").querySelectorAll("[data-fsrm]"), function (b) {
+      b.addEventListener("click", function () {
+        fshirts = fshirts.filter(function (x) { return x.key !== +b.getAttribute("data-fsrm"); });
+        renderShirts();
+      });
+    });
+    renderPrice();
+  }
+
+  function byKey(list, k) {
+    for (var i = 0; i < list.length; i++) if (list[i].key === k) return list[i];
+    return null;
+  }
+
+  /* ---- money. The server's numbers are what reach the ledger; this keeps
+     the page honest while they fill it in. Same order the server uses:
+     shirts carry tax, and the fee grosses up on everything plus tax. ----- */
+  function totals() {
+    var rows = [], sub = 0, taxable = 0;
+    students.forEach(function (s, i) {
+      var who = (s.first || s.last) ? (s.first + " " + s.last).trim() : ("Competitor " + (i + 1));
+      var d = division(s.division);
+      rows.push([who + ", " + (d ? d.label + " entry" : "entry"), d ? d.cents : null]);
+      if (d) sub += d.cents;
+      if (s.board) { rows.push([who + ", board breaking", CFG.board_cents]); sub += CFG.board_cents; }
+      if (s.shirt) {
+        rows.push([who + ", T-shirt (" + s.shirt + ")", CFG.shirt_cents]);
+        sub += CFG.shirt_cents; if (CFG.shirt_taxable) taxable += CFG.shirt_cents;
+      }
+    });
+    fshirts.forEach(function (t) {
+      if (!t.size) return;
+      rows.push(["Family T-shirt (" + t.size + ")", CFG.shirt_cents]);
+      sub += CFG.shirt_cents; if (CFG.shirt_taxable) taxable += CFG.shirt_cents;
+    });
+    var tax = Math.floor(taxable * CFG.tax_rate + 0.5);
+    var fee = sub > 0 ? cardFeeCents(sub + tax, CFG.admin_fee_bps, CFG.admin_fee_flat_cents) : 0;
+    return { rows: rows, sub: sub, tax: tax, fee: fee, total: sub + tax + fee };
+  }
+
+  function renderPrice() {
+    var t = totals();
+    var html = t.rows.map(function (r) {
+      return '<div class="trn-line"><span>' + esc(r[0]) + '</span><span class="amt">' + (r[1] == null ? "-" : money(r[1])) + "</span></div>";
+    });
+    if (t.tax) html.push('<div class="trn-line"><span>Sales tax on shirts</span><span class="amt">' + money(t.tax) + "</span></div>");
+    html.push('<div class="trn-line"><span>Card processing</span><span class="amt">' + money(t.fee) + "</span></div>");
+    $("trn-lines").innerHTML = html.join("");
+    $("trn-p-total").textContent = money(t.total);
+  }
+
+  /* ---- Stripe ----------------------------------------------------------- */
+  function cardErr(msg) {
+    var el = $("trn-carderr");
+    el.textContent = msg || "";
+    el.style.display = msg ? "block" : "none";
+  }
+  function mountCard() {
+    if (!CFG.publishable_key) { $("trn-card").innerHTML = '<span class="trn-cardload">Card payments are not set up yet.</span>'; return; }
+    loadStripeJs(function () {
+      try {
+        STRIPE = Stripe(CFG.publishable_key);
+        var elements = STRIPE.elements();
+        CARD = elements.create("card", { style: { base: { fontSize: "16px", color: "#15171C" } } });
+        $("trn-card").innerHTML = "";
+        CARD.mount("#trn-card");
+        CARD.on("change", function (e) { cardErr(e.error ? e.error.message : ""); });
+      } catch (e) {
+        $("trn-card").innerHTML = '<span class="trn-cardload">Could not load the card field. Reload the page.</span>';
+      }
+    });
+  }
+  function loadStripeJs(cb) {
+    if (window.Stripe) { cb(); return; }
+    var s = document.createElement("script");
+    s.src = "https://js.stripe.com/v3/";
+    s.onload = cb;
+    s.onerror = function () { $("trn-card").innerHTML = '<span class="trn-cardload">Could not reach Stripe. Check your connection.</span>'; };
+    document.head.appendChild(s);
+  }
+
+  function status(kind, msg) {
+    var el = $("trn-statusmsg");
+    el.className = "trn-status" + (kind ? " " + kind : "");
+    el.textContent = msg || "";
+  }
+
+  /* ---- submit ----------------------------------------------------------- */
+  $("trn-addstu").addEventListener("click", addStudent);
+  $("trn-addshirt").addEventListener("click", function () {
+    fshirts.push({ key: nextKey++, size: "" });
+    renderShirts();
+  });
+
+  $("trn-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if ($("trn-hp").value.trim() !== "") return;                 // honeypot
+    if (!CFG || !SALE_ID) { status("error", "Reload the page and try again."); return; }
+
+    var need = [["trn-pfirst", "your first name"], ["trn-plast", "your last name"],
+      ["trn-email", "your email"], ["trn-phone", "your phone number"]];
+    for (var i = 0; i < need.length; i++) {
+      if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
+    }
+    for (var j = 0; j < students.length; j++) {
+      var s = students[j];
+      var who = s.first.trim() || ("competitor " + (j + 1));
+      if (!s.first.trim() || !s.last.trim()) { status("error", "Enter a first and last name for competitor " + (j + 1) + "."); return; }
+      var age = s.dob ? ageOn(s.dob, CFG.tournament.date) : null;
+      if (age == null || age < 3) { status("error", "Enter the date of birth for " + who + "."); return; }
+      if (!s.gender) { status("error", "Pick a gender for " + who + "."); return; }
+      if (!s.height) { status("error", "Pick a height for " + who + "."); return; }
+      if (!division(s.division)) { status("error", "Choose a division for " + who + "."); return; }
+      if (!s.rank) { status("error", "Pick the belt " + who + " will have on the tournament day."); return; }
+    }
+    for (var k = 0; k < fshirts.length; k++) {
+      if (!fshirts[k].size) { status("error", "Pick a size for family shirt " + (k + 1) + ", or remove it."); return; }
+    }
+    // The card is checked HERE, before a single record is written. Not a
+    // charge: createPaymentMethod only asks Stripe to validate the entry.
+    if (!CARD) { status("error", "The card field has not loaded yet. Give it a moment or reload the page."); return; }
+    status("", "Checking your card…");
+    var PM = null;
+    try {
+      var pmRes = await STRIPE.createPaymentMethod({ type: "card", card: CARD });
+      if (pmRes.error) {
+        cardErr(pmRes.error.message || "Please check the card details.");
+        status("error", pmRes.error.message || "Please check the card details and try again.");
+        try {
+          navigator.sendBeacon && navigator.sendBeacon(
+            "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/card-reject?src=tournament-checkout",
+            JSON.stringify({ code: pmRes.error.code || "", message: pmRes.error.message || "", who: {
+              parent: ($("trn-pfirst").value + " " + $("trn-plast").value).trim(),
+              student: students.map(function (x) { return (x.first + " " + x.last).trim(); }).join(", "),
+              email: $("trn-email").value.trim(), phone: $("trn-phone").value.trim() } }));
+        } catch (e2) {}
+        return;
+      }
+      PM = pmRes.paymentMethod;
+    } catch (e1) {
+      status("error", "Could not check the card. Please try again.");
+      return;
+    }
+
+    var btn = $("trn-pay");
+    btn.disabled = true; btn.textContent = "Working…";
+    status("", "Setting up your registration…");
+
+    fetch(FN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
+      body: JSON.stringify({
+        sale_id: SALE_ID,
+        parent_first: $("trn-pfirst").value.trim(),
+        parent_last: $("trn-plast").value.trim(),
+        email: $("trn-email").value.trim(),
+        phone: $("trn-phone").value.trim(),
+        comments: $("trn-comments").value.trim(),
+        students: students.map(function (x) {
+          return {
+            first: x.first.trim(), last: x.last.trim(), dob: x.dob, gender: x.gender,
+            height_in: +x.height, division: x.division, rank: x.rank, board: !!x.board, shirt: x.shirt
+          };
+        }),
+        family_shirts: fshirts.map(function (t) { return t.size; }),
+        hp: $("trn-hp").value
+      })
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error((res.j && res.j.error) || "failed");
+        if (res.j.paid) return { paid: true, receipt: res.j.receipt_url };
+        if (!res.j.client_secret) { location.href = res.j.receipt_url; return { redirected: true }; }
+        status("", "Charging your card…");
+        return STRIPE.confirmCardPayment(res.j.client_secret, { payment_method: PM.id })
+          .then(function (r2) {
+            if (r2.error) throw new Error(r2.error.message || "Your card was declined.");
+            status("", "Confirming…");
+            return fetch(FN, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
+              body: JSON.stringify({ action: "finalize", sale_id: SALE_ID, payment_intent_id: r2.paymentIntent.id })
+            }).then(function (r3) { return r3.json(); })
+              .then(function (j3) {
+                if (!j3.ok) throw new Error(j3.error || "We could not confirm the payment.");
+                return { paid: true, receipt: j3.receipt_url };
+              });
+          });
+      })
+      .then(function (out) {
+        if (!out || out.redirected) return;
+        $("trn-form").hidden = true;
+        var names = students.map(function (s) { return (s.first + " " + s.last).trim(); });
+        var list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
+        $("trn-done-msg").textContent = list + (names.length > 1 ? " are" : " is")
+          + " registered for the " + CFG.tournament.name + " on " + CFG.tournament.pretty_day
+          + ". Your receipt is on its way to " + $("trn-email").value.trim() + ".";
+        if (out.receipt) $("trn-done-link").href = out.receipt;
+        $("trn-done").hidden = false;
+        window.scrollTo(0, 0);
+      })
+      .catch(function (err) {
+        btn.disabled = false; btn.textContent = "Pay and Register";
+        var msg = (err && err.message && err.message !== "failed")
+          ? err.message
+          : "Something went wrong. Try again or call 903-561-2966.";
+        cardErr(msg);
+        status("error", msg);
+      });
+  });
+})();
+</script>
+</body>
+</html>
