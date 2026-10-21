@@ -47,7 +47,13 @@ function store(augOpen, novOpen) {
     ],
     pricing_settings: [{ key: 'admin_fee_bps', value_cents: 290 }, { key: 'admin_fee_flat_cents', value_cents: 30 }],
     contacts: [], guardian_emails: [], student_guardians: [],
-    pos_sales: [], pos_sale_lines: [], pos_payments: [], testing_signups: [],
+    pos_sales: [{ id: 'tourney-paid', status: 'paid' }, { id: 'tourney-open', status: 'pending_payment' }],
+    pos_sale_lines: [], pos_payments: [], testing_signups: [],
+    discount_codes: [
+      { code: 'TXS-GOOD2', kind: 'testing', pct_off: 50, testing_cycle: 'nov-2026', source_sale_id: 'tourney-paid', active: true },
+      { code: 'TXS-UNPD3', kind: 'testing', pct_off: 50, testing_cycle: 'nov-2026', source_sale_id: 'tourney-open', active: true },
+      { code: 'TXS-AUG45', kind: 'testing', pct_off: 50, testing_cycle: 'aug-2026', source_sale_id: 'tourney-paid', active: true },
+    ],
   };
 }
 
@@ -110,6 +116,9 @@ const signup = (groupId, rank) => ({
   students: [{ first: 'Ava', last: 'Stone', group_id: groupId, rank, position: 1 }],
 });
 
+// The signup's own sale, among the tournament sales the store starts with.
+const signupSale = (s) => s.pos_sales.find((x) => x.id === '11111111-2222-4333-8444-555555555555');
+
 let passed = 0, failed = 0;
 async function test(name, fn) {
   try { await fn(); console.log('  ok   ' + name); passed++; }
@@ -142,7 +151,7 @@ async function test(name, fn) {
     const s = store(true, false);
     const r = await call(s, 'POST', '?t=nov-2026', signup('n2', 'White Belt'));
     assert.equal(r.status, 409);
-    assert.equal(s.pos_sales.length, 0);
+    assert.ok(!signupSale(s), 'a sale was written');
   });
 
   await test('late payers still pay on an open past testing through its own link', async () => {
@@ -156,7 +165,53 @@ async function test(name, fn) {
     const s = store(true, true);
     const r = await call(s, 'POST', '', signup('a2', 'White Belt'));
     assert.equal(r.status, 400);
-    assert.equal(s.pos_sales.length, 0);
+    assert.ok(!signupSale(s), 'a sale was written');
+  });
+
+  await test('a good code is good for this testing, at its percentage', async () => {
+    const r = await call(store(true, true), 'GET', '?t=nov-2026&code=txs-good2');
+    assert.deepEqual({ ...r.body.code_check }, { ok: true, code: 'TXS-GOOD2', pct: 50 });
+  });
+
+  await test('a code is refused when unknown, unpaid, or for another testing', async () => {
+    for (const [code, why] of [['TXS-NOPE9', /not one we know/], ['TXS-UNPD3', /once the tournament registration is paid/], ['TXS-AUG45', /different testing/]]) {
+      const r = await call(store(true, true), 'GET', '?t=nov-2026&code=' + code);
+      assert.equal(r.body.code_check.ok, false, code);
+      assert.match(r.body.code_check.error, why);
+    }
+  });
+
+  await test('the code takes 50% off every seat on the signup, and the ledger says so', async () => {
+    const s = store(true, true);
+    const body = signup('n2', 'White Belt');
+    body.students.push({ first: 'Leo', last: 'Stone', group_id: 'n1', rank: 'Cub White Belt', position: 2 });
+    body.discount_code = 'TXS-GOOD2';
+    const r = await call(s, 'POST', '?t=nov-2026', body);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const full = s.pos_sale_lines.map((l) => l.unit_cents);
+    assert.deepEqual(s.pos_sale_lines.map((l) => l.discount_cents), full.map((c) => Math.round(c / 2)));
+    assert.deepEqual(s.pos_sale_lines.map((l) => l.line_total_cents), full.map((c) => c - Math.round(c / 2)));
+    const off = full.reduce((a, c) => a + Math.round(c / 2), 0);
+    assert.equal(signupSale(s).discount_cents, off);
+    assert.equal(signupSale(s).total_cents - signupSale(s).admin_fee_cents, full.reduce((a, c) => a + c, 0) - off);
+    assert.deepEqual(s.testing_signups.map((t) => t.fee_cents), full.map((c) => c - Math.round(c / 2)));
+    assert.match(signupSale(s).notes, /code TXS-GOOD2, 50% off/);
+  });
+
+  await test('a bad code stops the signup before anything is written', async () => {
+    const s = store(true, true);
+    const body = signup('n2', 'White Belt');
+    body.discount_code = 'TXS-UNPD3';
+    const r = await call(s, 'POST', '?t=nov-2026', body);
+    assert.equal(r.status, 400);
+    assert.ok(!signupSale(s), 'a sale was written');
+    assert.equal(s.testing_signups.length, 0);
+  });
+
+  await test('the page sends the code, and will not charge full price for a code never applied', () => {
+    assert.ok(PAGE.includes('discount_code: CODE ? CODE.code : ""'), 'the page does not send the code');
+    assert.match(PAGE, /Press Apply to use your discount code/);
+    assert.match(PAGE, /id="tst-apply"/);
   });
 
   await test('the page passes its testing on every call to the server', () => {

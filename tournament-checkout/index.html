@@ -157,6 +157,7 @@
           </dl>
           <p>A full day of Taekwondo competition. Students get several chances to compete in different events and win gold, silver and bronze medals.</p>
           <p>Open to Cubs, Juniors, Teens and Adults, white belt through black belt. We encourage every student to compete.</p>
+          <p><strong>Testing discount:</strong> the tournament falls on our testing day, so a competing family tests another time that week at 50% off, for everyone in the family. Your discount code comes with your receipt.</p>
           <p class="trn-host">Hosted by Stricklands Martial Arts.</p>
         </div>
 
@@ -677,7 +678,7 @@
             }).then(function (r3) { return r3.json(); })
               .then(function (j3) {
                 if (!j3.ok) throw new Error(j3.error || "We could not confirm the payment.");
-                return { paid: true, receipt: j3.receipt_url };
+                return { paid: true, receipt: j3.receipt_url, code: j3.testing_code, pct: j3.testing_pct_off };
               });
           });
       })
@@ -688,7 +689,9 @@
         var list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
         $("trn-done-msg").textContent = list + (names.length > 1 ? " are" : " is")
           + " registered for the " + CFG.tournament.name + " on " + CFG.tournament.pretty_day
-          + ". Your receipt is on its way to " + $("trn-email").value.trim() + ".";
+          + ". Your receipt is on its way to " + $("trn-email").value.trim() + "."
+          + (out.code ? " Your family's testing code is " + out.code + ": " + (out.pct || 50)
+              + "% off November belt testing for everyone in your family. It is on your receipt too." : "");
         if (out.receipt) $("trn-done-link").href = out.receipt;
         $("trn-done").hidden = false;
         window.scrollTo(0, 0);

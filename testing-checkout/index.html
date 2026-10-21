@@ -75,6 +75,13 @@
 .tst-status{margin-top:12px;font-size:.95rem;line-height:1.5}
 .tst-status.error{color:var(--belt-red);font-weight:600}
 .tst-pay{width:100%;margin-top:14px}
+.tst-code-row{display:flex;gap:8px}
+.tst-code-row input{flex:1 1 auto;min-width:0;text-transform:uppercase}
+.tst-apply{flex:0 0 auto;font:inherit;font-weight:800;padding:.62rem 1rem;border:2px solid var(--ink);
+  border-radius:8px;background:#fff;cursor:pointer}
+.tst-apply:hover{background:var(--ink);color:#fff}
+#tst-codemsg.ok{color:var(--go, #1f7a4d);font-weight:700}
+#tst-codemsg.error{color:var(--belt-red);font-weight:600}
 .tst-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
 .tst-closed{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 20px;text-align:center}
 .tst-closed h2{margin:0 0 10px;font-size:1.25rem}
@@ -274,6 +281,17 @@
             <span class="amt" id="tst-p-total">-</span>
           </div>
 
+          <!-- A discount code, if they have one (the tournament gives
+               competing families 50% off this testing). -->
+          <div class="tst-f" style="margin-top:16px">
+            <label for="tst-code">Discount code</label>
+            <div class="tst-code-row">
+              <input id="tst-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="If you have one">
+              <button type="button" class="tst-apply" id="tst-apply">Apply</button>
+            </div>
+            <p class="tst-seatnote" id="tst-codemsg"></p>
+          </div>
+
           <div style="margin-top:18px">
             <div class="tst-f"><label for="tst-card">Card</label>
               <div class="tst-card" id="tst-card"><span class="tst-cardload">Loading the card field…</span></div>
@@ -331,6 +349,7 @@
   var money = function (c) { return "$" + (Number(c || 0) / 100).toFixed(2); };
 
   var CFG = null, SALE_ID = null, STRIPE = null, CARD = null;
+  var CODE = null;        // { code, pct }: a discount code the server said is good
   var students = [];      // { first, last, groupId, rank, seat }
   var nextKey = 1;
 
@@ -577,15 +596,21 @@
   /* ---- money. The server's numbers are what reach the ledger; this just
      keeps the page honest while they fill it in. ------------------------- */
   function renderPrice() {
-    var base = 0;
+    var base = 0, off = 0;
     var rows = students.map(function (s, i) {
       var picked = !!s.groupId && !!groupById(s.groupId);
       var c = picked ? seatCents(s) : 0;
-      base += c;
+      // Same rounding as the server: each seat's discount on its own.
+      var d = CODE ? Math.round(c * CODE.pct / 100) : 0;
+      base += c - d; off += d;
       var who = (s.first || s.last) ? (s.first + " " + s.last).trim() : ("Student " + (i + 1));
       return '<div class="tst-line"><span>' + esc(who) + "</span><span class=\"amt\">"
         + (picked ? money(c) : "-") + "</span></div>";
     });
+    if (off > 0) {
+      rows.push('<div class="tst-line"><span>Discount code ' + esc(CODE.code) + " (" + CODE.pct + "% off)</span>"
+        + '<span class="amt">-' + money(off) + "</span></div>");
+    }
     var fee = base > 0
       ? cardFeeCents(base, CFG.admin_fee_bps, CFG.admin_fee_flat_cents)
       : 0;
@@ -633,6 +658,39 @@
   /* ---- submit ----------------------------------------------------------- */
   $("tst-addstu").addEventListener("click", addStudent);
 
+  /* ---- discount code. The server says whether it is good for THIS testing;
+     the page only shows the price that answer implies, and the server applies
+     it again when the signup is made. ------------------------------------ */
+  function codeMsg(kind, msg) {
+    var el = $("tst-codemsg");
+    el.className = "tst-seatnote" + (kind ? " " + kind : "");
+    el.textContent = msg || "";
+  }
+  $("tst-apply").addEventListener("click", function () {
+    var v = $("tst-code").value.trim().toUpperCase();
+    if (!v) { CODE = null; codeMsg("", ""); renderPrice(); return; }
+    codeMsg("", "Checking the code…");
+    fetch(FN_T + (FN_T.indexOf("?") === -1 ? "?" : "&") + "code=" + encodeURIComponent(v),
+      { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var c = j && j.code_check;
+        if (c && c.ok) {
+          CODE = { code: c.code, pct: c.pct };
+          codeMsg("ok", c.pct + "% off every testing on this signup.");
+        } else {
+          CODE = null;
+          codeMsg("error", (c && c.error) || "That code did not work.");
+        }
+        renderPrice();
+      })
+      .catch(function () { CODE = null; codeMsg("error", "Could not check the code. Try again."); renderPrice(); });
+  });
+  // Typing a different code undoes the one applied until it is checked.
+  $("tst-code").addEventListener("input", function () {
+    if (CODE && this.value.trim().toUpperCase() !== CODE.code) { CODE = null; codeMsg("", ""); renderPrice(); }
+  });
+
   $("tst-form").addEventListener("submit", async function (e) {
     e.preventDefault();
     if ($("tst-hp").value.trim() !== "") return;                 // honeypot
@@ -651,6 +709,13 @@
         return;
       }
       if (!s.rank) { status("error", "Pick the current belt for " + (s.first.trim() || ("student " + (j + 1))) + "."); return; }
+    }
+    // A code typed but never applied would quietly charge full price.
+    var typed = $("tst-code").value.trim().toUpperCase();
+    if (typed && (!CODE || CODE.code !== typed)) {
+      status("error", "Press Apply to use your discount code, or clear the code box.");
+      $("tst-code").focus();
+      return;
     }
     // The card is checked HERE, before a single record is written. Not a
     // charge: createPaymentMethod only asks Stripe to validate the entry
@@ -692,6 +757,7 @@
         email: $("tst-email").value.trim(),
         phone: $("tst-phone").value.trim(),
         comments: $("tst-comments").value.trim(),
+        discount_code: CODE ? CODE.code : "",
         students: students.map(function (x) {
           return {
             first: x.first.trim(), last: x.last.trim(),

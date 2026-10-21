@@ -40,7 +40,7 @@ function store(over) {
     events: [{ id: EVENT_ID, label: '2026 Texas Showdown Regional Tournament', public_open: true, archived: false }],
     pricing_settings: [{ key: 'admin_fee_bps', value_cents: 290 }, { key: 'admin_fee_flat_cents', value_cents: 30 }],
     contacts: [], guardians: [], guardian_emails: [], student_guardians: [],
-    pos_sales: [], pos_sale_lines: [], pos_payments: [], event_registrations: [],
+    pos_sales: [], pos_sale_lines: [], pos_payments: [], event_registrations: [], discount_codes: [],
     ...over,
   };
 }
@@ -305,6 +305,28 @@ async function test(name, fn) {
     await call(s, 'POST', { action: 'finalize', sale_id: SALE, payment_intent_id: 'pi_test' });
     assert.equal(s.pos_sales[0].status, 'pending_payment');
     assert.equal(s.event_registrations[0].status, 'pending');
+  });
+
+  await test('every signup makes its family a testing code, on the receipt and tied to the sale', async () => {
+    const s = store();
+    await call(s, 'POST', signup([kid()]));
+    assert.equal(s.discount_codes.length, 1);
+    const dc = s.discount_codes[0];
+    assert.match(dc.code, /^TXS-[A-HJ-NP-Z2-9]{5}$/);
+    assert.equal(dc.pct_off, 50);
+    assert.equal(dc.testing_cycle, 'nov-2026');
+    assert.equal(dc.kind, 'testing');
+    assert.equal(dc.source_sale_id, SALE);
+    assert.ok(s.pos_sales[0].customer_note.includes('Use code ' + dc.code), s.pos_sales[0].customer_note);
+  });
+
+  await test('the finalize answer carries the code, once the sale is paid', async () => {
+    const s = store();
+    await call(s, 'POST', signup([kid()]));
+    PI_ON_GET = { id: 'pi_test', status: 'succeeded', metadata: { sale_id: SALE }, amount_received: s.pos_sales[0].total_cents };
+    const r = await call(s, 'POST', { action: 'finalize', sale_id: SALE, payment_intent_id: 'pi_test' });
+    assert.equal(r.body.testing_code, s.discount_codes[0].code);
+    assert.equal(r.body.testing_pct_off, 50);
   });
 
   await test('finalize refuses a payment that belongs to another sale', async () => {

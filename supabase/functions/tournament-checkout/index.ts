@@ -55,7 +55,21 @@ const TOURNAMENT = {
   shirtsBy: "2026-10-30",     // printed, never enforced
   venue: "Watauga Community Center",
   address: "7901 Indian Springs Rd, Watauga, TX 76148",
+  // The tournament falls on testing day, so a competing family tests another
+  // time that week at half price: every signup gets its family a code for 50%
+  // off that testing, for everyone in it (owner, 2026-10-21: "code works for
+  // all testing in that family no matter who competes"). Good once paid.
+  testingCycle: "nov-2026",
+  testingPctOff: 50,
 };
+
+/** "TXS-7KQ4P". No 0/O, 1/I/L, so it reads right off a phone. */
+const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function makeCode(): string {
+  const b = new Uint8Array(5);
+  crypto.getRandomValues(b);
+  return "TXS-" + Array.from(b).map((x) => CODE_CHARS[x % CODE_CHARS.length]).join("");
+}
 
 // The host's prices, unchanged. The card fee is added on top, as on every
 // card charge.
@@ -364,7 +378,12 @@ Deno.serve(async (req) => {
       // Outside the flip on purpose: the webhook can win the race and mark
       // the sale paid first, and the registrations still have to follow.
       if (paid) await confirmRegistrations(admin, fSale);
-      return json({ ok: true, paid: true, receipt_url: SITE + "/invoice/?t=" + sale.data.view_token }, 200, cors);
+      // The family's testing code, shown on the page as soon as it is good.
+      const dc = paid
+        ? await admin.from("discount_codes").select("code").eq("source_sale_id", fSale).maybeSingle()
+        : { data: null };
+      return json({ ok: true, paid: true, receipt_url: SITE + "/invoice/?t=" + sale.data.view_token,
+        testing_code: dc.data?.code ?? null, testing_pct_off: TOURNAMENT.testingPctOff }, 200, cors);
     }
 
     // -- a new signup ------------------------------------------------------
@@ -581,6 +600,21 @@ Deno.serve(async (req) => {
     if (familyShirts.length) noteLines.push("  Family shirts: " + familyShirts.join(", "));
 
     const problems: string[] = [];
+
+    // The family's testing code, made before the sale so the receipt can
+    // carry it. It is good only once this sale is paid (testing-checkout
+    // checks), so an abandoned checkout leaves a code that never works.
+    let testingCode: string | null = null;
+    for (let tries = 0; tries < 4 && !testingCode; tries++) {
+      const c = makeCode();
+      const ins = await admin.from("discount_codes").insert({
+        code: c, kind: "testing", pct_off: TOURNAMENT.testingPctOff, testing_cycle: TOURNAMENT.testingCycle,
+        note: TOURNAMENT.short + " family: " + parentName,
+      });
+      if (!ins.error) testingCode = c;
+    }
+    if (!testingCode) problems.push("testing code: none made");
+
     const saleIns = await admin.from("pos_sales").insert({
       id: saleId, buyer_contact_id: buyerId, payer_name: parentName || null, sale_date: todayCT(),
       staff_email: "tournament-checkout@website", brand: "btkd",
@@ -601,6 +635,11 @@ Deno.serve(async (req) => {
         + TOURNAMENT.venue + "\n" + TOURNAMENT.address + "\n\n"
         + "Each competitor's time is sent two days before the tournament. Competition takes 60 to 90 minutes on average.\n"
         + "Spectators are $10 at the door, free under 4.\n"
+        + (testingCode
+          ? "\nTesting discount: the tournament falls on testing day, so your family gets " + TOURNAMENT.testingPctOff
+            + "% off November belt testing, for everyone in the family. Use code " + testingCode
+            + " at " + SITE + "/testing-checkout/\n"
+          : "")
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
       notes: "Tournament signup from the website, " + seats.length + " competitor"
         + (seats.length === 1 ? "" : "s") + ", paid by " + parentName
@@ -608,6 +647,10 @@ Deno.serve(async (req) => {
     }).select("view_token").single();
     if (saleIns.error) throw saleIns.error;
     const token = saleIns.data.view_token as string;
+    if (testingCode) {
+      const tie = await admin.from("discount_codes").update({ source_sale_id: saleId }).eq("code", testingCode);
+      if (tie.error) problems.push("testing code: " + tie.error.message);
+    }
 
     // -- ledger line detail --------------------------------------------------
     const lineRows = items.map((x) => ({

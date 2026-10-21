@@ -195,6 +195,36 @@ async function sendReceipt(saleId: string): Promise<void> {
 }
 
 
+/** A discount code, as typed (owner, 2026-10-21). The Texas Showdown gives
+ *  every competing family one: 50% off this testing for everyone in the
+ *  family, any number of checkouts. A code works only for the testing it was
+ *  made for, and only once the sale that made it is paid, so an abandoned
+ *  tournament checkout never yields a working code. */
+async function checkCode(
+  admin: { from: (t: string) => any }, raw: unknown, cycle: string | null,
+): Promise<{ ok: true; code: string; pct: number } | { ok: false; error: string }> {
+  const code = String(raw ?? "").trim().toUpperCase();
+  if (!code) return { ok: false, error: "Enter a code." };
+  const r = await admin.from("discount_codes")
+    .select("code,kind,pct_off,testing_cycle,source_sale_id,active").eq("code", code).maybeSingle();
+  const d = r.data;
+  if (!d || d.active === false || d.kind !== "testing") {
+    return { ok: false, error: "That code is not one we know. Check it and try again." };
+  }
+  if (d.testing_cycle && cycle && String(d.testing_cycle) !== cycle) {
+    return { ok: false, error: "That code is for a different testing." };
+  }
+  if (d.source_sale_id) {
+    const s = await admin.from("pos_sales").select("status").eq("id", d.source_sale_id).maybeSingle();
+    if (!s.data || s.data.status !== "paid") {
+      return { ok: false, error: "That code works once the tournament registration is paid." };
+    }
+  }
+  const pct = Math.round(Number(d.pct_off));
+  if (!(pct >= 1 && pct <= 100)) return { ok: false, error: "That code is not one we know." };
+  return { ok: true, code, pct };
+}
+
 /* Brand and last four of the card that paid, wherever Stripe put them on
  * this object. Missing is normal (cash, ACH) and returns nulls rather than
  * guessing. Same walk the stripe-webhook uses. */
@@ -279,7 +309,12 @@ Deno.serve(async (req) => {
     const feeFlat = settings.admin_fee_flat_cents ?? 30;
 
     if (req.method === "GET") {
+      // ?code= asks whether a discount code is good for this testing, so the
+      // page can show the discounted price before anyone pays.
+      const codeAsked = new URL(req.url).searchParams.get("code");
+      const codeCheck = codeAsked != null ? await checkCode(admin, codeAsked, cycle) : null;
       return json({
+        code_check: codeCheck,
         page_live: pageLive,
         // Which testing this is, and whether it is still selling. A named
         // past testing renders as a record of what happened, not a form.
@@ -428,6 +463,20 @@ Deno.serve(async (req) => {
       seats.push({ first, last, group, rank, position, cents });
     }
 
+    // -- a discount code, checked before anything is written. A bad code is
+    // refused outright rather than quietly dropped: the parent was promised
+    // the discount, and charging them full price would break that.
+    let discount: { code: string; pct: number } | null = null;
+    if (str(body.discount_code)) {
+      const cc = await checkCode(admin, body.discount_code, cycle);
+      if (!cc.ok) return json({ error: cc.error }, 400, cors);
+      discount = { code: cc.code, pct: cc.pct };
+    }
+    // Every seat on the checkout, for everyone in the family (owner,
+    // 2026-10-21: "code works for all testing in that family").
+    const seatDisc = seats.map((s) => discount ? Math.round(s.cents * discount.pct / 100) : 0);
+    const discTotal = seatDisc.reduce((a, d) => a + d, 0);
+
     // -- idempotency: a resubmit returns the same intent --------------------
     const existing = await admin.from("pos_sales")
       .select("id,view_token,status,total_cents,stripe_payment_intent").eq("id", saleId).maybeSingle();
@@ -480,11 +529,11 @@ Deno.serve(async (req) => {
     // never silently under-collect the way the pre-tax base did elsewhere
     // (ledger audit 2026-09-09).
     const preFee = BTKDPricing.invoiceTotals({
-      lines, discountCents: 0, adminFeeCents: 0, taxRate: TAX_RATE,
+      lines, discountCents: discTotal, adminFeeCents: 0, taxRate: TAX_RATE,
     });
     const fee = adminFeeCents(preFee.totalCents, feeBps, feeFlat);   // card-only online
     const totals = BTKDPricing.invoiceTotals({
-      lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
+      lines, discountCents: discTotal, adminFeeCents: fee, taxRate: TAX_RATE,
     });
 
     const problems: string[] = [];
@@ -606,7 +655,7 @@ Deno.serve(async (req) => {
       // debt on anybody\u0027s profile (owner 2026-08-25). Payment flips it
       // paid; the sweep abandons it after 24h.
       tender_method: null, status: "pending_payment",
-      subtotal_cents: totals.subtotalCents, discount_cents: 0,
+      subtotal_cents: totals.subtotalCents, discount_cents: totals.discountCents,
       admin_fee_cents: fee, tax_cents: totals.taxCents,
       total_cents: totals.totalCents,
       payer_email: email,
@@ -622,6 +671,7 @@ Deno.serve(async (req) => {
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
       notes: "Testing signup from the website, " + seats.length + " student"
         + (seats.length === 1 ? "" : "s") + ", paid by " + parentName
+        + (discount ? " | code " + discount.code + ", " + discount.pct + "% off (tournament family)" : "")
         + (comments ? " | parent comments: " + comments : ""),
     }).select("view_token").single();
     if (saleIns.error) throw saleIns.error;
@@ -630,9 +680,10 @@ Deno.serve(async (req) => {
     // -- ledger line detail --------------------------------------------------
     const lineRows = seats.map((s, i) => ({
       sale_id: saleId, kind: "event",
-      label: "Belt testing - " + s.first + " " + s.last + " (" + String(s.group.label) + ")",
-      qty: 1, unit_cents: s.cents, discount_cents: 0,
-      taxable: TESTING_TAXABLE, line_total_cents: s.cents,
+      label: "Belt testing - " + s.first + " " + s.last + " (" + String(s.group.label) + ")"
+        + (seatDisc[i] ? ", " + discount!.pct + "% off" : ""),
+      qty: 1, unit_cents: s.cents, discount_cents: seatDisc[i],
+      taxable: TESTING_TAXABLE, line_total_cents: s.cents - seatDisc[i],
       // The kid the line is FOR, so the invoice shows on their profile
       // (and on every sibling named on the same sale).
       student_contact_id: seatIds[i], product_id: null,
@@ -645,7 +696,7 @@ Deno.serve(async (req) => {
     // only. The whole point of collecting rank is a clean census, and a loose
     // match would write one student's belt onto another student's record.
     const signupRows: Record<string, unknown>[] = [];
-    for (const s of seats) {
+    for (const [si, s] of seats.entries()) {
       let contactId: string | null = null;
       const m = await admin.from("contacts").select("id")
         .ilike("first_name", s.first).ilike("last_name", s.last).limit(2);
@@ -660,7 +711,7 @@ Deno.serve(async (req) => {
         sale_id: saleId,
         program: s.group.program === "Cubs" ? "Cubs" : "TKD",
         family_position: s.position,
-        fee_cents: s.cents,
+        fee_cents: s.cents - seatDisc[si],
       });
     }
     const sIns = await admin.from("testing_signups").insert(signupRows);
