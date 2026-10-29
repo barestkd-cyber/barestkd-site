@@ -112,10 +112,27 @@
     err.textContent = msg;
     busy = false; go.disabled = false; go.textContent = 'Save my card';
   }
+  // A link that has run out, or one the studio does not have, says so in
+  // place of the form. Said under the card box, "expired" read as the card
+  // being expired (owner, 2026-10-28).
+  function isDead(d) { return !!d && (d.error === 'expired' || d.code === 'invalid'); }
+  function deadLink(d) {
+    var call = 'call <a href="tel:+19035612966" style="color:#15171C">903-561-2966</a>.';
+    root.innerHTML = d.error === 'expired'
+      ? '<h1>This link has expired</h1>'
+        + '<p class="lede">This is about the link, not your card. Ask the studio '
+        + 'for a new link, or ' + call + '</p>'
+      : '<h1>Link not valid</h1>'
+        + '<p class="lede">This link no longer works. Ask the studio to send a '
+        + 'new one, or ' + call + '</p>';
+    window.scrollTo(0, 0);
+  }
 
-  // The card field is mounted before anybody is identified, so the page is
-  // ready to type into rather than making them wait after filling the form.
-  post({ action: 'config' }).then(function (d) {
+  // The link is checked as the page opens, and the card field is mounted only
+  // for a live one, so the page is ready to type into rather than making them
+  // wait after filling the form.
+  post({ action: 'config', token: token }).then(function (d) {
+    if (isDead(d)) return deadLink(d);
     if (!d || !d.publishable_key) { fail('Card saving is unavailable right now. Please call the studio.'); return; }
     stripe = Stripe(d.publishable_key);
     card = stripe.elements().create('card', {
@@ -138,6 +155,7 @@
     busy = true; go.disabled = true; go.textContent = 'Saving…';
     post({ token: token, name: name, email: email, hp: document.getElementById('hp').value })
       .then(function (d) {
+        if (isDead(d)) return deadLink(d);
         if (!d || !d.client_secret) return fail((d && d.error) || 'Something went wrong. Please call the studio.');
         // Stripe confirms this, not us. A card that fails validation never
         // leaves the iframe.
