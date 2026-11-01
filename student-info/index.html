@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Student information | Bares Taekwondo Fitness</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/img/favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
+<!--
+  The student info form (owner, 2026-11-01: "student intake for
+  siblings/family who already have cards and parents on file and just need
+  sibling info").
+
+  The studio adds the student by name and emails this page with {info_link}.
+  The link names that one student. The family's parents and card are already
+  on file, so this asks only about the student, and opens with whatever the
+  studio already has so it can be corrected. Saving writes onto the student
+  and leaves a note on their profile (student-info function).
+-->
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:#EEF1F4;font-family:Montserrat,Arial,Helvetica,sans-serif;color:#1A1D23}
+  .wrap{max-width:520px;margin:0 auto;padding:24px 14px 48px}
+  .card{background:#fff;border:1px solid #E2E6EB;border-radius:16px;padding:24px 20px;box-shadow:0 2px 12px rgba(16,18,22,.06)}
+  h1{font-family:'Archivo Black',system-ui,sans-serif;font-size:24px;margin:0 0 8px;line-height:1.2}
+  .lede{font-size:14.5px;color:#5A626E;line-height:1.6;margin:0 0 20px}
+  label{display:block;font-size:12.5px;font-weight:700;color:#5A626E;margin:14px 0 5px;letter-spacing:.02em}
+  .opt{font-weight:600;color:#98A0AB}
+  input,select,textarea{width:100%;font:inherit;font-size:16px;padding:13px 13px;border:1.5px solid #D9DEE3;border-radius:11px;background:#fff;color:#1A1D23}
+  textarea{min-height:92px;resize:vertical;line-height:1.5}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:#15171C}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row label{margin-top:14px}
+  .go{display:block;width:100%;background:#15171C;color:#fff;border:none;border-radius:11px;padding:16px;font:700 15.5px/1 inherit;cursor:pointer;margin-top:20px}
+  .go[disabled]{opacity:.5;cursor:default}
+  .go:focus-visible{outline:3px solid #c9920a;outline-offset:2px}
+  .err{color:#c8102e;font-size:13px;font-weight:600;margin-top:10px;min-height:1px;line-height:1.5}
+  .fine{font-size:12.5px;color:#6A727E;line-height:1.6;margin-top:14px}
+  .done{text-align:center;padding:14px 0}
+  .done .tick{width:62px;height:62px;border-radius:50%;background:#15171C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 18px}
+  .done h2{font-family:'Archivo Black',system-ui,sans-serif;font-size:21px;margin:0 0 10px}
+  .done p{font-size:14.5px;color:#5A626E;line-height:1.6;margin:0 0 8px}
+  .hp{position:absolute;left:-9999px}
+  .foot{text-align:center;font-size:11.5px;color:#98A0AB;line-height:1.7;margin-top:20px}
+  @media (max-width:380px){.row{grid-template-columns:1fr;gap:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="root">
+    <h1>Student information</h1>
+    <p class="lede">Opening the form…</p>
+  </div>
+  <div class="foot">
+    Bares Taekwondo Fitness · 1901 Deerbrook Dr, Tyler, TX 75703<br>
+    Questions? Call <a href="tel:+19035612966" style="color:#98A0AB">903-561-2966</a>
+  </div>
+</div>
+<script>
+(function () {
+  var FN = 'https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/student-info';
+  var root = document.getElementById('root');
+  var CALL = 'call <a href="tel:+19035612966" style="color:#15171C">903-561-2966</a>.';
+  var token = (new URLSearchParams(location.search).get('t') || '').trim();
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function post(body) {
+    return fetch(FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      cache: 'no-store'
+    }).then(function (r) { return r.json().catch(function () { return { error: 'server' }; }); })
+      .catch(function () { return { error: 'offline' }; });
+  }
+  function dead(d) {
+    root.innerHTML = d && d.code === 'expired'
+      ? '<h1>This link has expired</h1><p class="lede">Ask the studio for a new one, or ' + CALL + '</p>'
+      : '<h1>Link not valid</h1><p class="lede">This link looks incomplete. Ask the studio to send it again, or ' + CALL + '</p>';
+  }
+  if (!/^[0-9a-f]{32}$/i.test(token)) { dead(null); return; }
+
+  function form(s) {
+    var first = s.first_name || 'your student';
+    var g = s.gender || '';
+    root.innerHTML = '<h1>' + esc(s.first_name ? s.first_name + '’s information' : 'Student information') + '</h1>'
+      + '<p class="lede">We already have your family’s contact details and card on file, so this is only about '
+      + esc(first) + '. Check what we have and fill in the rest.</p>'
+      + '<div class="row">'
+      +   '<div><label for="fn">First name</label><input id="fn" autocomplete="off" value="' + esc(s.first_name) + '"></div>'
+      +   '<div><label for="ln">Last name</label><input id="ln" autocomplete="off" value="' + esc(s.last_name) + '"></div>'
+      + '</div>'
+      + '<label for="dob">Date of birth</label><input id="dob" type="date" value="' + esc(s.dob) + '">'
+      + '<label for="gd">Gender <span class="opt">(optional)</span></label>'
+      + '<select id="gd"><option value="">Prefer not to say</option>'
+      +   '<option value="Female"' + (g === 'Female' ? ' selected' : '') + '>Female</option>'
+      +   '<option value="Male"' + (g === 'Male' ? ' selected' : '') + '>Male</option></select>'
+      + '<label for="md">Allergies, medical conditions, anything we should know <span class="opt">(optional)</span></label>'
+      + '<textarea id="md" placeholder="Leave blank if nothing">' + esc(s.medical_concerns) + '</textarea>'
+      + '<input class="hp" id="hp" tabindex="-1" autocomplete="off" aria-hidden="true" placeholder="Leave this empty">'
+      + '<button class="go" id="go">Save</button>'
+      + '<div class="err" id="err" role="alert"></div>'
+      + '<p class="fine">This goes straight to the studio and onto ' + esc(first) + '’s record. '
+      + 'You can open this link again to change anything until it expires.</p>';
+    var go = document.getElementById('go'), err = document.getElementById('err');
+    go.addEventListener('click', function () {
+      var v = function (id) { return document.getElementById(id).value.trim(); };
+      var data = { action: 'save', token: token, first_name: v('fn'), last_name: v('ln'), dob: v('dob'),
+        gender: v('gd'), medical_concerns: v('md'), hp: v('hp') };
+      if (!data.first_name || !data.last_name) { err.textContent = 'Enter the first and last name.'; return; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(data.dob)) { err.textContent = 'Enter the date of birth.'; return; }
+      err.textContent = ''; go.disabled = true; go.textContent = 'Saving…';
+      post(data).then(function (d) {
+        if (d && d.ok) {
+          root.innerHTML = '<div class="done"><div class="tick" aria-hidden="true">✓</div>'
+            + '<h2>Thank you!</h2><p>' + esc(d.first_name || data.first_name) + '’s information is saved.</p>'
+            + '<p>See you on the mat.</p></div>';
+          return;
+        }
+        if (d && (d.code === 'expired' || d.code === 'invalid')) { dead(d); return; }
+        err.textContent = (d && d.error && d.error !== 'server' && d.error !== 'offline')
+          ? d.error : 'That did not go through. Check your connection and try again.';
+        go.disabled = false; go.textContent = 'Save';
+      });
+    });
+  }
+
+  post({ action: 'load', token: token }).then(function (d) {
+    if (d && d.student) { form(d.student); return; }
+    if (d && (d.code === 'expired' || d.code === 'invalid')) { dead(d); return; }
+    root.innerHTML = '<h1>Student information</h1><p class="lede">The form did not open. Reload the page, or ' + CALL + '</p>';
+  });
+})();
+</script>
+</body>
+</html>

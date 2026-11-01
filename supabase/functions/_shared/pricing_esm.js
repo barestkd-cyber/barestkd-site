@@ -87,6 +87,20 @@ const BTKDPricing = (function () {
     return any;
   }
 
+  /* The Cubs family rate: a cubs row carrying family_position 2. There is one,
+   * and it covers the second Cub and every one after. Only the catalog has it:
+   * no fallback amount here, so a missing row quotes the plan as asked rather
+   * than a price written into code. */
+  function findCubsFamilyPlan(plans) {
+    if (!plans) return null;
+    var list = Array.isArray(plans) ? plans : Object.keys(plans).map(function (k) { return plans[k]; });
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i];
+      if (p && p.category === 'cubs' && Number(p.family_position) === 2) return p;
+    }
+    return null;
+  }
+
   // ─── small helpers ────────────────────────────────────────────────────────
 
   function centsToDollars(c) {
@@ -192,6 +206,15 @@ const BTKDPricing = (function () {
     if (others === 0) return 1;
     if (others === 1) return 2;
     return 3;
+  }
+
+  /* How many OTHER household members hold a membership that counts for a
+   * family (isQualifying, any program): what makes a new Cub the family's
+   * second student. */
+  function othersWithMembership(householdMembers) {
+    return (householdMembers || []).reduce(function (n, h) {
+      return n + (qualifying(h.activeMemberships).length > 0 ? 1 : 0);
+    }, 0);
   }
 
   function personHoldsCoreTkd(person) {
@@ -305,6 +328,28 @@ const BTKDPricing = (function () {
       return out;
     }
 
+    // ── Cubs: a Cub who is the family's second student pays the Cubs family rate ──
+    // Owner, 2026-11-01: "set second student as a cub to 109 everywhere. thats
+    // the offical price now" (Oliver and Indie Allen were the first), then
+    // "a cub who is second is 109 no matter what": a brother in Cubs or in
+    // Juniors, a parent in Kickboxing, anybody in the household with a
+    // membership that counts makes the new Cub second. Monthly plans only, as
+    // for Taekwondo. One Cubs family rate, so a third Cub pays it too. (The
+    // other way round is unchanged: a Cub still does not move a Juniors
+    // student down the Taekwondo rates.)
+    if (cat === 'cubs') {
+      if (isFamilyPlan(requested)) return out;
+      if (requested.billing_frequency !== 'monthly') return out;
+      if (othersWithMembership(householdMembers) < 1) return out;
+      var cubFam = findCubsFamilyPlan(plans);
+      if (cubFam) {
+        out.plan = cubFam;
+        out.substituted = true;
+        out.substitutionNote = 'Second Cubs student in the household.';
+      }
+      return out;
+    }
+
     return out;
   }
 
@@ -338,7 +383,7 @@ const BTKDPricing = (function () {
      * all carry supports_household_discount = false.
      *
      * Family-position pricing never combines with it: a substituted family plan
-     * is a core_tkd row, which does not support the discount. */
+     * is a core_tkd or cubs row, neither of which supports the discount. */
     var rankInfo = householdRank(person, householdMembers);
     if (plan.supports_household_discount === true && plan.billing_frequency === 'monthly' && rankInfo.rank >= 2) {
       var amt = settings.household_specialty_discount_cents || 0;
@@ -399,7 +444,8 @@ const BTKDPricing = (function () {
       promoLabel: plan.promo_label || null,
       householdRank: rankInfo.rank,
       householdRankedCount: rankInfo.rankedCount,
-      familyPosition: plan.category === 'core_tkd' ? familyPosition(householdMembers) : null,
+      familyPosition: plan.category === 'core_tkd' ? familyPosition(householdMembers)
+        : plan.category === 'cubs' ? (othersWithMembership(householdMembers) ? 2 : 1) : null,
       substituted: res.substituted,
       substitutionNote: res.substitutionNote,
       eligible: res.eligible,
