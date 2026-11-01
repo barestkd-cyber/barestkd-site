@@ -17,6 +17,7 @@
 // ===========================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import BTKDPricing from "../_shared/pricing_esm.js";
 
 const ALLOWED_ORIGINS = [
   "https://www.barestkd.fit",
@@ -79,6 +80,22 @@ Deno.serve(async (req) => {
     const settingsObj: Record<string, number> = {};
     for (const s of (settings.data ?? []) as { key: string; value_cents: number }[]) settingsObj[s.key] = s.value_cents;
 
+    // The gear package is the shop's pieces summed (owner, 2026-11-01: "the
+    // gear is not 240, 250 anymore. It's the individual pieces of gear from
+    // the store, all put together in a package"). Only the two totals go out;
+    // art costs never leave the server.
+    let gear: { required: number | null; boys: number | null } | null = null;
+    const sp = await admin.from("shop_products").select("id,package_role,active,logo_cents,art,flat_price_cents")
+      .in("package_role", ["required", "boys"]).eq("active", true);
+    if (sp.error) throw sp.error;
+    const pieceIds = ((sp.data ?? []) as { id: string }[]).map((p) => p.id);
+    if (pieceIds.length) {
+      const sv = await admin.from("shop_variants").select("product_id,list_cents,sellable,rank_gate")
+        .in("product_id", pieceIds).eq("sellable", true);
+      if (sv.error) throw sv.error;
+      gear = BTKDPricing.gearPackageCents(sp.data ?? [], sv.data ?? []);
+    }
+
     let session: Record<string, unknown> | null = null;
     if (deck === "lk") {
       const ses = await admin.from("program_sessions").select("*")
@@ -95,6 +112,7 @@ Deno.serve(async (req) => {
       classes: ((classes.data ?? []) as Record<string, unknown>[])
         .filter((r) => !r.ends_on || String(r.ends_on) >= today),
       session,
+      gear,
     }, 200, cors, true);
   } catch (e) {
     console.error("[pricing-deck]", e);

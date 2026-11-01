@@ -695,6 +695,42 @@ const BTKDPricing = (function () {
     return list + logo + 2 * artCents;
   }
 
+  /* THE GEAR PACKAGE, priced the way the shop prices it (owner, 2026-11-01:
+   * "the gear is not 240, 250 anymore. It's the individual pieces of gear from
+   * the store, all put together in a package"). Every active piece whose
+   * package_role is 'required' at its student price (shopUnitCents on a
+   * sellable variant that no rank gate hides), summed; the 'boys' pieces (cup
+   * and supporter) priced the same way and given apart. A piece costs the same
+   * in every size, so its first such variant answers. A piece with no price
+   * makes that total null, rather than quoting a package a piece short.
+   *
+   *   products  [{ id, package_role, active, logo_cents, art, flat_price_cents }]
+   *   variants  [{ product_id, list_cents, sellable, rank_gate }]
+   *   returns   { required: cents | null, boys: cents | null }
+   */
+  function gearPackageCents(products, variants) {
+    var vs = variants || [];
+    var priceOf = function (p) {
+      for (var i = 0; i < vs.length; i++) {
+        var v = vs[i];
+        if (v && v.product_id === p.id && v.sellable && !v.rank_gate) return shopUnitCents(v.list_cents, p);
+      }
+      return null;
+    };
+    var total = function (role) {
+      var pieces = (products || []).filter(function (p) { return p && p.active !== false && p.package_role === role; });
+      if (!pieces.length) return null;
+      var sum = 0;
+      for (var i = 0; i < pieces.length; i++) {
+        var c = priceOf(pieces[i]);
+        if (c == null) return null;
+        sum += c;
+      }
+      return sum;
+    };
+    return { required: total('required'), boys: total('boys') };
+  }
+
   /* Split `total` integer cents across `weights` pro-rata, largest-remainder,
    * so the parts always sum to exactly `total`. Zero/empty weights → zeros.
    * Used for the invoice discount, and by the UI to show per-line tax that
@@ -1010,6 +1046,7 @@ const BTKDPricing = (function () {
     allocateCents: allocateCents,
     cardFeeCents: cardFeeCents,
     shopUnitCents: shopUnitCents,
+    gearPackageCents: gearPackageCents,
     // exposed for the UI and for tests
     householdRank: householdRank,
     familyPosition: familyPosition,

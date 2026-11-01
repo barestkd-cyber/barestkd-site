@@ -20,6 +20,9 @@ const { stripTypeScriptTypes } = require('node:module');
 const SITE = path.join(__dirname, '..');
 const SRC = stripTypeScriptTypes(
   fs.readFileSync(path.join(SITE, 'supabase', 'functions', 'pricing-deck', 'index.ts'), 'utf8').replace(/^import .*;\r?\n/gm, ''));
+// The shared pricing engine the function imports, as the bundle sees it.
+const PRICING = fs.readFileSync(path.join(SITE, 'supabase', 'functions', '_shared', 'pricing_esm.js'), 'utf8')
+  .replace('export default BTKDPricing;', '');
 
 function db(s) {
   return {
@@ -46,7 +49,7 @@ async function call(s, query) {
     Deno: { serve: (fn) => { handler = fn; }, env: { get: () => 'x' } },
     URL, Response, Request, Promise, Set, Date, String, JSON, Object, Array, console: { error() {} },
   });
-  vm.runInContext(SRC, ctx);
+  vm.runInContext(PRICING + '\n' + SRC, ctx);
   const res = await handler(new Request('https://t.invalid/pricing-deck' + query, { headers: { Origin: 'https://www.barestkd.fit' } }));
   return { status: res.status, body: await res.json(), cache: res.headers.get('Cache-Control') };
 }
@@ -84,6 +87,29 @@ test('a deck gets the live catalog, the products it prices, its settings and the
   assert.equal(r.body.classes.length, 1, 'an ended class went out');
   assert.equal(r.body.session, null, 'only Little Kickers reads a session');
   assert.ok(/max-age/.test(r.cache || ''), 'the numbers should cache for a few minutes');
+});
+
+// Owner, 2026-11-01: "gear price listed at 242.50 in pres? change it". The
+// deck's gear package is the shop's pieces summed; only the totals go out.
+test('the gear package is the shop pieces summed, boys pieces apart, and no art cost goes out', async () => {
+  const s = store();
+  s.shop_products = [
+    { id: 'kicks', package_role: 'required', active: true, logo_cents: 600, art: [{ label: 'secret', cost_cents: 123 }] },
+    { id: 'bag', package_role: 'required', active: true, logo_cents: 0, art: [] },
+    { id: 'cup', package_role: 'boys', active: true, logo_cents: 0, art: [] },
+    { id: 'gloves', package_role: null, active: true, logo_cents: 600, art: [] },
+  ];
+  s.shop_variants = [
+    { product_id: 'kicks', list_cents: 4599, sellable: true, rank_gate: null },
+    { product_id: 'bag', list_cents: 3999, sellable: true, rank_gate: null },
+    { product_id: 'cup', list_cents: 799, sellable: true, rank_gate: null },
+    { product_id: 'gloves', list_cents: 8499, sellable: true, rank_gate: null },
+  ];
+  const r = await call(s, '?deck=kickboxing');
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  // kicks: list 45.99 + logo 6 + twice the 1.23 art = 54.45; bag 39.99.
+  assert.deepEqual(r.body.gear, { required: 5445 + 3999, boys: 799 });
+  assert.ok(!JSON.stringify(r.body).includes('secret') && !JSON.stringify(r.body).includes('123'), 'an art cost left the server');
 });
 
 test('Little Kickers gets its open session; an unknown deck is refused', async () => {
