@@ -36,6 +36,7 @@ const TEMPLATES = {
   KICKBOXING_TEMPLATE: loadDefault(path.join(FN, '_shared', 'kickboxing_agreement.js')),
   JIUJITSU_TEMPLATE: loadDefault(path.join(FN, '_shared', 'jiujitsu_agreement.js')),
   AMPD_TEMPLATE: loadDefault(path.join(FN, '_shared', 'ampd_agreement.js')),
+  CUBS_TEMPLATE: loadDefault(path.join(FN, '_shared', 'cubs_agreement.js')),
 };
 
 // ── the catalog, as the live one reads for Juniors and AMP'D ─────────────────
@@ -332,6 +333,140 @@ test('a family member\'s uniform is half off, on its own ledger line against tha
   const u3 = s3.pos_sale_lines.find((l) => l.kind === 'prod');
   assert.deepEqual([u3.label, u3.unit_cents, u3.discount_cents, u3.line_total_cents], ['Beginner uniform', 8225, 0, 8225]);
   assert.equal((await call(store(), 'juniors', 'GET')).body.family_uniform_bps, 5000, 'the page is not told the discount');
+});
+
+// ── a Cub added on the Juniors checkout ──────────────────────────────────────
+// Owner, 2026-11-18: "give them the option to choose cub or juniors, then how
+// would the second agreement work?" A Cub behind the student ahead of them is
+// the family's second: the Cubs family rate, the Cubs agreement under the same
+// signature, the Cubs roster, and a family member's uniform at half off.
+const CUB_PLANS = [
+  plan('cubs_option_a', 'Cubs - Option A', 'Cubs', 'cubs', 'one_time', null, 0, 119900),
+  plan('cubs_option_b', 'Cubs - Option B', 'Cubs', 'cubs', 'monthly', 9000, 19900, null),
+  plan('cubs_option_c', 'Cubs - Option C', 'Cubs', 'cubs', 'monthly', 10500, 9900, null),
+  plan('cubs_weekly', 'Cubs - Weekly', 'Cubs', 'cubs', 'weekly', 2795, 0, null),
+  plan('cubs_family_second', 'Cubs - 2nd student', 'Cubs', 'cubs', 'monthly', 10900, 0, null,
+    { sellable: false, family_position: 2, payment_count: null }),
+];
+const withCubs = (over) => store({
+  pricing_plans: [...PLANS, ...CUB_PLANS].map((p) => ({ ...p })),
+  products: [{ id: 'uni', name: 'Beginner uniform', price_cents: 8225, taxable: true, active: true },
+    { id: 'cubuni', name: 'Cubs uniform', price_cents: 6600, taxable: true, active: true }],
+  ...over,
+});
+
+test('the Juniors page is told what a Cub added there costs', async () => {
+  const r = await call(withCubs(), 'juniors', 'GET');
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const c = r.body.cub_sibling;
+  assert.ok(c, 'no Cub option on the Juniors page');
+  assert.deepEqual([c.code, c.down_cents, c.recurring_cents, c.due_today_cents, c.uniform_available, c.uniform_cents],
+    ['cubs_family_second', 0, 10900, 10900, true, 6600]);
+  assert.deepEqual(c.options.map((o) => o.code), ['cubs_option_a', 'cubs_option_b', 'cubs_option_c', 'cubs_weekly'],
+    'the Cub agreement would not list what the Cubs page sells');
+  assert.ok(!r.body.options.some((o) => /^cubs_/.test(o.code)), 'a Cubs plan is sold as a Juniors option');
+  assert.equal((await call(withCubs(), 'ampd', 'GET')).body.cub_sibling, null, "AMP'D offers a Cub");
+  assert.equal((await call(store(), 'juniors', 'GET')).body.cub_sibling, null, 'a Cub is offered with no Cubs family rate in the catalog');
+});
+
+test('a Cub on the Juniors checkout: the Cubs family rate, the Cubs agreement, the Cubs roster', async () => {
+  const s = withCubs();
+  const r = await call(s, 'juniors', 'POST', enroll({
+    plan_code: 'juniors_option_d',
+    students: [{ first: 'Lincoln', last: 'Payne', dob: '2019-09-29' },
+      { first: 'June', last: 'Payne', dob: '2022-05-01', program: 'Cubs' }],
+    uniforms: [true, true],
+  }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(s.memberships.map((m) => [m.contact_id, m.program, m.plan_code, m.final_down_cents, m.final_recurring_cents, m.status]), [
+    ['contacts-1', 'Juniors', 'juniors_option_d', 12900, 12900, 'pending'],
+    ['contacts-2', 'Cubs', 'cubs_family_second', 0, 10900, 'pending'],
+  ]);
+  const [a1, a2] = s.membership_agreements;
+  assert.deepEqual([a1.template_key, a1.program, a2.template_key, a2.program], ['taekwondo', 'Juniors', 'cubs', 'Cubs']);
+  assert.ok(a2.body_text.includes('CUBS MEMBERSHIP AGREEMENT'), a2.body_text.slice(0, 300));
+  assert.ok(a2.body_text.includes('Participant (Student) Name: June Payne'));
+  assert.ok(a2.body_text.includes('Cubs - Option B is a down payment of $199.00 and a monthly payment of $90.00.'),
+    'the Cub agreement does not list the Cubs options');
+  assert.ok(a2.body_text.includes('Cubs - 2nd student is a down payment of $0.00 and a monthly payment of $109.00.'));
+  assert.ok(a2.body_text.includes('Selected option: Cubs - 2nd student'));
+  assert.ok(!a2.body_text.includes('Juniors Taekwondo'), 'the Cub agreement lists Juniors options');
+  assert.equal(a2.body_json.family_position, 2);
+  assert.ok(s.membership_agreements.every((a) => a.signature_png === SIG && a.signer_name === 'Katie Root'), 'one signature for both');
+  assert.deepEqual(s.enrollments.map((e) => [e.student_id, e.program]), [['contacts-1', 'Juniors'], ['contacts-2', 'Cubs']]);
+  assert.deepEqual(s.pos_sale_lines.filter((l) => l.kind === 'mem').map((l) => [l.label, l.line_total_cents, l.student_contact_id]), [
+    ['Juniors Taekwondo — Option D', 25800, 'contacts-1'], ['Cubs - 2nd student', 10900, 'contacts-2'],
+  ]);
+  assert.deepEqual(s.pos_sale_lines.filter((l) => l.kind === 'prod')
+    .map((l) => [l.label, l.unit_cents, l.discount_cents, l.line_total_cents, l.product_id, l.student_contact_id]), [
+    ['Beginner uniform (Lincoln)', 8225, 0, 8225, 'uni', 'contacts-1'],
+    ['Cubs uniform (June, half off)', 6600, 3300, 3300, 'cubuni', 'contacts-2'],
+  ]);
+  const goods = 8225 + 3300, tax = Math.floor(goods * 0.0825 + 0.5), tuition = 25800 + 10900;
+  assert.equal(s.pos_sales[0].total_cents, tuition + goods + tax + fee(tuition + goods + tax));
+  assert.equal(r.body.total_cents, s.pos_sales[0].total_cents);
+  const note = s.pos_sales[0].customer_note;
+  assert.ok(/Lincoln is enrolled in Juniors Taekwondo, and June in Cubs\./.test(note), note);
+  assert.ok(/June's monthly payment is \$109\.00/.test(note), note);
+  assert.ok(/June Payne: Cubs - 2nd student/.test(s.pos_sales[0].notes), s.pos_sales[0].notes);
+});
+
+test('a Cub does not move a Juniors sibling down to the third-student rate', async () => {
+  const s = withCubs();
+  const r = await call(s, 'juniors', 'POST', enroll({
+    students: [{ first: 'Ava', last: 'Le', dob: '2018-01-01' }, { first: 'Max', last: 'Le', dob: '2022-01-01', program: 'Cubs' },
+      { first: 'Ben', last: 'Le', dob: '2019-01-01', program: 'Juniors' }],
+  }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(s.memberships.map((m) => [m.program, m.plan_code, m.final_recurring_cents]),
+    [['Juniors', 'juniors_option_c', 11000], ['Cubs', 'cubs_family_second', 10900], ['Juniors', 'juniors_family_second', 11900]]);
+});
+
+test('a Cub is never the first student, and no other program rides along', async () => {
+  const first = await call(withCubs(), 'juniors', 'POST', enroll({
+    students: [{ first: 'Max', last: 'Le', dob: '2022-01-01', program: 'Cubs' }, { first: 'Ava', last: 'Le', dob: '2018-01-01' }],
+  }));
+  assert.equal(first.status, 400);
+  assert.ok(/Add a Cub as a family member/.test(first.body.error), first.body.error);
+  const other = await call(withCubs(), 'juniors', 'POST', enroll({
+    students: [{ first: 'Ava', last: 'Le', dob: '2018-01-01' }, { first: 'Kim', last: 'Le', dob: '2000-01-01', program: 'Kickboxing' }],
+  }));
+  assert.equal(other.status, 400);
+  assert.ok(/can't be added on this page/.test(other.body.error), other.body.error);
+  const noRate = store();   // no Cubs family rate in the catalog
+  const off = await call(noRate, 'juniors', 'POST', enroll({
+    students: [{ first: 'Ava', last: 'Le', dob: '2018-01-01' }, { first: 'Max', last: 'Le', dob: '2022-01-01', program: 'Cubs' }],
+  }));
+  assert.equal(off.status, 400);
+  assert.ok(/A Cub can't be added/.test(off.body.error), off.body.error);
+  assert.equal(noRate.contacts.length + noRate.pos_sales.length, 0, 'records were written before the refusal');
+});
+
+test('a retry of a family checkout is not refused because the sibling row came back first', async () => {
+  const s = withCubs();
+  const body = enroll({
+    plan_code: 'juniors_option_d',
+    students: [{ first: 'Lincoln', last: 'Payne', dob: '2019-09-29' },
+      { first: 'June', last: 'Payne', dob: '2022-05-01', program: 'Cubs' }],
+  });
+  assert.equal((await call(s, 'juniors', 'POST', body)).status, 200);
+  s.memberships.reverse();   // the Cub's row first, as a database may return it
+  const again = await call(s, 'juniors', 'POST', body);
+  assert.equal(again.status, 200, JSON.stringify(again.body));
+  assert.ok(!again.body.reload, 'the retry was told the selection changed');
+  const moved = await call(s, 'juniors', 'POST', { ...body, plan_code: 'juniors_option_c' });
+  assert.equal(moved.status, 409);
+  assert.ok(moved.body.reload, 'a real change of plan was not caught');
+});
+
+test('the Juniors page offers Juniors or Cubs for each family member, with the Cubs agreement for a Cub', () => {
+  const html = fs.readFileSync(path.join(SITE, 'juniors-checkout', 'index.html'), 'utf8');
+  for (const need of ['CFG.cub_sibling', 'data-f="program"', '<option value="Cubs">Cubs</option>', 'key === "cubs"',
+    'id="cbc-cub-consent"', 'program: famIsCub(r) ? "Cubs" : "Juniors"', 'cubUniformCents()']) {
+    assert.ok(html.includes(need), 'juniors-checkout lacks ' + need);
+  }
+  const teens = fs.readFileSync(path.join(SITE, 'teens-adults-checkout', 'index.html'), 'utf8');
+  assert.ok(!teens.includes('cub_sibling'), 'the Teens and Adults page offers a Cub');
 });
 
 (async () => {

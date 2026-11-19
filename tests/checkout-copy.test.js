@@ -65,8 +65,12 @@ const PAGES = [
       'parent and me', 'Parent & Me', 'parent-and-me', 'six-week', '6-week session',
       'not a drop-off'] },
 
+  // alsoTemplates: a family member added here may be a Cub (owner, 2026-11-18),
+  // who signs the Cubs document on this same checkout. The page's own consent
+  // and document stay Taekwondo; only the Cub's agreement is the Cubs one.
   { dir: 'juniors-checkout', kind: 'enrollment', program: 'Juniors',
     agreementName: 'Taekwondo', templateKey: 'taekwondo', term: 'twelve-month',
+    alsoTemplates: ['cubs'],
     forbidPhrases: ['Ages 3-4', 'preschool', 'Preschool'] },
 
   { dir: 'teens-adults-checkout', kind: 'enrollment', program: 'Teens & Adults',
@@ -173,7 +177,7 @@ for (const page of PAGES) {
       assert.ok(html.includes('"' + page.templateKey + '"'),
         'page does not select template key ' + page.templateKey);
       const otherKeys = [...new Set(PAGES.map((p) => p.templateKey))]
-        .filter((k) => k && k !== page.templateKey);
+        .filter((k) => k && k !== page.templateKey && !(page.alsoTemplates || []).includes(k));
       otherKeys.forEach((k) => {
         assert.ok(!html.includes('=== "' + k + '"'),
           'page also selects the ' + k + ' template');

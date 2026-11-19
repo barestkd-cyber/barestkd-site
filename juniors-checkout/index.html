@@ -406,7 +406,7 @@
         </div>
         <label class="lkc-check">
           <input id="lkc-agree" type="checkbox">
-          <span>I have read and agree to the Taekwondo Membership Agreement above, including the waiver. I understand this is a 12-month membership and that the amount shown is due today.</span>
+          <span>I have read and agree to the Taekwondo Membership Agreement above, including the waiver. I understand this is a 12-month membership and that the amount shown is due today.<span id="cbc-cub-consent"></span></span>
         </label>
       </div>
 
@@ -687,7 +687,8 @@
     var r2 = famPlanFor(2), r3 = famPlanFor(3);
     $("cbc-fam").hidden = false;
     $("cbc-fam-note").textContent = "Family pricing: a second Taekwondo student is " + moneyS(r2.recurring_cents) + " a month"
-      + (r3 && r3 !== r2 ? ", a third " + moneyS(r3.recurring_cents) : "") + ", with no down payment.";
+      + (r3 && r3 !== r2 ? ", a third " + moneyS(r3.recurring_cents) : "") + ", with no down payment."
+      + (CFG.cub_sibling ? " A Cub is " + moneyS(CFG.cub_sibling.recurring_cents) + " a month, also with no down payment." : "");
     $("cbc-fam-add").addEventListener("click", famAdd);
     $("lkc-email").addEventListener("input", famLookupSoon);
     if ($("lkc-email").value) famLookupSoon();
@@ -697,16 +698,28 @@
     var row = document.createElement("div");
     row.className = "cbc-fam-student";
     var id = 'cbc-fam-' + (++FAM.seq);
+    // A family member can be a Cub instead (owner, 2026-11-18: "give them the
+    // option to choose cub or juniors"): the Cubs family rate, the Cubs
+    // agreement and the Cubs uniform, all on this one checkout.
+    var cubOk = !!(CFG && CFG.cub_sibling);
     row.innerHTML = '<p class="lkc-pick" style="margin:0 0 8px">Family member ' + (FAM.extra.length + 2) + '</p>'
+      + (cubOk ? '<div class="form-field"><label for="' + id + '-prog">Program</label><select id="' + id + '-prog" data-f="program">'
+          + '<option value="Juniors">Juniors</option><option value="Cubs">Cubs</option></select></div>' : '')
       + '<div class="form-field"><label for="' + id + '-first">Their first name</label><input id="' + id + '-first" type="text" data-f="first" autocomplete="off"></div>'
       + '<div class="form-field"><label for="' + id + '-last">Their last name</label><input id="' + id + '-last" type="text" data-f="last" autocomplete="off"></div>'
       + '<div class="form-field"><label for="' + id + '-dob">Their date of birth</label><input id="' + id + '-dob" type="date" data-f="dob"></div>'
-      + ((CFG && CFG.uniform_available) ? '<label class="lkc-shirt-q" style="margin:0 0 10px"><input type="checkbox" data-f="uniform">'
-          + '<span class="grow">Beginner uniform for this student. <b>' + moneyS(famUniformCents()) + '</b> + tax'
-          + '<small class="cbc-uni-fam">Half off for a family member</small></span></label>' : '')
+      + ((CFG && (CFG.uniform_available || (cubOk && CFG.cub_sibling.uniform_available)))
+          ? '<label class="lkc-shirt-q" style="margin:0 0 10px" data-f="unilabel"><input type="checkbox" data-f="uniform">'
+            + '<span class="grow"><span data-f="uniname">Beginner uniform</span> for this student. <b data-f="uniprice">' + moneyS(famUniformCents()) + '</b> + tax'
+            + '<small class="cbc-uni-fam">Half off for a family member</small></span></label>' : '')
       + '<button type="button" class="cbc-fam-x">Remove this student</button>';
     var rec = { row: row };
     FAM.extra.push(rec);
+    var progSel = row.querySelector('[data-f="program"]');
+    if (progSel) progSel.addEventListener("change", function () {
+      famRowSync(rec); renderPrice(); renderDoc();
+      if (typeof syncWhoPays === "function") syncWhoPays();
+    });
     row.querySelector(".cbc-fam-x").addEventListener("click", function () {
       FAM.extra.splice(FAM.extra.indexOf(rec), 1);
       row.remove();
@@ -717,6 +730,7 @@
       i.addEventListener("input", function () { renderPrice(); renderDoc(); if (typeof syncWhoPays === "function") syncWhoPays(); });
     });
     $("cbc-fam-list").appendChild(row);
+    famRowSync(rec);
     famRelabel();
     row.querySelector("input").focus();
     renderPrice(); renderDoc();
@@ -767,11 +781,13 @@
     var out = [{ first: ($("lkc-sfirst").value || "").trim(), last: ($("lkc-slast").value || "").trim(), dob: $("lkc-dob").value }];
     FAM.extra.forEach(function (r) {
       out.push({ first: r.row.querySelector('[data-f="first"]').value.trim(), last: r.row.querySelector('[data-f="last"]').value.trim(),
-        dob: r.row.querySelector('[data-f="dob"]').value });
+        dob: r.row.querySelector('[data-f="dob"]').value, program: famIsCub(r) ? "Cubs" : "Juniors" });
     });
     return out;
   }
-  /* What each student on this checkout pays: [{ plan, name, position }]. */
+  /* What each student on this checkout pays: [{ plan, name, position, cub }].
+     A Cub is always the family's second at the Cubs family rate, and never
+     moves a Taekwondo student down the Taekwondo rates (the server's rule). */
   function studentPlans() {
     if (!CHOSEN) return [];
     var out = [], holders = FAM.found;
@@ -779,6 +795,10 @@
     out.push({ plan: first, name: studentName(0), position: holders + 1 });
     holders++;
     for (var i = 0; i < FAM.extra.length; i++) {
+      if (famIsCub(FAM.extra[i])) {
+        out.push({ plan: cubPlan(), name: studentName(i + 1), position: 2, cub: true });
+        continue;
+      }
       out.push({ plan: famPlanFor(holders + 1) || CHOSEN, name: studentName(i + 1), position: holders + 1 });
       holders++;
     }
@@ -786,6 +806,33 @@
   }
   function famUniformCents() {
     return Math.round(CFG.uniform_cents * (10000 - (CFG.family_uniform_bps || 0)) / 10000);
+  }
+  /* A family member picked as a Cub, and what a Cub costs here. */
+  function famIsCub(r) {
+    var sel = r && r.row.querySelector('[data-f="program"]');
+    return !!(sel && sel.value === "Cubs" && CFG && CFG.cub_sibling);
+  }
+  function cubPlan() {
+    var c = CFG.cub_sibling;
+    return { code: c.code, name: c.name, billing_frequency: "monthly", down_cents: c.down_cents || 0,
+      recurring_cents: c.recurring_cents || 0, pif_cents: 0,
+      due_today_cents: c.due_today_cents || c.recurring_cents || 0, promo: null };
+  }
+  function cubUniformCents() {
+    return Math.round(CFG.cub_sibling.uniform_cents * (10000 - (CFG.family_uniform_bps || 0)) / 10000);
+  }
+  /* The uniform box under a family member follows their program: the Cubs
+     uniform for a Cub, the Beginner uniform otherwise, half off either way. */
+  function famRowSync(r) {
+    var lab = r.row.querySelector('[data-f="unilabel"]');
+    if (!lab) return;
+    var cub = famIsCub(r);
+    var avail = cub ? !!CFG.cub_sibling.uniform_available : !!CFG.uniform_available;
+    lab.style.display = avail ? "" : "none";
+    var cb = lab.querySelector('[data-f="uniform"]');
+    if (!avail && cb) cb.checked = false;
+    lab.querySelector('[data-f="uniname"]').textContent = cub ? "Cubs uniform" : "Beginner uniform";
+    if (avail) lab.querySelector('[data-f="uniprice"]').textContent = moneyS(cub ? cubUniformCents() : famUniformCents());
   }
   /* The first student's uniform box: half off once their family already
      pays for a student here. */
@@ -799,15 +846,17 @@
      when they are the family's second or beyond, everyone after them at
      half off. Mirrors the server. */
   function uniformsChosen() {
-    if (!CFG || !CFG.uniform_available) return [];
+    if (!CFG) return [];
     var out = [];
-    if ($("cbc-uniform").checked) {
+    if (CFG.uniform_available && $("cbc-uniform").checked) {
       var half = FAM.found >= 1;
       out.push({ i: 0, name: studentName(0), cents: half ? famUniformCents() : CFG.uniform_cents, half: half });
     }
     FAM.extra.forEach(function (r, k) {
       var cb = r.row.querySelector('[data-f="uniform"]');
-      if (cb && cb.checked) out.push({ i: k + 1, name: studentName(k + 1), cents: famUniformCents(), half: true });
+      if (!cb || !cb.checked) return;
+      var cub = famIsCub(r);
+      out.push({ i: k + 1, name: studentName(k + 1), cents: cub ? cubUniformCents() : famUniformCents(), half: true, cub: cub });
     });
     return out;
   }
@@ -908,7 +957,7 @@
     // Everyone added after the first: their first month, due today.
     $("cbc-r-fam").innerHTML = pp.students.slice(1).map(function (x, i) {
       return '<div class="lkc-line"><span>' + esc(x.name || ("Family member " + (i + 2))) + ': '
-        + esc(x.position >= 3 ? "3rd+ family member" : "2nd family member") + ', first month</span>'
+        + esc(x.cub ? "Cubs family rate" : (x.position >= 3 ? "3rd+ family member" : "2nd family member")) + ', first month</span>'
         + '<span class="amt">' + money(x.plan.due_today_cents) + '</span></div>';
     }).join("");
     // The first student's uniform keeps its row; a family member's is listed
@@ -917,7 +966,7 @@
     show("cbc-r-uni", !!first);
     if (first) $("cbc-r-uni").querySelector("span").textContent = "Beginner uniform" + (first.half ? " (half off, family)" : "");
     $("cbc-r-fam").innerHTML += pp.unis.filter(function (u) { return u.i > 0; }).map(function (u) {
-      return '<div class="lkc-line"><span>Beginner uniform (' + esc(u.name || ("Family member " + (u.i + 1))) + ', half off)</span>'
+      return '<div class="lkc-line"><span>' + (u.cub ? "Cubs uniform" : "Beginner uniform") + ' (' + esc(u.name || ("Family member " + (u.i + 1))) + ', half off)</span>'
         + '<span class="amt">' + money(u.cents) + '</span></div>';
     }).join("");
     $("cbc-r-addons").innerHTML = (pp.adds || []).map(function (a) {
@@ -952,8 +1001,13 @@
     var A = window.BTKDAgreements;
     if (!CFG) return;
     if (!A) { box.textContent = "The agreement could not load. Refresh the page, or call us."; return; }
-    var tpl = null;
-    for (var i = 0; i < A.TEMPLATES.length; i++) if (A.TEMPLATES[i].key === "taekwondo") tpl = A.TEMPLATES[i];
+    var tpl = null, cubTpl = null;
+    for (var i = 0; i < A.TEMPLATES.length; i++) {
+      if (A.TEMPLATES[i].key === "taekwondo") tpl = A.TEMPLATES[i];
+      // A Cub added as a family member signs the Cubs document, the same one
+      // the Cubs page signs.
+      if (A.TEMPLATES[i].key === "cubs") cubTpl = A.TEMPLATES[i];
+    }
     if (!tpl) { box.textContent = "The agreement could not load. Call us at 903-561-2966."; return; }
 
     var guardian = (($("lkc-pfirst").value || "") + " " + ($("lkc-plast").value || "")).trim() || "____________________";
@@ -968,10 +1022,13 @@
     for (var si = 0; si < count; si++) {
       var student = studentName(si) || "____________________";
       var dob = fmtMDY(studentDob(si)) || "____________";
-      var mine = plans[si] ? plans[si].plan : null;
+      var cubDoc = si > 0 && famIsCub(FAM.extra[si - 1]);
+      var T = cubDoc ? cubTpl : tpl;
+      if (!T) { box.textContent = "The agreement could not load. Call us at 903-561-2966."; return; }
+      var mine = cubDoc ? cubPlan() : (plans[si] ? plans[si].plan : null);
       if (count > 1) hh += '<p class="ttl" style="margin-top:' + (si ? '28px' : '0') + '">Agreement ' + (si + 1) + ' of ' + count + ': ' + esc(student) + '</p>';
       hh += '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
-        + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
+        + '<p class="ttl">' + esc(T.title).toUpperCase() + '</p>'
         + '<p>Participant (Student) Name: <b>' + esc(student) + '</b><br>'
         + 'Date of Birth: <b>' + esc(dob) + '</b><br>'
         + 'Parent / Guardian: <b>' + esc(guardian) + '</b><br>'
@@ -980,7 +1037,7 @@
         + '<h4>FEES</h4>';
       // The options the page sells, plus this student's family rate when
       // that is what they get, so the line marked selected is on the page.
-      var listed = CFG.options.slice();
+      var listed = (cubDoc ? CFG.cub_sibling.options : CFG.options).slice();
       if (mine && !listed.some(function (o) { return o.code === mine.code; })) listed.push(mine);
       listed.forEach(function (o) {
         var line;
@@ -1019,14 +1076,21 @@
           + ' cancellable on the same notice.&nbsp;&nbsp;Initials: <b>'
           + esc(initials) + '</b></p>';
       }
-      for (var f = 0; f < tpl.feesTail.length; f++) hh += '<p>' + esc(tpl.feesTail[f]) + '</p>';
-      for (var s2 = 0; s2 < tpl.sections.length; s2++) {
-        hh += '<h4>' + esc(tpl.sections[s2].h) + '</h4>';
-        for (var q = 0; q < tpl.sections[s2].p.length; q++) hh += '<p>' + esc(tpl.sections[s2].p[q]) + '</p>';
+      for (var f = 0; f < T.feesTail.length; f++) hh += '<p>' + esc(T.feesTail[f]) + '</p>';
+      for (var s2 = 0; s2 < T.sections.length; s2++) {
+        hh += '<h4>' + esc(T.sections[s2].h) + '</h4>';
+        for (var q = 0; q < T.sections[s2].p.length; q++) hh += '<p>' + esc(T.sections[s2].p[q]) + '</p>';
       }
-      hh += '<p><i>' + esc(tpl.signNote) + '</i></p>';
+      hh += '<p><i>' + esc(T.signNote) + '</i></p>';
     }
     box.innerHTML = hh;
+    // The box they tick names every document they are signing.
+    var cubNames = [];
+    FAM.extra.forEach(function (r, k) { if (famIsCub(r)) cubNames.push((studentName(k + 1).split(" ")[0]) || "your Cub"); });
+    $("cbc-cub-consent").textContent = cubNames.length
+      ? " That includes the Cubs Membership Agreement above for "
+        + (cubNames.length > 1 ? cubNames.slice(0, -1).join(", ") + " and " + cubNames[cubNames.length - 1] : cubNames[0]) + "."
+      : "";
   }
   ["lkc-sfirst", "lkc-slast", "lkc-dob", "lkc-pfirst", "lkc-plast", "cbc-initials"].forEach(function (id) {
     document.addEventListener("input", function (e) { if (e.target && e.target.id === id) renderDoc(); });
@@ -1147,10 +1211,13 @@
     $("lkc-form").hidden = true;
     var names = [];
     for (var ni = 0; ni <= FAM.extra.length; ni++) names.push((studentName(ni).split(" ")[0]) || "Your student");
-    var st = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
-    var verb = names.length > 1 ? " are" : " is";
+    // "Lincoln is enrolled in Juniors", and with a Cub, "..., and June in Cubs".
+    var tk = [], cb = [];
+    names.forEach(function (nm, k) { if (k > 0 && famIsCub(FAM.extra[k - 1])) cb.push(nm); else tk.push(nm); });
+    var listN = function (a) { return a.length > 1 ? a.slice(0, -1).join(", ") + " and " + a[a.length - 1] : a[0]; };
     $("lkc-done").hidden = false;
-    $("lkc-done-h").textContent = st + verb + " enrolled in Juniors";
+    $("lkc-done-h").textContent = listN(tk) + (tk.length > 1 ? " are" : " is") + " enrolled in Juniors"
+      + (cb.length ? ", and " + listN(cb) + " in Cubs" : "");
     $("lkc-done-p").textContent = "Welcome to the mat. Here's the plan you picked:";
     $("cbc-done-plan").textContent = studentPlans().map(function (x) {
       var p = x.plan;
