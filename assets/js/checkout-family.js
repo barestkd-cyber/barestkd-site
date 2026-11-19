@@ -28,7 +28,7 @@
   function create(o) {
     var cfg = o.cfg, choices = cfg.family_choices || [];
     var rows = [], seq = 0;
-    var Q = { sig: "", data: null, pending: false, error: "", timer: null, n: 0 };
+    var Q = { sig: "", data: null, pending: false, pendingSig: "", error: "", timer: null, n: 0 };
 
     var choiceOf = function (key) {
       for (var i = 0; i < choices.length; i++) if (choices[i].key === key) return choices[i];
@@ -94,8 +94,13 @@
       // A cart that just failed is not asked again until something in it
       // changes, so a refusal cannot turn into a loop of requests.
       if (Q.failSig === sig) return;
+      // Nor is a cart whose price is already on its way. Every render asks,
+      // and asking again threw the first answer away, so a server slower
+      // than the 250 ms wait never had an answer kept and the total sat on
+      // "Working out your family's price" (owner, 2026-11-19).
+      if (Q.pending && Q.pendingSig === sig) return;
       var n = ++Q.n;
-      Q.pending = true; Q.error = "";
+      Q.pending = true; Q.pendingSig = sig; Q.error = "";
       b.action = "quote";
       fetch(o.fn, {
         method: "POST",

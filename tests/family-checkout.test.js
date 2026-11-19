@@ -650,6 +650,66 @@ test('a family that already trains here: a kickboxer gets the household discount
 
 // The family rows: a program for each member, a payment option only when the
 // quote says they need one, their own uniform, and nothing priced on the page.
+// Owner, 2026-11-19, on his phone, the Juniors total on "Working out your
+// family's price": "it loaded finally but took a long time". Every render asks
+// for a quote, and the script asked again while the first was on its way,
+// throwing that answer away, so a server slower than the 250 ms wait never
+// had an answer kept. The same cart is asked once and its answer waited for.
+test('a slow price answer is waited for, not asked again and thrown away', async () => {
+  let now = 0, seq = 0;
+  const timers = new Map();
+  const advance = (ms) => {
+    const end = now + ms;
+    for (;;) {
+      let next = null;
+      for (const [id, t] of timers) if (t.at <= end && (!next || t.at < next[1].at)) next = [id, t];
+      if (!next) break;
+      timers.delete(next[0]); now = next[1].at; next[1].fn();
+    }
+    now = end;
+  };
+  const asked = [];
+  const ctx = vm.createContext({
+    window: {},
+    setTimeout: (fn, ms) => { timers.set(++seq, { fn, at: now + ms }); return seq; },
+    clearTimeout: (id) => { timers.delete(id); },
+    fetch: (url, init) => new Promise((resolve) => {
+      const body = JSON.parse(init.body);
+      asked.push({ answer: () => resolve({ ok: true, json: async () => ({ ok: true, plan: body.plan_code, students: [] }) }) });
+    }),
+  });
+  vm.runInContext(fs.readFileSync(path.join(SITE, 'assets', 'js', 'checkout-family.js'), 'utf8'), ctx);
+  const stub = { hidden: false, textContent: '', addEventListener() {}, appendChild() {} };
+  let plan = 'juniors_weekly';
+  let fam = null;
+  fam = ctx.window.BTKDFamily.create({
+    cfg: { family_choices: [] }, fn: 'https://example.test/program-checkout', key: 'k',
+    addBtn: stub, root: stub, list: stub,
+    body: () => ({ plan_code: plan, email: 'parent@example.com', uniform: false, addons: [], shirts: [],
+      students: [{ first: 'Sam', last: 'Sample', dob: '2016-01-01' }] }),
+    changed: () => fam.requestQuote(),   // the page re-renders on every change, and every render asks
+  });
+  const settle = () => new Promise((r) => setImmediate(r));
+
+  fam.requestQuote();
+  advance(3000);                       // the server takes three seconds
+  assert.equal(asked.length, 1, 'the same cart was asked ' + asked.length + ' times while its price was on its way');
+  asked[0].answer(); await settle();
+  assert.equal(fam.quote() && fam.quote().plan, 'juniors_weekly', 'the slow answer was thrown away');
+  advance(3000);
+  assert.equal(asked.length, 1, 'a priced cart was asked again');
+
+  // A change while a price is on its way is asked about, and only the
+  // newest cart's answer is kept.
+  plan = 'juniors_monthly'; fam.requestQuote(); advance(300);
+  plan = 'juniors_pif'; fam.requestQuote(); advance(300);
+  assert.equal(asked.length, 3, 'a changed cart was not asked about');
+  asked[1].answer(); await settle();
+  assert.equal(fam.quote(), null, 'an answer for an old cart was kept');
+  asked[2].answer(); await settle();
+  assert.equal(fam.quote() && fam.quote().plan, 'juniors_pif', 'the newest cart\'s answer was not kept');
+});
+
 test('the family script asks the server for every price and signs each member to their own program', () => {
   const js = fs.readFileSync(path.join(SITE, 'assets', 'js', 'checkout-family.js'), 'utf8');
   for (const need of ['data-f="program"', 'data-f="plan"', 'data-f="uniform"', 'b.action = "quote"', 'needs_option',
