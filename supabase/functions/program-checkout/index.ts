@@ -58,18 +58,38 @@ type ProgramCfg = {
   // A membership that buys ONE class a week: the buyer picks which one, and
   // it is recorded on the membership and in the document they sign.
   pickClass?: boolean;
-  // A family member added on this checkout may be a Cub instead: their own
-  // Cubs membership at the Cubs family rate, their own Cubs agreement under
-  // the same signature, their own Cubs roster place.
-  cubSibling?: boolean;
+  // A page that takes a family: after the first student, more can be added
+  // in any of FAMILY_CHOICES, each their own membership, agreement and
+  // roster place in their own program.
+  family?: boolean;
 };
 
-/* The Cub a family adds on a Taekwondo checkout (owner, 2026-11-18: "give them
- * the option to choose cub or juniors"). A Cub behind any family member is
- * the family's second student, which is the Cubs family rate ($109, nothing
- * down, cubs_family_second in the catalog). They sign the Cubs document the
- * Cubs page signs, and a family member's uniform is half off as it is here. */
-const CUB = { program: "Cubs", label: "Cubs", tpl: CUBS_TEMPLATE, uniform: "Cubs uniform" };
+/* What a family member added on a checkout can enroll in (owner, 2026-11-18:
+ * "connect all programs via second student during checkout ... the checkout
+ * page [is] specific for the first student, but then you can add any type of
+ * second student and the engine will run the price correctly").
+ *
+ * Each is priced by the engine the till uses, with everyone ahead of them on
+ * the checkout counted as family: a second Taekwondo student is the Taekwondo
+ * family rate (a first one picks a regular option), a Cub is the Cubs family
+ * rate, and Kickboxing or Jiu Jitsu is the monthly rate less the household
+ * discount. Each signs their own program's document under the one signature.
+ * "Kickboxing + Jiu Jitsu" is Kickboxing with Jiu Jitsu added on, the way the
+ * Kickboxing page sells both: there is no agreement for the bundle. Little
+ * Kickers, AMP'D and one class a week stay on their own pages. */
+type FamilyChoice = { key: string; label: string; slug: string; addOn?: { program: string; code: string } };
+const FAMILY_CHOICES: FamilyChoice[] = [
+  { key: "juniors", label: "Juniors", slug: "juniors" },
+  { key: "teens-adults", label: "Teens & Adults", slug: "teens-adults" },
+  { key: "cubs", label: "Cubs", slug: "cubs" },
+  { key: "kickboxing", label: "Kickboxing", slug: "kickboxing" },
+  { key: "jiu-jitsu", label: "Jiu Jitsu", slug: "jiu-jitsu" },
+  { key: "kickboxing-jiu-jitsu", label: "Kickboxing + Jiu Jitsu", slug: "kickboxing",
+    addOn: { program: "Jiu Jitsu", code: "specialty_second_jiujitsu" } },
+];
+// The Taekwondo programs, where a family member's place moves them down the
+// Taekwondo family rates.
+const TKD_PROGRAMS = ["Juniors", "Teens/Adults"];
 
 /* The ONLY place a program differs. Adding one is a row here, a page, and a
  * copy-lint entry, never another copy of this file.
@@ -83,9 +103,9 @@ const CUB = { program: "Cubs", label: "Cubs", tpl: CUBS_TEMPLATE, uniform: "Cubs
  *   Kickboxing + Jiu Jitsu - no agreement document exists for the bundle. The
  *                            CRM already refuses to sell it under contract.
  *
- * featuredTee is null everywhere on purpose. The half-price gray tee is a
- * Cubs enrollment special, and extending a discount to other programs is the
- * owners call, not an implementation detail. */
+ * featuredTee is the half-price gray tee, a Cubs enrollment special and set
+ * on the Cubs page only: extending a discount to other programs is the
+ * owner's call, not an implementation detail. */
 const PROGRAMS: Record<string, ProgramCfg> = {
   "juniors": {
     program: "Juniors", label: "Juniors Taekwondo", tpl: TAEKWONDO_TEMPLATE,
@@ -94,8 +114,9 @@ const PROGRAMS: Record<string, ProgramCfg> = {
     featuredTee: null, guardianAlways: true,
     // NO add-ons. The schedule has Kickboxing and Jiu Jitsu both marked 13+,
     // so neither is open to a Juniors-age student. Offering them here would
-    // sell a parent a class their child cannot attend.
-    cubSibling: true,
+    // sell a parent a class their child cannot attend. (A parent or an older
+    // sibling can still join them as a family member.)
+    family: true,
   },
   "teens-adults": {
     program: "Teens/Adults", label: "Teens and Adults Taekwondo", tpl: TAEKWONDO_TEMPLATE,
@@ -107,6 +128,16 @@ const PROGRAMS: Record<string, ProgramCfg> = {
       { program: "Jiu Jitsu", code: "addon_jiujitsu" },
     ],
     bothCode: "addon_both",
+    family: true,
+  },
+  // Same rows and rules as the Cubs page's own function (cubs-checkout), which
+  // stays deployed for anything still pointed at it.
+  "cubs": {
+    program: "Cubs", label: "Cubs", tpl: CUBS_TEMPLATE,
+    uniform: "Cubs uniform",
+    shirts: ["Classic gray tee", "Lego tee", "Alternate design tee"],
+    featuredTee: "Classic gray tee", guardianAlways: true,
+    family: true,
   },
   "kickboxing": {
     program: "Kickboxing", label: "Kickboxing", tpl: KICKBOXING_TEMPLATE,
@@ -114,6 +145,7 @@ const PROGRAMS: Record<string, ProgramCfg> = {
     shirts: ["Team Grizzly Kickboxing tee", "Classic gray tee"],
     featuredTee: null, guardianAlways: false,
     addOns: [{ program: "Jiu Jitsu", code: "specialty_second_jiujitsu" }],
+    family: true,
   },
   // $50 a month for everyone: there is no member-versus-stranger rate here,
   // which is exactly why AMP'D can have a public page at all.
@@ -129,6 +161,7 @@ const PROGRAMS: Record<string, ProgramCfg> = {
     shirts: ["Classic gray tee"],
     featuredTee: null, guardianAlways: false,
     addOns: [{ program: "Kickboxing", code: "specialty_second_kickboxing" }],
+    family: true,
   },
   /* One class a week, the Wednesday daytime class (owner, 2026-09-19). The
    * page is linked from nowhere and stays out of search; he hands the link
@@ -185,6 +218,9 @@ function ageFrom(dob: string): number | null {
 }
 
 const TAX_RATE = 0.0825;          // memberships are untaxed; kept for shape
+// The featured tee's enrollment discount (the Cubs page's half-price gray
+// tee), basis points, the same figure cubs-checkout uses.
+const TEE_DISCOUNT_BPS = 5000;
 // A family's second student and beyond gets the uniform at half off (owner,
 // 2026-10-10). Basis points, like the tee discount, so the page and the
 // ledger round the same way.
@@ -600,27 +636,56 @@ Deno.serve(async (req) => {
     .eq("name", cfg.uniform ?? "\u0000none").eq("active", true).maybeSingle();
   const uniform = uniRes.data ?? null;
 
-  // The Cub a family can add here: the Cubs options their agreement lists,
-  // the Cubs family rate they get, and the Cubs uniform. No Cubs family rate
-  // in the catalog means no Cub on this page, rather than a price from code.
-  let cubOptions: PlanRow[] = [];
-  let cubFamily: PlanRow | null = null;
-  let cubUniform: { id: string; name: string; price_cents: number } | null = null;
-  if (cfg.cubSibling) {
-    const cubRes = await admin.from("pricing_plans")
+  // The programs a family member can be added in: each one's catalog (the
+  // options their agreement lists, their family rates) and its uniform. A
+  // program with nothing in the catalog is simply not offered, rather than
+  // priced from code.
+  type UniProduct = { id: string; name: string; price_cents: number };
+  type Catalog = { all: PlanRow[]; options: PlanRow[]; familyPlans: PlanRow[] };
+  const famRows: (PlanRow & { sellable: boolean })[] = [];
+  const famUniforms = new Map<string, UniProduct>();
+  if (cfg.family) {
+    const famPrograms = [...new Set(FAMILY_CHOICES.map((c) => PROGRAMS[c.slug].program))];
+    const famRes = await admin.from("pricing_plans")
       .select("id,code,name,program,category,family_position,supports_household_discount,billing_frequency,recurring_cents,down_cents,pif_cents,payment_count,promo_label,sellable,active,display_order")
-      .eq("program", CUB.program).eq("active", true)
+      .in("program", famPrograms).eq("active", true)
       .order("display_order");
-    const cubRows = (cubRes.data ?? []) as (PlanRow & { sellable: boolean })[];
-    cubOptions = cubRows.filter((p) => p.sellable === true && !claimed.has(p.code));
-    cubFamily = cubRows.find((p) => p.category === "cubs" && Number(p.family_position) === 2) ?? null;
-    const cubUniRes = await admin.from("products")
+    famRows.push(...((famRes.data ?? []) as (PlanRow & { sellable: boolean })[]));
+    const uniNames = [...new Set(FAMILY_CHOICES.map((c) => PROGRAMS[c.slug].uniform).filter(Boolean))] as string[];
+    const famUniRes = await admin.from("products")
       .select("id,name,price_cents,taxable,active")
-      .eq("name", CUB.uniform).eq("active", true).maybeSingle();
-    cubUniform = cubUniRes.data ?? null;
+      .in("name", uniNames).eq("active", true);
+    for (const u of (famUniRes.data ?? []) as UniProduct[]) if (!famUniforms.has(u.name)) famUniforms.set(u.name, u);
   }
-  const cubOn = !!cubFamily;
-  const cubPlans = (): PlanRow[] => (cubFamily ? [cubFamily, ...cubOptions] : cubOptions);
+  const catalogOf = (program: string): Catalog => {
+    const all = famRows.filter((p) => p.program === program);
+    return {
+      all,
+      options: all.filter((p) => p.sellable === true && !claimed.has(p.code)),
+      familyPlans: all.filter((p) => p.family_position != null)
+        .sort((a, b) => Number(a.family_position) - Number(b.family_position)),
+    };
+  };
+  const cubsFamilyPlan = (cat: Catalog) =>
+    cat.all.find((p) => p.category === "cubs" && Number(p.family_position) === 2) ?? null;
+  // A choice is offered only when the catalog can price it: something to
+  // sell, the Cubs family rate for a Cub, the add-on rate for both.
+  const choiceReady = (c: FamilyChoice) => {
+    const prog = PROGRAMS[c.slug], cat = catalogOf(prog.program);
+    if (prog.program === "Cubs") return !!cubsFamilyPlan(cat);
+    if (c.addOn && !famRows.some((p) => p.code === c.addOn!.code)) return false;
+    return cat.options.length > 0;
+  };
+  const familyChoices = cfg.family ? FAMILY_CHOICES.filter(choiceReady) : [];
+  /* Which choice a posted program names: a key ("teens-adults"), a label
+   * ("Teens & Adults") or a program ("Teens/Adults"). Blank, or this page's
+   * own program, is the page's program. Anything else is undefined. */
+  const choiceFor = (raw: string): FamilyChoice | null | undefined => {
+    const r = raw.trim().toLowerCase();
+    if (!r || r === cfg.program.toLowerCase() || r === slug) return null;
+    return familyChoices.find((c) => c.key === r || c.label.toLowerCase() === r
+      || (!c.addOn && PROGRAMS[c.slug].program.toLowerCase() === r));
+  };
 
   // Add-on rates, priced from the catalog like everything else. The pair
   // rate is a row of its own rather than the sum of two, because the owner
@@ -658,8 +723,10 @@ Deno.serve(async (req) => {
     }));
   }
 
+  // The household discount is the engine's own setting: a family member in
+  // Kickboxing or Jiu Jitsu gets it here exactly as they would at the till.
   const setRes = await admin.from("pricing_settings").select("key,value_cents")
-    .in("key", ["admin_fee_bps", "admin_fee_flat_cents"]);
+    .in("key", ["admin_fee_bps", "admin_fee_flat_cents", "household_specialty_discount_cents", "weekly_household_discount_cents"]);
   const settings: Record<string, number> = {};
   (setRes.data ?? []).forEach((r: { key: string; value_cents: number }) => settings[r.key] = r.value_cents);
   const feeBps = settings.admin_fee_bps ?? 290;
@@ -677,7 +744,9 @@ Deno.serve(async (req) => {
       const famEmail = str(reqUrl.searchParams.get("family_email"));
       if (famEmail) {
         const members = await householdForEmail(admin, famEmail);
-        return json({ position: BTKDPricing.familyPosition(members), found: familyHolders(members) }, 200, cors);
+        // members: everyone this email already pays for in any program, which
+        // is what makes a Cub second or earns the household discount.
+        return json({ position: BTKDPricing.familyPosition(members), found: familyHolders(members), members: members.length }, 200, cors);
       }
       return json({
         family_rates: familyPlans.map((p) => ({
@@ -723,20 +792,41 @@ Deno.serve(async (req) => {
         class_terms: cfg.pickClass ? CLASS_TERMS : null,
         class_pair_terms: cfg.pickClass ? PAIR_TERMS : null,
         agreement_version: cfg.tpl.version,
-        // A family member added here may be a Cub: the rate they get, the
-        // options their Cubs agreement lists, and their uniform.
-        cub_sibling: cubOn ? {
-          code: cubFamily!.code, name: cubFamily!.name,
-          down_cents: cubFamily!.down_cents || 0, recurring_cents: cubFamily!.recurring_cents || 0,
-          due_today_cents: dueFor(cubFamily!),
-          options: cubOptions.map((p) => ({
-            code: p.code, name: p.name, billing_frequency: p.billing_frequency,
-            down_cents: p.down_cents || 0, recurring_cents: p.recurring_cents || 0, pif_cents: p.pif_cents || 0,
-          })),
-          uniform_available: !!cubUniform,
-          uniform_cents: cubUniform ? cubUniform.price_cents : 0,
-          agreement_version: CUB.tpl.version,
-        } : null,
+        // What a family member added here can enroll in: each program's
+        // options (their agreement lists them, and a first Taekwondo student
+        // picks one), its family rates, its uniform, and the add-on for both.
+        // The page prices nothing from these: it asks for a quote.
+        family_choices: familyChoices.map((c) => {
+          const prog = PROGRAMS[c.slug], cat = catalogOf(prog.program);
+          const uni = prog.uniform ? famUniforms.get(prog.uniform) ?? null : null;
+          const addOnPlan = c.addOn ? famRows.find((p) => p.code === c.addOn!.code) ?? null : null;
+          return {
+            key: c.key, label: c.label, program: prog.program, template_key: prog.tpl.key,
+            tkd: TKD_PROGRAMS.includes(prog.program),
+            options: cat.options.map((p) => ({
+              code: p.code, name: p.name, billing_frequency: p.billing_frequency,
+              down_cents: p.down_cents || 0, recurring_cents: p.recurring_cents || 0,
+              pif_cents: p.pif_cents || 0, due_today_cents: dueFor(p),
+            })),
+            uniform_available: !!uni, uniform_cents: uni ? uni.price_cents : 0,
+            add_on: addOnPlan ? { program: c.addOn!.program, monthly_cents: addOnPlan.recurring_cents || 0 } : null,
+          };
+        }),
+        // Read by the Juniors page from 11/18 until it moved to family_choices.
+        cub_sibling: (() => {
+          if (slug !== "juniors" || !familyChoices.some((c) => c.key === "cubs")) return null;
+          const cat = catalogOf("Cubs"), fam = cubsFamilyPlan(cat)!, uni = famUniforms.get("Cubs uniform") ?? null;
+          return {
+            code: fam.code, name: fam.name,
+            down_cents: fam.down_cents || 0, recurring_cents: fam.recurring_cents || 0, due_today_cents: dueFor(fam),
+            options: cat.options.map((p) => ({
+              code: p.code, name: p.name, billing_frequency: p.billing_frequency,
+              down_cents: p.down_cents || 0, recurring_cents: p.recurring_cents || 0, pif_cents: p.pif_cents || 0,
+            })),
+            uniform_available: !!uni, uniform_cents: uni ? uni.price_cents : 0,
+            agreement_version: CUBS_TEMPLATE.version,
+          };
+        })(),
       }, 200, cors);
     }
     if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
@@ -794,9 +884,12 @@ Deno.serve(async (req) => {
       return json({ ok: true, paid: true, receipt_url: `${SITE}/invoice/?t=${sale.data.view_token}` }, 200, cors);
     }
 
-    // ── the enrollment itself ──────────────────────────────────────────────
+    // ── the enrollment itself, or a quote for it ───────────────────────────
+    // A quote prices the same cart the same way and writes nothing. The page
+    // shows a family's cart from it, so the total it shows is the one charged.
+    const isQuote = str(body.action) === "quote";
     const saleId = str(body.sale_id).toLowerCase();
-    if (!UUID_RE.test(saleId)) return json({ error: "Bad enrollment id. Reload the page." }, 400, cors);
+    if (!isQuote && !UUID_RE.test(saleId)) return json({ error: "Bad enrollment id. Reload the page." }, 400, cors);
 
     const chosen = options.find((p) => p.code === str(body.plan_code));
     if (!chosen) return json({ error: "Pick a payment option." }, 400, cors);
@@ -807,6 +900,7 @@ Deno.serve(async (req) => {
     let chosenClass: ClassChoice | null = null;
     if (cfg.pickClass) {
       chosenClass = classList.find((c) => c.id === str(body.class_choice)) ?? null;
+      // (A one-class page takes no family, so it never asks for a quote.)
       if (!chosenClass) return json({ error: "Pick the class they will come to." }, 400, cors);
     }
     const classLine = chosenClass
@@ -815,30 +909,26 @@ Deno.serve(async (req) => {
       : null;
 
     // Everyone enrolling on this checkout. One student is the common case; a
-    // family can add a second and a third, and each is priced by their place
-    // in the household exactly as the till prices them (owner, 2026-10-10:
-    // "if you wanted to register 2 in one go that should be doable").
-    // A student's program: blank or this page's program, or "Cubs" for a Cub
-    // a family adds here. Anything else is refused, never guessed at.
-    type StudentIn = { first: string; last: string; dob: string; cub: boolean; program: string };
+    // family can add more, and each is priced by their place in the household
+    // exactly as the till prices them (owner, 2026-10-10: "if you wanted to
+    // register 2 in one go that should be doable"; 2026-11-18: in any program).
+    // The first student is this page's program. Each one after names theirs:
+    // blank or this page's program, or one of FAMILY_CHOICES; anything else is
+    // refused, never guessed at.
+    type StudentIn = { first: string; last: string; dob: string; choice: FamilyChoice | null; prog: ProgramCfg; planCode: string };
     const rawStudents = Array.isArray(body.students) ? (body.students as unknown[]).slice(0, 4) : [];
-    const students: StudentIn[] = rawStudents.length
-      ? rawStudents.map((r) => {
-          const o = (r && typeof r === "object") ? r as Record<string, unknown> : {};
-          const prog = str(o.program).toLowerCase();
-          return { first: str(o.first), last: str(o.last), dob: str(o.dob), cub: prog === "cubs", program: prog };
-        })
-      : [{ first: str(body.student_first), last: str(body.student_last), dob: str(body.student_dob), cub: false, program: "" }];
-    for (const st of students) {
-      if (st.program && !st.cub && st.program !== cfg.program.toLowerCase()) {
-        return json({ error: "That program can't be added on this page. Reload the page." }, 400, cors);
+    const rawList: unknown[] = rawStudents.length ? rawStudents
+      : [{ first: body.student_first, last: body.student_last, dob: body.student_dob }];
+    const students: StudentIn[] = [];
+    for (let i = 0; i < rawList.length; i++) {
+      const o = (rawList[i] && typeof rawList[i] === "object") ? rawList[i] as Record<string, unknown> : {};
+      const choice = choiceFor(str(o.program));
+      if (choice === undefined) return json({ error: "That program can't be added on this page. Reload the page." }, 400, cors);
+      if (i === 0 && choice) {
+        return json({ error: "The first student enrolls in " + cfg.label + ". Add anyone in another program as a family member." }, 400, cors);
       }
-    }
-    if (students[0].cub) {
-      return json({ error: "The first student enrolls in " + cfg.label + ". Add a Cub as a family member." }, 400, cors);
-    }
-    if (students.some((st) => st.cub) && !cubOn) {
-      return json({ error: "A Cub can't be added on this page right now. Call 903-561-2966." }, 400, cors);
+      students.push({ first: str(o.first), last: str(o.last), dob: str(o.dob), choice,
+        prog: choice ? PROGRAMS[choice.slug] : cfg, planCode: str(o.plan_code) });
     }
     const studentFirst = students[0].first, studentLast = students[0].last;
     const dob = students[0].dob;
@@ -868,80 +958,240 @@ Deno.serve(async (req) => {
     const signerName = str(body.signer_name), signerRel = str(body.signer_relationship) || "Parent";
     const signature = str(body.signature_png);
 
-    for (const st of students) {
-      if (!st.first || !st.last) return json({ error: students.length > 1 ? "Enter every student's name." : "Enter the student's name." }, 400, cors);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(st.dob)) return json({ error: students.length > 1 ? "Enter every student's date of birth." : "Enter the student's date of birth." }, 400, cors);
+    if (!isQuote) {
+      for (const st of students) {
+        if (!st.first || !st.last) return json({ error: students.length > 1 ? "Enter every student's name." : "Enter the student's name." }, 400, cors);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(st.dob)) return json({ error: students.length > 1 ? "Enter every student's date of birth." : "Enter the student's date of birth." }, 400, cors);
+      }
     }
-    if (students.length > 1 && !familyPlans.length) {
+    if (students.length > 1 && !cfg.family && !familyPlans.length) {
       return json({ error: cfg.label + " has no family rate online. Enroll one student at a time, or call 903-561-2966." }, 400, cors);
     }
-    // Who signs. Where every student is a child the guardian is the
-    // contracting adult and is always required. Where a program takes adults,
-    // an adult enrolling themselves should not have to invent a guardian, so
-    // the requirement follows the student's actual age. A teenager still
-    // needs one: a minor's contract with a blank guardian line is precisely
-    // the document that fails when it matters.
-    const needsGuardian = cfg.guardianAlways
-      || students.some((st) => { const a = ageFrom(st.dob); return a === null || a < 18; });
-    if (needsGuardian && (!parentFirst || !parentLast)) {
-      return json({ error: "Enter the parent or guardian's name." }, 400, cors);
-    }
-    if (!EMAIL_RE.test(email)) return json({ error: "Enter a valid email." }, 400, cors);
-    if (!phone) return json({ error: "Enter a phone number." }, 400, cors);
-    if (!address) return json({ error: "Enter your home address." }, 400, cors);
-    if (!/^[A-Z.]{2,6}$/.test(initials)) return json({ error: "Enter the signer's initials (2 to 4 letters)." }, 400, cors);
-    if (!signerName) return json({ error: "Enter the signature name." }, 400, cors);
-    if (body.agreed !== true) return json({ error: "The agreement box must be checked." }, 400, cors);
-    if (!signature.startsWith("data:image/png;base64,") || signature.length < 200 || signature.length > 200000) {
-      return json({ error: "Please sign in the signature box." }, 400, cors);
+    if (!isQuote) {
+      // Who signs. Where every student is a child the guardian is the
+      // contracting adult and is always required. Where a program takes adults,
+      // an adult enrolling themselves should not have to invent a guardian, so
+      // the requirement follows the students' actual ages. A teenager still
+      // needs one: a minor's contract with a blank guardian line is precisely
+      // the document that fails when it matters.
+      const needsGuardian = cfg.guardianAlways
+        || students.some((st) => { const a = ageFrom(st.dob); return a === null || a < 18; });
+      if (needsGuardian && (!parentFirst || !parentLast)) {
+        return json({ error: "Enter the parent or guardian's name." }, 400, cors);
+      }
+      if (!EMAIL_RE.test(email)) return json({ error: "Enter a valid email." }, 400, cors);
+      if (!phone) return json({ error: "Enter a phone number." }, 400, cors);
+      if (!address) return json({ error: "Enter your home address." }, 400, cors);
+      if (!/^[A-Z.]{2,6}$/.test(initials)) return json({ error: "Enter the signer's initials (2 to 4 letters)." }, 400, cors);
+      if (!signerName) return json({ error: "Enter the signature name." }, 400, cors);
+      if (body.agreed !== true) return json({ error: "The agreement box must be checked." }, 400, cors);
+      if (!signature.startsWith("data:image/png;base64,") || signature.length < 200 || signature.length > 200000) {
+        return json({ error: "Please sign in the signature box." }, 400, cors);
+      }
     }
 
     // ── price every student with the engine the POS uses ──────────────────
     // The first student takes the option they picked, and the engine swaps
-    // in the family rate when this parent already pays for a Taekwondo
-    // student. Everyone added after them is a family member by definition:
-    // second at the second-student rate, third and beyond at the third.
+    // in a family rate when this email already pays for someone here. Each
+    // one after is priced in their own program with everyone ahead of them
+    // counted as family: a second Taekwondo student at the Taekwondo family
+    // rate (a family's first one picks a regular option), a Cub at the Cubs
+    // family rate, Kickboxing or Jiu Jitsu at the monthly rate less the
+    // household discount.
     const household = await householdForEmail(admin, email);
-    const allPlans: PlanRow[] = [...options, ...familyPlans];
-    type Priced = { student: StudentIn; calc: Record<string, any>; plan: PlanRow; due: number; position: number };
+    const pagePlans: PlanRow[] = [...options, ...familyPlans];
+    type MemberAddOn = { program: string; code: string; monthlyCents: number };
+    type Priced = {
+      student: StudentIn; calc: Record<string, any>; plan: PlanRow; due: number; position: number;
+      options: PlanRow[]; addOn: MemberAddOn | null; needsOption: boolean;
+    };
     const priced: Priced[] = [];
     for (let i = 0; i < students.length; i++) {
+      const st = students[i], prog = st.prog;
+      const samePage = prog === cfg;
+      const cat: Catalog = samePage ? { all: pagePlans, options, familyPlans } : catalogOf(prog.program);
       // The students ahead in this same checkout count as family already
       // enrolled, which is what they are about to be.
-      const members: HouseholdMember[] = household.concat(priced.map((p, j) => ({
+      const members: HouseholdMember[] = household.concat(priced.filter((p) => !p.needsOption).map((p, j) => ({
         contact_id: "checkout-" + j,
         activeMemberships: [{
-          plan_code: p.plan.code, program: p.student.cub ? CUB.program : cfg.program, category: p.plan.category ?? null,
+          plan_code: p.plan.code, program: p.student.prog.program, category: p.plan.category ?? null,
           billing_frequency: p.plan.billing_frequency, status: "active", started_on: todayCT(),
         }],
       })));
-      // A Cub never moves a Taekwondo student down the family rates; the
-      // engine counts Taekwondo memberships only, so this stays as it was.
+      // A Cub or a kickboxer never moves a Taekwondo student down the family
+      // rates: the engine counts Taekwondo memberships only.
       const position = BTKDPricing.familyPosition(members);
-      let requested: PlanRow = chosen;
-      const cub = students[i].cub;
-      if (cub) {
-        // Behind the student ahead of them on this checkout, a Cub is always
-        // the family's second: the Cubs family rate, as the till prices it.
-        requested = cubFamily!;
-      } else if (i > 0) {
+      let requested: PlanRow | null = null;
+      if (i === 0) {
+        requested = chosen;
+      } else if (!cfg.family) {
         const fam = familyPlans.find((p) => Number(p.family_position) === (position >= 3 ? 3 : 2))
           ?? familyPlans[familyPlans.length - 1];
         if (!fam) return json({ error: cfg.label + " has no family rate online. Call 903-561-2966." }, 400, cors);
         requested = fam;
+      } else if (TKD_PROGRAMS.includes(prog.program)) {
+        if (position >= 2) {
+          requested = cat.familyPlans.find((p) => Number(p.family_position) === (position >= 3 ? 3 : 2))
+            ?? cat.familyPlans[cat.familyPlans.length - 1] ?? null;
+          if (!requested) return json({ error: prog.label + " has no family rate online. Call 903-561-2966." }, 400, cors);
+        } else {
+          // The family's first Taekwondo student: a regular option, theirs to pick.
+          requested = cat.options.find((p) => p.code === st.planCode) ?? null;
+          if (!requested) {
+            if (isQuote) {
+              // (a placeholder the quote reports as needing an option; never written)
+              priced.push({ student: st, calc: {}, plan: null as unknown as PlanRow, due: 0, position: 1, options: cat.options, addOn: null, needsOption: true });
+              continue;
+            }
+            return json({ error: "Pick a payment option for " + (st.first || "family member " + (i + 1)) + "." }, 400, cors);
+          }
+        }
+      } else if (prog.program === "Cubs") {
+        // Behind anyone ahead of them, a Cub is the family's second: the Cubs
+        // family rate, as the till prices it.
+        requested = cubsFamilyPlan(cat);
+        if (!requested) return json({ error: "A Cub can't be added on this page right now. Call 903-561-2966." }, 400, cors);
+      } else {
+        // Kickboxing or Jiu Jitsu: the monthly rate. The engine takes off the
+        // household discount, which is what a family member gets at the till.
+        requested = cat.options.find((p) => p.billing_frequency === "monthly") ?? null;
+        if (!requested) return json({ error: prog.label + " can't be added on this page right now. Call 903-561-2966." }, 400, cors);
       }
-      const planList = cub ? cubPlans() : allPlans;
       const c = BTKDPricing.calculatePrice({
         plan: requested, settings, person: { contact_id: null, activeMemberships: [] },
-        householdMembers: members, plans: planList,
+        householdMembers: members, plans: cat.all,
       });
       if (!c.eligible) return json({ error: "That option can't be sold right now." }, 409, cors);
-      const plan = planList.find((p) => p.code === c.planCode) ?? requested;
-      priced.push({ student: students[i], calc: c, plan, due: BTKDPricing.dueTodayCents(c, null), position: cub ? 2 : position });
+      const plan = cat.all.find((p) => p.code === c.planCode) ?? requested;
+      // Kickboxing + Jiu Jitsu: Jiu Jitsu added on at its add-on rate, as the
+      // Kickboxing page sells both.
+      let addOn: MemberAddOn | null = null;
+      if (st.choice && st.choice.addOn) {
+        const ap = famRows.find((p) => p.code === st.choice!.addOn!.code);
+        if (!ap) return json({ error: st.choice.label + " can't be added right now. Call 903-561-2966." }, 400, cors);
+        addOn = { program: st.choice.addOn.program, code: ap.code, monthlyCents: ap.recurring_cents || 0 };
+      }
+      // Their place for the family uniform discount: the engine's, in their
+      // own program (a Taekwondo position, or second for a Cub behind anyone).
+      const famPos = Number(c.familyPosition) || (i > 0 ? 2 : 1);
+      priced.push({ student: st, calc: c, plan, due: BTKDPricing.dueTodayCents(c, null), position: famPos,
+        options: cat.options, addOn, needsOption: false });
     }
     const primary = priced[0];
     const calc = primary.calc;
     const due = primary.due;   // down + first payment; PIF = the full amount
+
+    // Add-on programs. Each is a real membership with its own roster row, but
+    // rides the PRIMARY agreement as a priced line, so the buyer signs once.
+    // The first month is due today, exactly like the primary plan's first
+    // period, otherwise they would train a month before paying for it.
+    const wantAddOns = Array.isArray(body.addons)
+      ? [...new Set(body.addons.map((x: unknown) => str(x)).filter(Boolean))]
+      : [];
+    for (const p of wantAddOns) {
+      if (!addOnCfg.some((a) => a.program === p)) {
+        return json({ error: "That add-on is not available here. Reload the page." }, 400, cors);
+      }
+    }
+    const pricedAddOns = priceAddOns(wantAddOns);
+    const addOnCents = pricedAddOns.reduce((t, a) => t + a.monthlyCents, 0);
+    // The uniform is a normal taxable product riding the same invoice, one
+    // per student who wants one: `uniforms` lists them by student, and the
+    // old `uniform` flag is the first student's. A student who is the family's
+    // second or beyond gets theirs at half off (owner, 2026-10-10). Each
+    // student's uniform is their own program's (a Cub's is the Cubs uniform).
+    const rawUniforms = Array.isArray(body.uniforms) ? (body.uniforms as unknown[]) : [];
+    const uniformWants: boolean[] = students.map((_, i) =>
+      rawUniforms.length ? rawUniforms[i] === true : (i === 0 && body.uniform === true));
+    const uniformFor = (i: number): UniProduct | null => {
+      const prog = students[i].prog;
+      if (prog === cfg) return uniform;
+      return prog.uniform ? (famUniforms.get(prog.uniform) ?? null) : null;
+    };
+    if (uniformWants.some((w, i) => w && !uniformFor(i))) {
+      return json({ error: "The uniform is not available right now. Uncheck it to continue." }, 409, cors);
+    }
+    type Uni = { i: number; cents: number; full: number; product: UniProduct };
+    const wantUniforms: Uni[] = [];
+    uniformWants.forEach((w, i) => {
+      const product = uniformFor(i);
+      if (!w || !product) return;
+      const full = product.price_cents;
+      const cents = priced[i].position >= 2 ? Math.round(full * (10000 - FAMILY_UNIFORM_DISCOUNT_BPS) / 10000) : full;
+      wantUniforms.push({ i, cents, full, product });
+    });
+    const wantUniform = wantUniforms.length > 0;
+    const uniformLabel = (u: Uni) => {
+      const parts: string[] = [];
+      if (students.length > 1) parts.push(students[u.i].first);
+      if (u.cents < u.full) parts.push("half off");
+      return u.product.name + (parts.length ? " (" + parts.join(", ") + ")" : "");
+    };
+
+    // Shirts: a list of { name, size }. Prices come from the catalog here, so
+    // the discount on the featured shirt can never be claimed for the others.
+    const wantShirts: Array<{ row: { id: string; name: string; price_cents: number }; size: string; cents: number }> = [];
+    const rawShirts = Array.isArray(body.shirts) ? body.shirts : [];
+    for (const raw of rawShirts.slice(0, 6)) {
+      const nm = str((raw as { name?: unknown }).name);
+      const sz = str((raw as { size?: unknown }).size);
+      const row = shirtRows.find((r: { name: string }) => r.name === nm);
+      if (!row) return json({ error: "That shirt is not available. Remove it to continue." }, 409, cors);
+      if (!sz && !isQuote) return json({ error: "Pick a size for the " + row.name + "." }, 400, cors);
+      wantShirts.push({ row, size: sz, cents: shirtPrice(row) });
+    }
+    const shirtsCents = wantShirts.reduce((a, x) => a + x.cents, 0);
+
+    const lines = priced.map((p) => ({ cents: p.due, taxable: false }));
+    pricedAddOns.forEach((a) => lines.push({ cents: a.monthlyCents, taxable: false }));
+    priced.forEach((p) => { if (p.addOn) lines.push({ cents: p.addOn.monthlyCents, taxable: false }); });
+    wantUniforms.forEach((u) => lines.push({ cents: u.cents, taxable: true }));
+    wantShirts.forEach((x) => lines.push({ cents: x.cents, taxable: true }));
+    // The fee grosses up on what Race must NET, which is goods PLUS sales
+    // tax: Stripe takes its percentage of the whole charge, tax included.
+    // Grossing up on the pre-tax subtotal left him about 2.9% of the tax
+    // short on every taxed sale (ledger audit 2026-09-09). Tax never depends
+    // on the fee, so price it once with a zero fee and gross up on that total.
+    const preFee = BTKDPricing.invoiceTotals({
+      lines, discountCents: 0, adminFeeCents: 0, taxRate: TAX_RATE,
+    });
+    const fee = adminFeeCents(preFee.totalCents, feeBps, feeFlat);   // card-only online, fee always rides
+    const totals = BTKDPricing.invoiceTotals({
+      lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
+    });
+
+    // ── the quote: what each student gets and what today costs, nothing written ──
+    if (isQuote) {
+      const complete = !priced.some((p) => p.needsOption);
+      return json({
+        ok: true, complete,
+        students: priced.map((p, i) => {
+          const u = wantUniforms.find((x) => x.i === i);
+          return {
+            program: p.student.prog.program,
+            label: p.student.choice ? p.student.choice.label : cfg.label,
+            needs_option: p.needsOption,
+            plan: !p.needsOption ? {
+              code: p.plan.code, name: p.plan.name, billing_frequency: p.plan.billing_frequency,
+              down_cents: p.calc.finalDownCents ?? 0,
+              recurring_cents: p.plan.billing_frequency === "one_time" ? 0 : (p.calc.finalRecurringCents ?? 0),
+              pif_cents: p.plan.billing_frequency === "one_time" ? (p.plan.pif_cents || 0) : 0,
+              due_today_cents: p.due,
+            } : null,
+            position: p.position,
+            add_on: p.addOn ? { program: p.addOn.program, monthly_cents: p.addOn.monthlyCents } : null,
+            uniform: u ? { name: u.product.name, full_cents: u.full, cents: u.cents } : null,
+          };
+        }),
+        add_ons: pricedAddOns.map((a) => ({ program: a.program, monthly_cents: a.monthlyCents })),
+        shirts_cents: shirtsCents,
+        subtotal_cents: complete ? totals.subtotalCents : null,
+        tax_cents: complete ? totals.taxCents : null,
+        fee_cents: complete ? fee : null,
+        total_cents: complete ? totals.totalCents : null,
+      }, 200, cors);
+    }
 
     // Idempotency: a resubmit returns the SAME sale and a usable intent.
     // Only reuse a payment that was priced for the SAME plan. Switching
@@ -1030,81 +1280,6 @@ Deno.serve(async (req) => {
       return json({ error: "We could not start the payment. Please call 903-561-2966 and we will finish this for you." }, 503, cors);
     }
 
-    // Add-on programs. Each is a real membership with its own roster row, but
-    // rides the PRIMARY agreement as a priced line, so the buyer signs once.
-    // The first month is due today, exactly like the primary plan’s first
-    // period, otherwise they would train a month before paying for it.
-    const wantAddOns = Array.isArray(body.addons)
-      ? [...new Set(body.addons.map((x: unknown) => str(x)).filter(Boolean))]
-      : [];
-    for (const p of wantAddOns) {
-      if (!addOnCfg.some((a) => a.program === p)) {
-        return json({ error: "That add-on is not available here. Reload the page." }, 400, cors);
-      }
-    }
-    const pricedAddOns = priceAddOns(wantAddOns);
-    const addOnCents = pricedAddOns.reduce((t, a) => t + a.monthlyCents, 0);
-    // The uniform is a normal taxable product riding the same invoice, one
-    // per student who wants one: `uniforms` lists them by student, and the
-    // old `uniform` flag is the first student's. A student who is the family's
-    // second or beyond gets theirs at half off (owner, 2026-10-10).
-    const rawUniforms = Array.isArray(body.uniforms) ? (body.uniforms as unknown[]) : [];
-    const uniformWants: boolean[] = students.map((_, i) =>
-      rawUniforms.length ? rawUniforms[i] === true : (i === 0 && body.uniform === true));
-    // A Cub's uniform is the Cubs uniform; everyone else's is this page's.
-    type UniProduct = { id: string; name: string; price_cents: number };
-    const uniformFor = (i: number): UniProduct | null => (students[i].cub ? cubUniform : uniform);
-    if (uniformWants.some((w, i) => w && !uniformFor(i))) {
-      return json({ error: "The uniform is not available right now. Uncheck it to continue." }, 409, cors);
-    }
-    type Uni = { i: number; cents: number; full: number; product: UniProduct };
-    const wantUniforms: Uni[] = [];
-    uniformWants.forEach((w, i) => {
-      const product = uniformFor(i);
-      if (!w || !product) return;
-      const full = product.price_cents;
-      const cents = priced[i].position >= 2 ? Math.round(full * (10000 - FAMILY_UNIFORM_DISCOUNT_BPS) / 10000) : full;
-      wantUniforms.push({ i, cents, full, product });
-    });
-    const wantUniform = wantUniforms.length > 0;
-    const uniformLabel = (u: Uni) => {
-      const parts: string[] = [];
-      if (students.length > 1) parts.push(students[u.i].first);
-      if (u.cents < u.full) parts.push("half off");
-      return u.product.name + (parts.length ? " (" + parts.join(", ") + ")" : "");
-    };
-
-    // Shirts: a list of { name, size }. Prices come from the catalog here, so
-    // the discount on the featured shirt can never be claimed for the others.
-    const wantShirts: Array<{ row: { id: string; name: string; price_cents: number }; size: string; cents: number }> = [];
-    const rawShirts = Array.isArray(body.shirts) ? body.shirts : [];
-    for (const raw of rawShirts.slice(0, 6)) {
-      const nm = str((raw as { name?: unknown }).name);
-      const sz = str((raw as { size?: unknown }).size);
-      const row = shirtRows.find((r: { name: string }) => r.name === nm);
-      if (!row) return json({ error: "That shirt is not available. Remove it to continue." }, 409, cors);
-      if (!sz) return json({ error: "Pick a size for the " + row.name + "." }, 400, cors);
-      wantShirts.push({ row, size: sz, cents: shirtPrice(row) });
-    }
-    const shirtsCents = wantShirts.reduce((a, x) => a + x.cents, 0);
-
-    const lines = priced.map((p) => ({ cents: p.due, taxable: false }));
-    pricedAddOns.forEach((a) => lines.push({ cents: a.monthlyCents, taxable: false }));
-    wantUniforms.forEach((u) => lines.push({ cents: u.cents, taxable: true }));
-    wantShirts.forEach((x) => lines.push({ cents: x.cents, taxable: true }));
-    // The fee grosses up on what Race must NET, which is goods PLUS sales
-    // tax: Stripe takes its percentage of the whole charge, tax included.
-    // Grossing up on the pre-tax subtotal left him about 2.9% of the tax
-    // short on every taxed sale (ledger audit 2026-09-09). Tax never depends
-    // on the fee, so price it once with a zero fee and gross up on that total.
-    const preFee = BTKDPricing.invoiceTotals({
-      lines, discountCents: 0, adminFeeCents: 0, taxRate: TAX_RATE,
-    });
-    const fee = adminFeeCents(preFee.totalCents, feeBps, feeFlat);   // card-only online, fee always rides
-    const totals = BTKDPricing.invoiceTotals({
-      lines, discountCents: 0, adminFeeCents: fee, taxRate: TAX_RATE,
-    });
-
     const today = todayCT();
     const payDate = agreedPaymentDate(primary.plan.billing_frequency, today);
     // A family member added here bills monthly from today whatever the first
@@ -1115,9 +1290,18 @@ Deno.serve(async (req) => {
     // 1. The students. Email and phone are the guardian's: for a 3-year-old
     //    the guardian IS the contact channel.
     const studentIds: string[] = [];
-    for (const st of students) {
+    const payerName = (parentFirst + " " + parentLast).trim().toLowerCase();
+    for (let si = 0; si < students.length; si++) {
+      const st = students[si];
       const stAge = ageFrom(st.dob);
-      const minor = cfg.guardianAlways || stAge === null || stAge < 18;
+      // A family member who is an adult gets the email and phone only when
+      // they are the parent paying (a mom joining Kickboxing with her Cub). A
+      // second adult sharing that address would leave two contacts on one
+      // email, and email is how every money path finds the payer.
+      const isPayer = !!payerName && (st.first + " " + st.last).trim().toLowerCase() === payerName;
+      const minor = si === 0
+        ? (cfg.guardianAlways || stAge === null || stAge < 18)
+        : (stAge === null || stAge < 18 || !isPayer);
       const contactIns = await admin.from("contacts").insert({
         first_name: st.first, last_name: st.last,
         segment: "lead", member_role: "student",
@@ -1183,12 +1367,23 @@ Deno.serve(async (req) => {
         + " payment is " + money(p.calc.finalRecurringCents || 0) + ", due "
         + (p.plan.billing_frequency === "weekly" ? payDate : famPayDate) + ".";
     const listOf = (a: string[]) => a.length > 1 ? a.slice(0, -1).join(", ") + " and " + a[a.length - 1] : (a[0] ?? "");
-    const tkdNames = students.filter((st) => !st.cub).map((st) => st.first);
-    const cubNames = students.filter((st) => st.cub).map((st) => st.first);
-    // "Liam and Tammy are enrolled in Juniors Taekwondo." and, with a Cub,
-    // "Lincoln is enrolled in Juniors Taekwondo, and June in Cubs."
-    const enrolledLine = listOf(tkdNames) + (tkdNames.length > 1 ? " are" : " is") + " enrolled in " + cfg.label
-      + (cubNames.length ? ", and " + listOf(cubNames) + " in " + CUB.label : "") + ".";
+    // Who is enrolled in what, grouped by program in the order they appear:
+    // "Liam and Tammy are enrolled in Juniors Taekwondo.", and with family
+    // in other programs "Lincoln is enrolled in Juniors Taekwondo, and June
+    // in Cubs." or "Ava is enrolled in Cubs, Max in Juniors, and Kim in
+    // Kickboxing + Jiu Jitsu."
+    const groups: { label: string; names: string[] }[] = [];
+    for (const st of students) {
+      const label = st.choice && st.choice.addOn ? st.choice.label : st.prog.label;
+      const g = groups.find((x) => x.label === label);
+      if (g) g.names.push(st.first); else groups.push({ label, names: [st.first] });
+    }
+    const groupParts = groups.map((g, gi) => gi === 0
+      ? listOf(g.names) + (g.names.length > 1 ? " are" : " is") + " enrolled in " + g.label
+      : listOf(g.names) + " in " + g.label);
+    const enrolledLine = (groupParts.length > 1
+      ? groupParts.slice(0, -1).join(", ") + ", and " + groupParts[groupParts.length - 1]
+      : groupParts[0]) + ".";
     const saleIns = await admin.from("pos_sales").insert({
       id: saleId, buyer_contact_id: studentId, payer_name: guardianName || null, payer_email: email || null, sale_date: today,
       staff_email: "program-checkout@website", brand: "btkd",
@@ -1202,7 +1397,8 @@ Deno.serve(async (req) => {
       customer_note:
         enrolledLine + "\n\n"
         + priced.map((p) => (students.length > 1 ? p.student.first + ": " : "Your plan: ") + p.plan.name + "\n"
-            + monthlyLine(p) + "\n").join("")
+            + monthlyLine(p) + "\n"
+            + (p.addOn ? p.student.first + " also takes " + p.addOn.program + " at " + money(p.addOn.monthlyCents) + "/month.\n" : "")).join("")
         + "Today you paid " + money(totals.totalCents) + " (includes card processing).\n"
         + (pricedAddOns.length
             ? "Also enrolled: " + pricedAddOns.map((a) => a.program + " at "
@@ -1228,7 +1424,8 @@ Deno.serve(async (req) => {
         + "\nQuestions? Call 903-561-2966 or just reply to this email.",
       notes: cfg.label + " online enrollment, "
         + priced.map((p) => (students.length > 1 ? p.student.first + " " + p.student.last + ": " : "")
-            + p.plan.name + " (" + planLine(p) + ")").join("; ")
+            + p.plan.name + " (" + planLine(p) + ")"
+            + (p.addOn ? " + " + p.addOn.program + " add-on (" + money(p.addOn.monthlyCents) + "/mo)" : "")).join("; ")
         + (chosenClass ? ", CLASS: " + chosenClass.when + " " + chosenClass.label : "")
         + (wantUniform ? ", UNIFORM" + (wantUniforms.length > 1 ? "S" : "") + " PURCHASED - have "
             + (students.length > 1 ? wantUniforms.map((u) => students[u.i].first).join(" and ") + "'s ready" : "one ready")
@@ -1252,11 +1449,10 @@ Deno.serve(async (req) => {
     let agreementRow: Record<string, unknown> = {};
     for (let i = 0; i < priced.length; i++) {
       const p = priced[i], sid = studentIds[i];
-      // A Cub is a Cubs member through and through: their membership, their
-      // document and their roster place are the Cubs ones.
-      const isCub = p.student.cub;
-      const program = isCub ? CUB.program : cfg.program;
-      const tpl = isCub ? CUB.tpl : cfg.tpl;
+      // Each student is a member of their own program through and through:
+      // their membership, their document and their roster place.
+      const program = p.student.prog.program;
+      const tpl = p.student.prog.tpl;
       const snap = BTKDPricing.buildMembershipSnapshot({
         calc: p.calc, contactId: sid, program,
         startedOn: today, createdBy: "program-checkout (website)", override: null,
@@ -1264,26 +1460,35 @@ Deno.serve(async (req) => {
       (snap as Record<string, unknown>).payment_count = p.plan.payment_count;
       (snap as Record<string, unknown>).sale_id = saleId;
       (snap as Record<string, unknown>).status = "pending";
-      // (Only a one-class page picks a class, and no Cub enrolls on one.)
+      // (Only a one-class page picks a class, and it takes no family.)
       if (chosenClass) (snap as Record<string, unknown>).class_slot_ids = chosenClass.ids;
       const memIns = await admin.from("memberships").insert(snap).select("id").single();
       if (memIns.error) throw memIns.error;
       const mid = memIns.data.id as string;
 
-      // The fee table lists every option the page sells (a Cub's, every option
-      // the Cubs page sells); a family rate is none of them, so it joins the
-      // list to be the one marked selected.
-      const sellList = isCub ? cubOptions : options;
+      // The fee table lists every option their program's page sells; a family
+      // rate is none of them, so it joins the list to be the one marked
+      // selected.
+      const sellList = p.options;
       const docOptions = sellList.some((o) => o.code === p.plan.code) ? sellList : [...sellList, p.plan];
       const pPayDate = p.plan.billing_frequency === "one_time" ? null
         : (p.plan.billing_frequency === "weekly" ? payDate : famPayDate);
+      // An adult family member has no guardian line, and signs for themselves
+      // when they are the one signing.
+      const stAge = ageFrom(p.student.dob);
+      const participant = p.student.first + " " + p.student.last;
+      const docGuardian = i > 0 && stAge !== null && stAge >= 18 ? "" : guardianName;
+      const docRelationship = i > 0 && participant.trim().toLowerCase() === signerName.trim().toLowerCase() ? "Self" : signerRel;
+      const docAddOns = i === 0
+        ? pricedAddOns.map((a) => ({ program: a.program, monthlyCents: a.monthlyCents }))
+        : (p.addOn ? [{ program: p.addOn.program, monthlyCents: p.addOn.monthlyCents }] : []);
       const bodyText = buildBodyText({
         tpl,
-        participant: p.student.first + " " + p.student.last, dob: fmtMDY(p.student.dob),
-        guardian: guardianName, today: fmtMDY(today),
+        participant, dob: fmtMDY(p.student.dob),
+        guardian: docGuardian, today: fmtMDY(today),
         options: docOptions, chosen: p.plan, payDate: pPayDate, initials, classLine,
-        addOns: i === 0 ? pricedAddOns.map((a) => ({ program: a.program, monthlyCents: a.monthlyCents })) : [],
-        signerName, signerRelationship: signerRel,
+        addOns: docAddOns,
+        signerName, signerRelationship: docRelationship,
       });
       const row = {
         membership_id: mid, contact_id: sid, sale_id: saleId,
@@ -1294,7 +1499,7 @@ Deno.serve(async (req) => {
           title: tpl.title, version: tpl.version,
           plan: { code: p.plan.code, name: p.plan.name },
           due_today_cents: p.due,
-          participant: p.student.first + " " + p.student.last, dob: p.student.dob, guardian: guardianName,
+          participant, dob: p.student.dob, guardian: docGuardian,
           agreed_payment_date: pPayDate,
           family_position: p.position,
         },
@@ -1303,7 +1508,7 @@ Deno.serve(async (req) => {
         recurring_cents: p.plan.billing_frequency === "one_time" ? null : (p.calc.finalRecurringCents ?? null),
         pif_cents: p.plan.billing_frequency === "one_time" ? (p.plan.pif_cents || 0) : null,
         agreed_payment_date: pPayDate,
-        signer_name: signerName, signer_relationship: signerRel, signer_initials: initials,
+        signer_name: signerName, signer_relationship: docRelationship, signer_initials: initials,
         signature_png: signature, signed_with_staff: "website checkout",
         // Stamped here because the column has no default: without it the CRM
         // showed website agreements as signed-on-(nothing) (found 2026-08-30).
@@ -1326,6 +1531,42 @@ Deno.serve(async (req) => {
         student_id: sid, program, status: "pending", sale_id: saleId,
       });
       if (eIns.error) problems.push("roster: " + eIns.error.message);
+
+      // A family member taking Kickboxing + Jiu Jitsu: Jiu Jitsu is its own
+      // membership and roster place at the add-on rate, filed under the same
+      // signed Kickboxing document that carries its priced line and initial.
+      if (p.addOn) {
+        const aPlan = famRows.find((x) => x.code === p.addOn!.code);
+        if (!aPlan) { problems.push("member add-on plan missing: " + p.addOn.code); continue; }
+        const aCalc = BTKDPricing.calculatePrice({
+          plan: aPlan, settings, person: { contact_id: sid, activeMemberships: [] },
+          householdMembers: [], plans: [aPlan],
+        });
+        const aSnap = BTKDPricing.buildMembershipSnapshot({
+          calc: aCalc, contactId: sid, program: p.addOn.program,
+          startedOn: today, createdBy: "program-checkout family add-on (website)", override: null,
+        });
+        (aSnap as Record<string, unknown>).sale_id = saleId;
+        (aSnap as Record<string, unknown>).status = "pending";
+        const aMem = await admin.from("memberships").insert(aSnap).select("id").single();
+        if (aMem.error) { problems.push("member add-on membership " + p.addOn.program + ": " + aMem.error.message); continue; }
+        const aAgr = await admin.from("membership_agreements").insert({
+          ...row, membership_id: aMem.data.id, program: p.addOn.program, plan_code: p.addOn.code,
+          down_cents: 0, recurring_cents: p.addOn.monthlyCents, pif_cents: null,
+        });
+        if (aAgr.error) problems.push("member add-on agreement " + p.addOn.program + ": " + aAgr.error.message);
+        lineRows.push({
+          sale_id: saleId, kind: "mem",
+          label: p.addOn.program + " (added to " + p.student.prog.label + ")",
+          qty: 1, unit_cents: p.addOn.monthlyCents, discount_cents: 0, taxable: false,
+          line_total_cents: p.addOn.monthlyCents, student_contact_id: sid,
+          product_id: null, membership_row: aSnap, membership_id: aMem.data.id,
+        });
+        const aEnr = await admin.from("enrollments").insert({
+          student_id: sid, program: p.addOn.program, status: "pending", sale_id: saleId,
+        });
+        if (aEnr.error) problems.push("member add-on roster " + p.addOn.program + ": " + aEnr.error.message);
+      }
     }
 
     // One line per uniform, against the student it is for. A family half

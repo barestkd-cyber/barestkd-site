@@ -94,7 +94,10 @@ test('the page sends a plan code and never an amount', () => {
     'the enrollment payload carries an amount');
   assert.ok(/cbc-initials/.test(page), 'initials field missing');
   assert.ok(!/tshirt|shirtDesign/.test(js), 'LK shirt logic leaked into the Cubs page');
-  assert.ok(/functions\/v1\/cubs-checkout/.test(js), 'page posts to the wrong function');
+  // Since 2026-11-18 the Cubs page is on the shared checkout, which takes a
+  // family in any program ("an adult kickboxer ... after a cub on the same
+  // checkout page"). cubs-checkout stays deployed and tested here.
+  assert.ok(/functions\/v1\/program-checkout\?p=cubs/.test(js), 'page posts to the wrong function');
 });
 
 test('no em dashes anywhere a customer reads', () => {

@@ -164,6 +164,10 @@
 .lkc-person{display:flex;gap:8px;margin-top:8px;align-items:center}
 .lkc-person input{flex:1 1 0;min-width:0;font:inherit;padding:.6rem .7rem;border:2px solid var(--line);border-radius:8px;background:#fff}
 .lkc-person-x{flex:0 0 auto;background:none;border:none;color:#9AA4AF;font-size:20px;cursor:pointer;padding:2px 6px}
+.cbc-fam-student{border:1.5px solid var(--line);border-radius:10px;padding:12px 12px 4px;margin-top:10px}
+.cbc-fam-student .form-field{margin-bottom:10px}
+.cbc-fam-x{background:none;border:none;color:var(--belt-red);font:inherit;font-size:.9rem;cursor:pointer;padding:0 0 10px;text-decoration:underline}
+.cbc-uni-fam{display:block;color:#5b6570;font-weight:400;white-space:normal}.cbc-uni-fam[hidden]{display:none}
 
 /* Footer: match the form column so it reads as centred with the page. */
 .lkc-foot{max-width:640px;margin-inline:auto;text-align:center;font-size:.9rem;line-height:1.7}
@@ -286,6 +290,14 @@
           <label for="lkc-dob">Student's date of birth</label>
           <input id="lkc-dob" type="date" required>
         </div>
+        <!-- Anyone else from the same family, in any program, on this same
+             checkout (/assets/js/checkout-family.js). The server prices each
+             of them the way the desk would. -->
+        <div class="lkc-extras" id="cbc-fam" style="margin-top:14px" hidden>
+          <div id="cbc-fam-list"></div>
+          <button type="button" class="lkc-addbtn" id="cbc-fam-add">+ Add a second family member</button>
+          <p class="tst-seatnote" id="cbc-fam-note" style="font-size:.82rem;color:#5b6570;margin:8px 0 0">Anyone you add shows their own price.</p>
+        </div>
       </div>
 
       <!-- 3 ─ the parent or guardian -->
@@ -370,7 +382,7 @@
         </div>
         <label class="lkc-check">
           <input id="lkc-agree" type="checkbox">
-          <span>I have read and agree to the Cubs Membership Agreement above, including the waiver. I understand this is a 12-month membership and that the amount shown is due today.</span>
+          <span>I have read and agree to the Cubs Membership Agreement above, including the waiver. I understand this is a 12-month membership and that the amount shown is due today.<span id="cbc-fam-consent"></span></span>
         </label>
       </div>
 
@@ -387,6 +399,7 @@
           <div class="lkc-line" id="cbc-r-rec" hidden><span id="cbc-l-rec">Monthly payment</span><span class="amt" id="cbc-p-rec">-</span></div>
           <div class="lkc-line" id="cbc-r-uni" hidden><span>Cubs uniform</span><span class="amt" id="cbc-p-uni">-</span></div>
           <div id="cbc-r-addons"></div>
+          <div id="cbc-r-fam"></div>
           <div id="cbc-r-shirts"></div>
           <div class="lkc-line" id="cbc-r-tax" hidden><span>Sales tax</span><span class="amt" id="cbc-p-tax">-</span></div>
           <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
@@ -430,13 +443,19 @@
      file the front desk signs from, so the web can never drift from it. -->
 <script src="https://crm.barestkd.fit/agreements.js" defer></script>
 <script src="/assets/js/main.js" defer></script>
+<script src="/assets/js/checkout-family.js"></script>
 <script>
 (function () {
   "use strict";
-  var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/cubs-checkout";
+  // The shared checkout (program-checkout?p=cubs) since 2026-11-18: same rows
+  // and rules as cubs-checkout, and it takes a family in any program.
+  var FN = "https://akdncbzxiwvihfcyijvm.supabase.co/functions/v1/program-checkout?p=cubs";
   var SB_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5"; // public key - safe to ship
 
   var CFG = null, CHOSEN = null, SALE_ID = null;
+  // Everyone added after the first student, in any program
+  // (/assets/js/checkout-family.js), once the page has loaded.
+  var FAMX = null;
   var $ = function (id) { return document.getElementById(id); };
   var money = function (c) { return "$" + (c / 100).toFixed(2); };
   var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
@@ -475,6 +494,15 @@
       }
       if ((cfg.add_ons || []).length) renderAddOns();
       renderOptions();
+      if (window.BTKDFamily && (cfg.family_choices || []).length) {
+        FAMX = window.BTKDFamily.create({
+          cfg: cfg, fn: FN, key: SB_KEY, root: $("cbc-fam"), list: $("cbc-fam-list"),
+          addBtn: $("cbc-fam-add"), note: $("cbc-fam-note"), defaultKey: "cubs",
+          money: money, moneyS: moneyS, esc: esc, body: cartBody,
+          changed: function () { renderPrice(); renderDoc(); if (typeof syncWhoPays === "function") syncWhoPays(); }
+        });
+        $("lkc-email").addEventListener("input", function () { renderPrice(); });
+      }
       renderPrice(); renderDoc();
     })
     .catch(function (e) {
@@ -645,6 +673,30 @@
     return picked.map(function (a) { return { program: a.program, cents: a.monthly_cents }; });
   }
 
+  function studentName() {
+    return (($("lkc-sfirst").value || "").trim() + " " + ($("lkc-slast").value || "").trim()).trim();
+  }
+  /* Everyone on this checkout, as Pay posts them: the first student, then
+     the family, each with their uniform. */
+  function studentsPayload() {
+    var first = { first: ($("lkc-sfirst").value || "").trim(), last: ($("lkc-slast").value || "").trim(), dob: $("lkc-dob").value };
+    return [first].concat(FAMX ? FAMX.payload() : []);
+  }
+  function uniformsPayload() {
+    return [$("cbc-uniform").checked === true && !!(CFG && CFG.uniform_available)].concat(FAMX ? FAMX.uniforms() : []);
+  }
+  /* The page's part of the cart, as the server reads it: what the quote
+     prices and what Pay posts. */
+  function cartBody() {
+    return {
+      plan_code: CHOSEN ? CHOSEN.code : "",
+      email: ($("lkc-email").value || "").trim(),
+      uniform: $("cbc-uniform").checked === true,
+      addons: chosenAddOns().map(function (a) { return a.program; }),
+      shirts: chosenShirts().map(function (x) { return { name: x.name, size: x.size }; }),
+      students: [{ first: ($("lkc-sfirst").value || "").trim(), last: ($("lkc-slast").value || "").trim(), dob: $("lkc-dob").value }],
+    };
+  }
   function priceParts() {
     if (!CHOSEN) return null;
     var due = CHOSEN.due_today_cents;
@@ -662,6 +714,11 @@
     return { due: due, uni: uni, tee: tee, adds: adds, fee: fee, tax: tax, total: base + fee + tax };
   }
   function renderPrice() {
+    // With a family on the checkout, or once the server has priced this cart
+    // (a family discount found by the email, say), the cart is the server's
+    // quote: what it shows is what Pay charges. Until then this page works it out.
+    if (FAMX && CHOSEN) FAMX.requestQuote();
+    if (FAMX && FAMX.renderCart({ chosen: CHOSEN, firstName: studentName(), shirts: chosenShirts() })) return;
     var pp = priceParts();
     var show = function (id, on) { $(id).hidden = !on; };
     if (!pp) {
@@ -718,8 +775,14 @@
     var dob = fmtMDY($("lkc-dob").value) || "____________";
     var today = fmtMDY(new Date().toLocaleDateString("en-CA"));
     var initials = ($("cbc-initials").value || "").toUpperCase().trim() || "____";
+    // One document per student. The first student's rate is the server's quote
+    // once it is in (a family rate it found by the email), the option until then.
+    var count = 1 + (FAMX ? FAMX.count() : 0);
+    var q = FAMX ? FAMX.quote() : null;
+    var MINE = q && q.students && q.students[0] && q.students[0].plan ? q.students[0].plan : CHOSEN;
 
-    var hh = '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
+    var hh = (count > 1 ? '<p class="ttl" style="margin-top:0">Agreement 1 of ' + count + ': ' + esc(student) + '</p>' : '')
+      + '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
       + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
       + '<p>Participant (Student) Name: <b>' + esc(student) + '</b><br>'
       + 'Date of Birth: <b>' + esc(dob) + '</b><br>'
@@ -727,7 +790,9 @@
       + "Today's Date: <b>" + esc(today) + '</b><br>'
       + 'Membership Start Date: <b>' + esc(today) + '</b></p>'
       + '<h4>FEES</h4>';
-    CFG.options.forEach(function (o) {
+    var listed = CFG.options.slice();
+    if (MINE && !listed.some(function (o) { return o.code === MINE.code; })) listed.push(MINE);
+    listed.forEach(function (o) {
       var line;
       if (o.billing_frequency === "one_time") {
         line = esc(o.name) + " is a single payment of <b>" + money(o.pif_cents) + "</b> for the full twelve (12) month term.";
@@ -735,16 +800,16 @@
         line = esc(o.name) + " is a down payment of <b>" + money(o.down_cents) + "</b> and a "
           + (o.billing_frequency === "weekly" ? "weekly" : "monthly") + " payment of <b>" + money(o.recurring_cents) + "</b>.";
       }
-      var sel = CHOSEN && CHOSEN.code === o.code;
+      var sel = MINE && MINE.code === o.code;
       hh += '<p' + (sel ? ' style="background:#FFF6D9;border-radius:6px;padding:4px 6px"' : '') + '>' + line + (sel ? ' <b>&larr; selected</b>' : '') + '</p>';
     });
     var payDate = "";
-    if (CHOSEN) {
-      if (CHOSEN.billing_frequency === "monthly") {
+    if (MINE) {
+      if (MINE.billing_frequency === "monthly") {
         var d = new Date(); var n = d.getDate();
         var suf = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th";
         payDate = "the " + n + suf + " of each month";
-      } else if (CHOSEN.billing_frequency === "weekly") {
+      } else if (MINE.billing_frequency === "weekly") {
         payDate = "each " + ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
       } else payDate = "none (paid in full)";
     }
@@ -752,7 +817,7 @@
     docAdds.forEach(function (a) {
       hh += '<p>Add-on: ' + esc(a.program) + ' is ' + money(a.cents) + ' per month.</p>';
     });
-    hh += '<p>Selected option: <b>' + (CHOSEN ? esc(CHOSEN.name) : "____________") + '</b>'
+    hh += '<p>Selected option: <b>' + (MINE ? esc(MINE.name) : "____________") + '</b>'
       + '&nbsp;&nbsp;Initials: <b>' + esc(initials) + '</b>'
       + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
     if (docAdds.length) {
@@ -770,7 +835,10 @@
       for (var q = 0; q < tpl.sections[s].p.length; q++) hh += '<p>' + esc(tpl.sections[s].p[q]) + '</p>';
     }
     hh += '<p><i>' + esc(tpl.signNote) + '</i></p>';
+    if (FAMX && FAMX.count()) hh += FAMX.docsHtml({ A: A, guardian: guardian, today: today, initials: initials, count: count });
     box.innerHTML = hh;
+    // The box they tick names every document they are signing.
+    $("cbc-fam-consent").textContent = FAMX ? FAMX.consentText(tpl.key, A) : "";
   }
   ["lkc-sfirst", "lkc-slast", "lkc-dob", "lkc-pfirst", "lkc-plast", "cbc-initials"].forEach(function (id) {
     document.addEventListener("input", function (e) { if (e.target && e.target.id === id) renderDoc(); });
@@ -891,8 +959,18 @@
     $("lkc-form").hidden = true;
     var st = $("lkc-sfirst").value.trim();
     $("lkc-done").hidden = false;
-    $("lkc-done-h").textContent = st + " is enrolled in Cubs";
+    // "Dan is enrolled in Cubs", and with family, "..., and June in Cubs".
+    $("lkc-done-h").textContent = FAMX ? FAMX.doneHeading(st || "Your student", "Cubs") : st + " is enrolled in Cubs";
     $("lkc-done-p").textContent = "Welcome to the mat. Here's the plan you picked:";
+    var dq = FAMX ? FAMX.quote() : null;
+    if (dq && dq.students && dq.students.length > 1) {
+      var dn = [st || "Your student"].concat(FAMX.names().map(function (n) { return n.split(" ")[0]; }));
+      $("cbc-done-plan").textContent = dq.students.map(function (x, k) {
+        var p = x.plan; if (!p) return "";
+        return dn[k] + ": " + p.name + " · " + (p.billing_frequency === "one_time" ? money(p.pif_cents) + " paid in full"
+          : money(p.due_today_cents) + " today, then " + money(p.recurring_cents) + (p.billing_frequency === "weekly" ? " weekly" : " monthly"));
+      }).filter(Boolean).join("  ·  ");
+    } else
     $("cbc-done-plan").textContent = CHOSEN ? (CHOSEN.name + " · " + (CHOSEN.billing_frequency === "one_time"
       ? money(CHOSEN.pif_cents) + " paid in full"
       : money(CHOSEN.due_today_cents) + " today, then " + money(CHOSEN.recurring_cents)
@@ -925,6 +1003,8 @@
     for (var i = 0; i < need.length; i++) {
       if (!$(need[i][0]).value.trim()) { status("error", "Please enter " + need[i][1] + "."); $(need[i][0]).focus(); return; }
     }
+    var famErr = FAMX ? FAMX.validate() : "";
+    if (famErr) { status("error", famErr); return; }
     var pickedShirts = chosenShirts();
     for (var s = 0; s < pickedShirts.length; s++) {
       if (!pickedShirts[s].size) { status("error", "Pick a size for the " + pickedShirts[s].name + "."); return; }
@@ -973,6 +1053,8 @@
         shirts: pickedShirts.map(function (x) { return { name: x.name, size: x.size }; }),
         student_first: $("lkc-sfirst").value.trim(), student_last: $("lkc-slast").value.trim(),
         student_dob: $("lkc-dob").value,
+        students: studentsPayload(),
+        uniforms: uniformsPayload(),
         parent_first: $("lkc-pfirst").value.trim(), parent_last: $("lkc-plast").value.trim(),
         email: $("lkc-email").value.trim(), phone: $("lkc-phone").value.trim(),
         address: [$("lkc-street").value.trim(), $("lkc-city").value.trim(),

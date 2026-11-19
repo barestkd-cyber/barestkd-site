@@ -65,12 +65,11 @@ const PAGES = [
       'parent and me', 'Parent & Me', 'parent-and-me', 'six-week', '6-week session',
       'not a drop-off'] },
 
-  // alsoTemplates: a family member added here may be a Cub (owner, 2026-11-18),
-  // who signs the Cubs document on this same checkout. The page's own consent
-  // and document stay Taekwondo; only the Cub's agreement is the Cubs one.
+  // A family member added on a page signs their own program's document, which
+  // /assets/js/checkout-family.js picks by the key the server names. The page
+  // itself still selects only its own template.
   { dir: 'juniors-checkout', kind: 'enrollment', program: 'Juniors',
     agreementName: 'Taekwondo', templateKey: 'taekwondo', term: 'twelve-month',
-    alsoTemplates: ['cubs'],
     forbidPhrases: ['Ages 3-4', 'preschool', 'Preschool'] },
 
   { dir: 'teens-adults-checkout', kind: 'enrollment', program: 'Teens & Adults',

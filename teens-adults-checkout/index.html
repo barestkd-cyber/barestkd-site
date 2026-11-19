@@ -386,7 +386,7 @@
         </div>
         <label class="lkc-check">
           <input id="lkc-agree" type="checkbox">
-          <span>I have read and agree to the Taekwondo Membership Agreement above, including the waiver. I understand this is a 12-month membership and that the amount shown is due today.</span>
+          <span>I have read and agree to the Taekwondo Membership Agreement above, including the waiver. I understand this is a 12-month membership and that the amount shown is due today.<span id="cbc-fam-consent"></span></span>
         </label>
       </div>
 
@@ -472,6 +472,7 @@
   })();
 </script>
 <script src="/assets/js/main.js" defer></script>
+<script src="/assets/js/checkout-family.js"></script>
 <script>
 (function () {
   "use strict";
@@ -482,7 +483,10 @@
   // The family on this checkout: the rates the server offers, how many
   // Taekwondo students this parent already pays for (found by their email),
   // and the students added after the first.
-  var FAM = { rates: [], found: 0, extra: [], ready: false, timer: null, seq: 0 };
+  var FAM = { rates: [], found: 0, ready: false, timer: null };
+  // Everyone added after the first student, in any program
+  // (/assets/js/checkout-family.js), once the page has loaded.
+  var FAMX = null;
   var $ = function (id) { return document.getElementById(id); };
   var money = function (c) { return "$" + (c / 100).toFixed(2); };
   var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
@@ -521,6 +525,14 @@
       }
       if ((cfg.add_ons || []).length) renderAddOns();
       renderOptions();
+      if (window.BTKDFamily && (cfg.family_choices || []).length) {
+        FAMX = window.BTKDFamily.create({
+          cfg: cfg, fn: FN, key: SB_KEY, root: $("cbc-fam"), list: $("cbc-fam-list"),
+          addBtn: $("cbc-fam-add"), note: $("cbc-fam-note"), defaultKey: "teens-adults",
+          money: money, moneyS: moneyS, esc: esc, body: cartBody,
+          changed: function () { renderPrice(); renderDoc(); if (typeof syncWhoPays === "function") syncWhoPays(); }
+        });
+      }
       renderPrice(); renderDoc();
     })
     .catch(function (e) {
@@ -661,13 +673,11 @@
   }
 
   /* ── the family ──────────────────────────────────────────────────────────
-     The server prices every student; this mirrors its rule so the page quotes
-     the same number it will charge. The first student keeps the option they
-     picked, unless this parent already pays for a Taekwondo student here and
-     the option is monthly: then the family rate replaces it. Everyone added
-     after the first is a family member by definition: second at the
-     second-student rate, third and beyond at the third. Paid in full and
-     weekly are never swapped. */
+     The first student is this page's: the option they pick, swapped for the
+     family rate when this email already pays for a Taekwondo student here
+     (the server's rule, mirrored for the buttons). Everyone added after them,
+     in any program, belongs to /assets/js/checkout-family.js, and once there
+     is a family the cart is the server's quote of it. */
   function famPlanFor(position) {
     var key = position >= 3 ? 3 : 2, i;
     for (i = 0; i < FAM.rates.length; i++) if (FAM.rates[i].position === key) return FAM.rates[i];
@@ -683,49 +693,14 @@
         down_cents: r.down_cents || 0, recurring_cents: r.recurring_cents || 0, pif_cents: 0,
         due_today_cents: r.due_today_cents || r.recurring_cents || 0, promo: null };
     });
-    if (!FAM.rates.length) return;
-    var r2 = famPlanFor(2), r3 = famPlanFor(3);
-    $("cbc-fam").hidden = false;
-    $("cbc-fam-note").textContent = "Family pricing: a second Taekwondo student is " + moneyS(r2.recurring_cents) + " a month"
-      + (r3 && r3 !== r2 ? ", a third " + moneyS(r3.recurring_cents) : "") + ", with no down payment.";
-    $("cbc-fam-add").addEventListener("click", famAdd);
+    if (FAM.rates.length) {
+      var r2 = famPlanFor(2), r3 = famPlanFor(3);
+      $("cbc-fam-note").textContent = "Family pricing: a second Taekwondo student is " + moneyS(r2.recurring_cents) + " a month"
+        + (r3 && r3 !== r2 ? ", a third " + moneyS(r3.recurring_cents) : "") + ", with no down payment. Anyone you add shows their own price.";
+    }
     $("lkc-email").addEventListener("input", famLookupSoon);
+    $("lkc-email").addEventListener("input", function () { renderPrice(); });
     if ($("lkc-email").value) famLookupSoon();
-  }
-  function famAdd() {
-    if (FAM.extra.length >= 3) return;
-    var row = document.createElement("div");
-    row.className = "cbc-fam-student";
-    var id = 'cbc-fam-' + (++FAM.seq);
-    row.innerHTML = '<p class="lkc-pick" style="margin:0 0 8px">Family member ' + (FAM.extra.length + 2) + '</p>'
-      + '<div class="form-field"><label for="' + id + '-first">Their first name</label><input id="' + id + '-first" type="text" data-f="first" autocomplete="off"></div>'
-      + '<div class="form-field"><label for="' + id + '-last">Their last name</label><input id="' + id + '-last" type="text" data-f="last" autocomplete="off"></div>'
-      + '<div class="form-field"><label for="' + id + '-dob">Their date of birth</label><input id="' + id + '-dob" type="date" data-f="dob"></div>'
-      + ((CFG && CFG.uniform_available) ? '<label class="lkc-shirt-q" style="margin:0 0 10px"><input type="checkbox" data-f="uniform">'
-          + '<span class="grow">Beginner uniform for this student. <b>' + moneyS(famUniformCents()) + '</b> + tax'
-          + '<small class="cbc-uni-fam">Half off for a family member</small></span></label>' : '')
-      + '<button type="button" class="cbc-fam-x">Remove this student</button>';
-    var rec = { row: row };
-    FAM.extra.push(rec);
-    row.querySelector(".cbc-fam-x").addEventListener("click", function () {
-      FAM.extra.splice(FAM.extra.indexOf(rec), 1);
-      row.remove();
-      famRelabel();
-      renderPrice(); renderDoc();
-    });
-    row.querySelectorAll("input").forEach(function (i) {
-      i.addEventListener("input", function () { renderPrice(); renderDoc(); if (typeof syncWhoPays === "function") syncWhoPays(); });
-    });
-    $("cbc-fam-list").appendChild(row);
-    famRelabel();
-    row.querySelector("input").focus();
-    renderPrice(); renderDoc();
-    if (typeof syncWhoPays === "function") syncWhoPays();
-  }
-  function famRelabel() {
-    FAM.extra.forEach(function (r, i) { r.row.querySelector(".lkc-pick").textContent = "Family member " + (i + 2); });
-    $("cbc-fam-add").hidden = FAM.extra.length >= 3;
-    $("cbc-fam-add").textContent = FAM.extra.length ? "+ Add another family member" : "+ Add a second family member";
   }
   /* Does this parent already pay for a Taekwondo student here? Asked once the
      email is typed, so a sibling is quoted the family rate before paying. */
@@ -754,35 +729,21 @@
     } else b.hidden = true;
     if (CFG) { uniformLabel(); renderOptions(); renderPrice(); renderDoc(); }
   }
-  function studentName(i) {
-    if (i === 0) return (($("lkc-sfirst").value || "").trim() + " " + ($("lkc-slast").value || "").trim()).trim();
-    var r = FAM.extra[i - 1]; if (!r) return "";
-    return ((r.row.querySelector('[data-f="first"]').value || "").trim() + " " + (r.row.querySelector('[data-f="last"]').value || "").trim()).trim();
+  function studentName() {
+    return (($("lkc-sfirst").value || "").trim() + " " + ($("lkc-slast").value || "").trim()).trim();
   }
-  function studentDob(i) {
-    if (i === 0) return $("lkc-dob").value;
-    var r = FAM.extra[i - 1]; return r ? r.row.querySelector('[data-f="dob"]').value : "";
-  }
+  function studentDob() { return $("lkc-dob").value; }
   function studentsPayload() {
-    var out = [{ first: ($("lkc-sfirst").value || "").trim(), last: ($("lkc-slast").value || "").trim(), dob: $("lkc-dob").value }];
-    FAM.extra.forEach(function (r) {
-      out.push({ first: r.row.querySelector('[data-f="first"]').value.trim(), last: r.row.querySelector('[data-f="last"]').value.trim(),
-        dob: r.row.querySelector('[data-f="dob"]').value });
-    });
-    return out;
+    var first = { first: ($("lkc-sfirst").value || "").trim(), last: ($("lkc-slast").value || "").trim(), dob: $("lkc-dob").value };
+    return [first].concat(FAMX ? FAMX.payload() : []);
   }
-  /* What each student on this checkout pays: [{ plan, name, position }]. */
+  /* What the first student pays, as this page works it out before the quote
+     comes back: [{ plan, name, position }]. */
   function studentPlans() {
     if (!CHOSEN) return [];
-    var out = [], holders = FAM.found;
+    var holders = FAM.found;
     var first = (holders >= 1 && CHOSEN.billing_frequency === "monthly") ? (famPlanFor(holders + 1) || CHOSEN) : CHOSEN;
-    out.push({ plan: first, name: studentName(0), position: holders + 1 });
-    holders++;
-    for (var i = 0; i < FAM.extra.length; i++) {
-      out.push({ plan: famPlanFor(holders + 1) || CHOSEN, name: studentName(i + 1), position: holders + 1 });
-      holders++;
-    }
-    return out;
+    return [{ plan: first, name: studentName(), position: holders + 1 }];
   }
   function famUniformCents() {
     return Math.round(CFG.uniform_cents * (10000 - (CFG.family_uniform_bps || 0)) / 10000);
@@ -795,34 +756,27 @@
     $("cbc-uniform-price").textContent = moneyS(half ? famUniformCents() : CFG.uniform_cents);
     $("cbc-uniform-fam").hidden = !half;
   }
-  /* Every uniform on this checkout: the first student's at the family rate
-     when they are the family's second or beyond, everyone after them at
-     half off. Mirrors the server. */
+  /* The first student's uniform, at the family rate when they are the
+     family's second or beyond. (Everyone else's is in the quote.) */
   function uniformsChosen() {
-    if (!CFG || !CFG.uniform_available) return [];
-    var out = [];
-    if ($("cbc-uniform").checked) {
-      var half = FAM.found >= 1;
-      out.push({ i: 0, name: studentName(0), cents: half ? famUniformCents() : CFG.uniform_cents, half: half });
-    }
-    FAM.extra.forEach(function (r, k) {
-      var cb = r.row.querySelector('[data-f="uniform"]');
-      if (cb && cb.checked) out.push({ i: k + 1, name: studentName(k + 1), cents: famUniformCents(), half: true });
-    });
-    return out;
+    if (!CFG || !CFG.uniform_available || !$("cbc-uniform").checked) return [];
+    var half = FAM.found >= 1;
+    return [{ i: 0, name: studentName(), cents: half ? famUniformCents() : CFG.uniform_cents, half: half }];
   }
   function uniformsPayload() {
-    var want = uniformsChosen();
-    var out = [];
-    for (var i = 0; i <= FAM.extra.length; i++) out.push(want.some(function (u) { return u.i === i; }));
-    return out;
+    return [uniformsChosen().length > 0].concat(FAMX ? FAMX.uniforms() : []);
   }
-  function famExtrasAllAdults(ageFn) {
-    for (var i = 0; i < FAM.extra.length; i++) {
-      var a = ageFn(studentDob(i + 1));
-      if (a === null || a < 18) return false;
-    }
-    return true;
+  /* The page's part of the cart, as the server reads it: what the quote
+     prices and what Pay posts. */
+  function cartBody() {
+    return {
+      plan_code: CHOSEN ? CHOSEN.code : "",
+      email: ($("lkc-email").value || "").trim(),
+      uniform: $("cbc-uniform").checked === true,
+      addons: chosenAddOns().map(function (a) { return a.program; }),
+      shirts: chosenShirts().map(function (x) { return { name: x.name, size: x.size }; }),
+      students: [{ first: ($("lkc-sfirst").value || "").trim(), last: ($("lkc-slast").value || "").trim(), dob: $("lkc-dob").value }],
+    };
   }
 
   /* Same arithmetic the server runs; the server's answer reaches the ledger,
@@ -884,6 +838,11 @@
     return { due: due, uni: uni, unis: unis, tee: tee, adds: adds, fee: fee, tax: tax, total: base + fee + tax, students: sp };
   }
   function renderPrice() {
+    // With a family on the checkout, or once the server has priced this cart
+    // (a family rate found by the email, say), the cart is the server's quote:
+    // what it shows is what Pay charges. Until then this page works it out.
+    if (FAMX && CHOSEN) FAMX.requestQuote();
+    if (FAMX && FAMX.renderCart({ chosen: CHOSEN, firstName: studentName(), shirts: chosenShirts() })) return;
     var pp = priceParts();
     var show = function (id, on) { $(id).hidden = !on; };
     if (!pp) {
@@ -946,7 +905,9 @@
   }
 
   // The agreement, rendered live from the CRM's template so the page and the
-  // frozen server copy can never say different things.
+  // frozen server copy can never say different things. One document per
+  // student: this page's for the first, and each family member's own
+  // program's after it (checkout-family.js). One signature covers them all.
   function renderDoc() {
     var box = $("lkc-agree-doc");
     var A = window.BTKDAgreements;
@@ -960,73 +921,74 @@
     var today = fmtMDY(new Date().toLocaleDateString("en-CA"));
     var initials = ($("cbc-initials").value || "").toUpperCase().trim() || "____";
     var plans = studentPlans();
-    var count = Math.max(1, 1 + FAM.extra.length);
+    var count = 1 + (FAMX ? FAMX.count() : 0);
+    // The first student's rate: the server's quote once it is in, this page's
+    // own working until then.
+    var q = FAMX ? FAMX.quote() : null;
+    var mine = q && q.students && q.students[0] && q.students[0].plan ? q.students[0].plan : (plans[0] ? plans[0].plan : null);
+    var student = studentName() || "____________________";
+    var dob = fmtMDY(studentDob()) || "____________";
     var hh = "";
-    // One document per student, each naming its own student and its own
-    // rate, exactly what the server files for each of them. One signature
-    // covers them all: the signer is the same parent.
-    for (var si = 0; si < count; si++) {
-      var student = studentName(si) || "____________________";
-      var dob = fmtMDY(studentDob(si)) || "____________";
-      var mine = plans[si] ? plans[si].plan : null;
-      if (count > 1) hh += '<p class="ttl" style="margin-top:' + (si ? '28px' : '0') + '">Agreement ' + (si + 1) + ' of ' + count + ': ' + esc(student) + '</p>';
-      hh += '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
-        + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
-        + '<p>Participant (Student) Name: <b>' + esc(student) + '</b><br>'
-        + 'Date of Birth: <b>' + esc(dob) + '</b><br>'
-        + 'Parent / Guardian: <b>' + esc(guardian) + '</b><br>'
-        + "Today's Date: <b>" + esc(today) + '</b><br>'
-        + 'Membership Start Date: <b>' + esc(today) + '</b></p>'
-        + '<h4>FEES</h4>';
-      // The options the page sells, plus this student's family rate when
-      // that is what they get, so the line marked selected is on the page.
-      var listed = CFG.options.slice();
-      if (mine && !listed.some(function (o) { return o.code === mine.code; })) listed.push(mine);
-      listed.forEach(function (o) {
-        var line;
-        if (o.billing_frequency === "one_time") {
-          line = esc(o.name) + " is a single payment of <b>" + money(o.pif_cents) + "</b> for the full twelve (12) month term.";
-        } else {
-          line = esc(o.name) + " is a down payment of <b>" + money(o.down_cents) + "</b> and a "
-            + (o.billing_frequency === "weekly" ? "weekly" : "monthly") + " payment of <b>" + money(o.recurring_cents) + "</b>.";
-        }
-        var sel = mine && mine.code === o.code;
-        hh += '<p' + (sel ? ' style="background:#FFF6D9;border-radius:6px;padding:4px 6px"' : '') + '>' + line + (sel ? ' <b>&larr; selected</b>' : '') + '</p>';
-      });
-      var payDate = "";
-      if (mine) {
-        if (mine.billing_frequency === "monthly") {
-          var d = new Date(); var n = d.getDate();
-          var suf = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th";
-          payDate = "the " + n + suf + " of each month";
-        } else if (mine.billing_frequency === "weekly") {
-          payDate = "each " + ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
-        } else payDate = "none (paid in full)";
+    if (count > 1) hh += '<p class="ttl" style="margin-top:0">Agreement 1 of ' + count + ': ' + esc(student) + '</p>';
+    hh += '<p class="ent">Grizzly Martial Arts &amp; Fitness LLC<br>doing business as Bares Taekwondo Fitness</p>'
+      + '<p class="ttl">' + esc(tpl.title).toUpperCase() + '</p>'
+      + '<p>Participant (Student) Name: <b>' + esc(student) + '</b><br>'
+      + 'Date of Birth: <b>' + esc(dob) + '</b><br>'
+      + 'Parent / Guardian: <b>' + esc(guardian) + '</b><br>'
+      + "Today's Date: <b>" + esc(today) + '</b><br>'
+      + 'Membership Start Date: <b>' + esc(today) + '</b></p>'
+      + '<h4>FEES</h4>';
+    // The options the page sells, plus the family rate when that is what the
+    // first student gets, so the line marked selected is on the page.
+    var listed = CFG.options.slice();
+    if (mine && !listed.some(function (o) { return o.code === mine.code; })) listed.push(mine);
+    listed.forEach(function (o) {
+      var line;
+      if (o.billing_frequency === "one_time") {
+        line = esc(o.name) + " is a single payment of <b>" + money(o.pif_cents) + "</b> for the full twelve (12) month term.";
+      } else {
+        line = esc(o.name) + " is a down payment of <b>" + money(o.down_cents) + "</b> and a "
+          + (o.billing_frequency === "weekly" ? "weekly" : "monthly") + " payment of <b>" + money(o.recurring_cents) + "</b>.";
       }
-      var docAdds = si === 0 ? chosenAddOns() : [];
-      docAdds.forEach(function (a) {
-        hh += '<p>Add-on: ' + esc(a.program) + ' is ' + money(a.cents) + ' per month.</p>';
-      });
-      hh += '<p>Selected option: <b>' + (mine ? esc(mine.name) : "____________") + '</b>'
-        + '&nbsp;&nbsp;Initials: <b>' + esc(initials) + '</b>'
-        + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
-      if (docAdds.length) {
-        var addTotal = docAdds.reduce(function (t, a) { return t + a.cents; }, 0);
-        hh += '<p>I am also enrolling in <b>'
-          + docAdds.map(function (a) { return esc(a.program); }).join(" and ")
-          + '</b> for <b>' + money(addTotal) + '</b> per month, billed on the agreed'
-          + ' payment date above under the same payment authorization, and'
-          + ' cancellable on the same notice.&nbsp;&nbsp;Initials: <b>'
-          + esc(initials) + '</b></p>';
-      }
-      for (var f = 0; f < tpl.feesTail.length; f++) hh += '<p>' + esc(tpl.feesTail[f]) + '</p>';
-      for (var s2 = 0; s2 < tpl.sections.length; s2++) {
-        hh += '<h4>' + esc(tpl.sections[s2].h) + '</h4>';
-        for (var q = 0; q < tpl.sections[s2].p.length; q++) hh += '<p>' + esc(tpl.sections[s2].p[q]) + '</p>';
-      }
-      hh += '<p><i>' + esc(tpl.signNote) + '</i></p>';
+      var sel = mine && mine.code === o.code;
+      hh += '<p' + (sel ? ' style="background:#FFF6D9;border-radius:6px;padding:4px 6px"' : '') + '>' + line + (sel ? ' <b>&larr; selected</b>' : '') + '</p>';
+    });
+    var payDate = "";
+    if (mine) {
+      if (mine.billing_frequency === "monthly") {
+        var d = new Date(); var n = d.getDate();
+        var suf = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th";
+        payDate = "the " + n + suf + " of each month";
+      } else if (mine.billing_frequency === "weekly") {
+        payDate = "each " + ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
+      } else payDate = "none (paid in full)";
     }
+    var docAdds = chosenAddOns();
+    docAdds.forEach(function (a) {
+      hh += '<p>Add-on: ' + esc(a.program) + ' is ' + money(a.cents) + ' per month.</p>';
+    });
+    hh += '<p>Selected option: <b>' + (mine ? esc(mine.name) : "____________") + '</b>'
+      + '&nbsp;&nbsp;Initials: <b>' + esc(initials) + '</b>'
+      + '&nbsp;&nbsp;Payment date: <b>' + (payDate || "____________") + '</b></p>';
+    if (docAdds.length) {
+      var addTotal = docAdds.reduce(function (t, a) { return t + a.cents; }, 0);
+      hh += '<p>I am also enrolling in <b>'
+        + docAdds.map(function (a) { return esc(a.program); }).join(" and ")
+        + '</b> for <b>' + money(addTotal) + '</b> per month, billed on the agreed'
+        + ' payment date above under the same payment authorization, and'
+        + ' cancellable on the same notice.&nbsp;&nbsp;Initials: <b>'
+        + esc(initials) + '</b></p>';
+    }
+    for (var f = 0; f < tpl.feesTail.length; f++) hh += '<p>' + esc(tpl.feesTail[f]) + '</p>';
+    for (var s2 = 0; s2 < tpl.sections.length; s2++) {
+      hh += '<h4>' + esc(tpl.sections[s2].h) + '</h4>';
+      for (var p2 = 0; p2 < tpl.sections[s2].p.length; p2++) hh += '<p>' + esc(tpl.sections[s2].p[p2]) + '</p>';
+    }
+    hh += '<p><i>' + esc(tpl.signNote) + '</i></p>';
+    if (FAMX && FAMX.count()) hh += FAMX.docsHtml({ A: A, guardian: guardian, today: today, initials: initials, count: count });
     box.innerHTML = hh;
+    // The box they tick names every document they are signing.
+    $("cbc-fam-consent").textContent = FAMX ? FAMX.consentText("taekwondo", A) : "";
   }
   ["lkc-sfirst", "lkc-slast", "lkc-dob", "lkc-pfirst", "lkc-plast", "cbc-initials"].forEach(function (id) {
     document.addEventListener("input", function (e) { if (e.target && e.target.id === id) renderDoc(); });
@@ -1050,7 +1012,7 @@
   }
   function syncWhoPays() {
     var age = ageOnToday($("lkc-dob").value);
-    var adult = age !== null && age >= 18 && famExtrasAllAdults(ageOnToday);
+    var adult = age !== null && age >= 18 && !(FAMX && FAMX.anyMinor());
     // An adult may still be paid for by a parent, so the field stays put.
     // It simply stops being compulsory once the student is 18.
     $("lkc-pfirst").required = !adult;
@@ -1176,20 +1138,21 @@
   }
   function showDone(receiptUrl) {
     $("lkc-form").hidden = true;
-    var names = [];
-    for (var ni = 0; ni <= FAM.extra.length; ni++) names.push((studentName(ni).split(" ")[0]) || "Your student");
-    var st = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
-    var verb = names.length > 1 ? " are" : " is";
+    // "Ava is enrolled in Teens & Adults Taekwondo", and with family, "..., and June in Cubs".
+    var firstName = (studentName().split(" ")[0]) || "Your student";
+    var names = [firstName].concat(FAMX ? FAMX.names().map(function (n) { return n.split(" ")[0]; }) : []);
     $("lkc-done").hidden = false;
-    $("lkc-done-h").textContent = st + verb + " enrolled in Teens & Adults Taekwondo";
+    $("lkc-done-h").textContent = FAMX ? FAMX.doneHeading(firstName, "Teens & Adults Taekwondo") : firstName + " is enrolled in Teens & Adults Taekwondo";
     $("lkc-done-p").textContent = "Welcome to the mat. Here's the plan you picked:";
-    $("cbc-done-plan").textContent = studentPlans().map(function (x) {
-      var p = x.plan;
-      return (names.length > 1 ? x.name.split(" ")[0] + ": " : "") + p.name + " · " + (p.billing_frequency === "one_time"
+    var q = FAMX ? FAMX.quote() : null;
+    var paid = q && q.students ? q.students.map(function (x) { return x.plan; }) : studentPlans().map(function (x) { return x.plan; });
+    $("cbc-done-plan").textContent = paid.map(function (p, k) {
+      if (!p) return "";
+      return (names.length > 1 ? names[k] + ": " : "") + p.name + " · " + (p.billing_frequency === "one_time"
         ? money(p.pif_cents) + " paid in full"
         : money(p.due_today_cents) + " today, then " + money(p.recurring_cents)
           + (p.billing_frequency === "weekly" ? " weekly" : " monthly"));
-    }).join("  ·  ");
+    }).filter(Boolean).join("  ·  ");
     $("lkc-done-email").textContent = $("lkc-email").value.trim();
     var tok = (receiptUrl || "").split("t=")[1];
     if (tok) {
@@ -1223,15 +1186,8 @@
       if (fld.required === false && (need[i][0] === "lkc-pfirst" || need[i][0] === "lkc-plast")) continue;
       if (!fld.value.trim()) { status("error", "Please enter " + need[i][1] + "."); fld.focus(); return; }
     }
-    for (var fi = 0; fi < FAM.extra.length; fi++) {
-      var fr = FAM.extra[fi].row;
-      if (!fr.querySelector('[data-f="first"]').value.trim() || !fr.querySelector('[data-f="last"]').value.trim()) {
-        status("error", "Please enter family member " + (fi + 2) + "'s name."); fr.querySelector('[data-f="first"]').focus(); return;
-      }
-      if (!fr.querySelector('[data-f="dob"]').value) {
-        status("error", "Please enter family member " + (fi + 2) + "'s date of birth."); fr.querySelector('[data-f="dob"]').focus(); return;
-      }
-    }
+    var famErr = FAMX ? FAMX.validate() : "";
+    if (famErr) { status("error", famErr); return; }
     var pickedShirts = chosenShirts();
     for (var s = 0; s < pickedShirts.length; s++) {
       if (!pickedShirts[s].size) { status("error", "Pick a size for the " + pickedShirts[s].name + "."); return; }

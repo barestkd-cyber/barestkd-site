@@ -176,9 +176,10 @@ test('the page is told the family rates, and they are not sold as options', asyn
 
 test('an email that already pays for a Taekwondo student is told where a new one lands', async () => {
   const r = await call(withSibling(), 'juniors', 'GET', null, '&family_email=Katie%40Example.com');
-  assert.deepEqual(r.body, { position: 2, found: 1 });
+  // members: everyone the email pays for in any program (what makes a Cub second).
+  assert.deepEqual(r.body, { position: 2, found: 1, members: 1 });
   const none = await call(store(), 'juniors', 'GET', null, '&family_email=nobody%40example.com');
-  assert.deepEqual(none.body, { position: 1, found: 0 });
+  assert.deepEqual(none.body, { position: 1, found: 0, members: 0 });
 });
 
 test('two students on one checkout: the first at their option, the second at the family rate', async () => {
@@ -278,19 +279,34 @@ test('the old one-student request still enrolls one student exactly as before', 
   assert.ok(/Your plan: Juniors Taekwondo — Option C/.test(s.pos_sales[0].customer_note));
 });
 
-// The two Taekwondo pages carry the controls, send every student, and price
-// a family rate as a monthly plan.
-test('the Juniors and Teens/Adults pages take a family, and Cubs is untouched', async () => {
+// Every family page carries the controls (checkout-family.js), sends every
+// student, shows the server's quote as its cart and every student's agreement.
+// The two Taekwondo pages still price their own first student's family rate.
+test('every family page takes a family; the pages that do not, do not', async () => {
+  const FAMILY_PAGES = ['juniors-checkout', 'teens-adults-checkout', 'cubs-checkout', 'kickboxing-checkout', 'jiu-jitsu-checkout'];
+  for (const dir of FAMILY_PAGES) {
+    const html = fs.readFileSync(path.join(SITE, dir, 'index.html'), 'utf8');
+    for (const need of ['id="cbc-fam-add"', 'id="cbc-fam-list"', '<script src="/assets/js/checkout-family.js"></script>',
+      'students: studentsPayload()', 'uniforms: uniformsPayload()', 'FAMX.renderCart(', 'FAMX.docsHtml(',
+      'FAMX.validate()', 'FAMX.doneHeading(', 'id="cbc-fam-consent"', 'id="cbc-r-fam"', 'body: cartBody']) {
+      assert.ok(html.includes(need), dir + ' lacks ' + need);
+    }
+    // The page loads the family script before its own, which uses it.
+    assert.ok(html.indexOf('checkout-family.js') < html.indexOf('var FAMX = null'), dir + ' uses the family script before loading it');
+  }
   for (const dir of ['juniors-checkout', 'teens-adults-checkout']) {
     const html = fs.readFileSync(path.join(SITE, dir, 'index.html'), 'utf8');
-    for (const need of ['id="cbc-fam-add"', 'students: studentsPayload()', '&family_email=', 'billing_frequency: "monthly"',
-      'uniforms: uniformsPayload()', 'data-f="uniform"', 'id="cbc-uniform-fam"', 'family_uniform_bps',
-      'Agreement ', '-first', 'famLookup', 'cbc-fam-banner']) {
+    for (const need of ['&family_email=', 'billing_frequency: "monthly"', 'id="cbc-uniform-fam"', 'family_uniform_bps',
+      'famLookup', 'cbc-fam-banner']) {
       assert.ok(html.includes(need), dir + ' lacks ' + need);
     }
   }
   const cubs = fs.readFileSync(path.join(SITE, 'cubs-checkout', 'index.html'), 'utf8');
-  assert.ok(!cubs.includes('cbc-fam-add') && cubs.includes('cubs-pricing.pdf'), 'the Cubs page changed');
+  assert.ok(cubs.includes('functions/v1/program-checkout?p=cubs') && cubs.includes('cubs-pricing.pdf'), 'the Cubs page is not on the shared checkout');
+  for (const dir of ['ampd-checkout', 'little-kickers-checkout', 'oneclassweekly']) {
+    const html = fs.readFileSync(path.join(SITE, dir, 'index.html'), 'utf8');
+    assert.ok(!html.includes('checkout-family.js'), dir + ' takes a family');
+  }
 });
 
 // Owner, 2026-10-10: "Need second family member uniform at half off".
@@ -427,7 +443,7 @@ test('a Cub is never the first student, and no other program rides along', async
     students: [{ first: 'Max', last: 'Le', dob: '2022-01-01', program: 'Cubs' }, { first: 'Ava', last: 'Le', dob: '2018-01-01' }],
   }));
   assert.equal(first.status, 400);
-  assert.ok(/Add a Cub as a family member/.test(first.body.error), first.body.error);
+  assert.ok(/first student enrolls in Juniors Taekwondo\. Add anyone in another program as a family member/.test(first.body.error), first.body.error);
   const other = await call(withCubs(), 'juniors', 'POST', enroll({
     students: [{ first: 'Ava', last: 'Le', dob: '2018-01-01' }, { first: 'Kim', last: 'Le', dob: '2000-01-01', program: 'Kickboxing' }],
   }));
@@ -438,7 +454,8 @@ test('a Cub is never the first student, and no other program rides along', async
     students: [{ first: 'Ava', last: 'Le', dob: '2018-01-01' }, { first: 'Max', last: 'Le', dob: '2022-01-01', program: 'Cubs' }],
   }));
   assert.equal(off.status, 400);
-  assert.ok(/A Cub can't be added/.test(off.body.error), off.body.error);
+  // With no Cubs family rate in the catalog, Cubs is simply not offered.
+  assert.ok(/can't be added on this page/.test(off.body.error), off.body.error);
   assert.equal(noRate.contacts.length + noRate.pos_sales.length, 0, 'records were written before the refusal');
 });
 
@@ -459,14 +476,188 @@ test('a retry of a family checkout is not refused because the sibling row came b
   assert.ok(moved.body.reload, 'a real change of plan was not caught');
 });
 
-test('the Juniors page offers Juniors or Cubs for each family member, with the Cubs agreement for a Cub', () => {
-  const html = fs.readFileSync(path.join(SITE, 'juniors-checkout', 'index.html'), 'utf8');
-  for (const need of ['CFG.cub_sibling', 'data-f="program"', '<option value="Cubs">Cubs</option>', 'key === "cubs"',
-    'id="cbc-cub-consent"', 'program: famIsCub(r) ? "Cubs" : "Juniors"', 'cubUniformCents()']) {
-    assert.ok(html.includes(need), 'juniors-checkout lacks ' + need);
+// ── every program, every direction ───────────────────────────────────────────
+// Owner, 2026-11-18: "connect all programs via second student during checkout.
+// So, for example, if an adult kickboxer wanted to sign up after a cub on the
+// same checkout page ... it should run all directions." The first student is
+// the page's program; each one after can be any of them, and the engine prices
+// them as the till would.
+const ALL_PLANS = [
+  ...PLANS, ...CUB_PLANS,
+  plan('adults_option_d', 'Teens and Adults Taekwondo — Option D', 'Teens/Adults', 'core_tkd', 'monthly', 12900, 12900, null),
+  plan('adults_family_second', 'Teens and Adults Taekwondo — 2nd family member', 'Teens/Adults', 'core_tkd', 'monthly', 11900, 0, null,
+    { sellable: false, family_position: 2 }),
+  plan('specialty_kickboxing', 'Kickboxing', 'Kickboxing', 'specialty', 'monthly', 9900, 0, null,
+    { supports_household_discount: true, payment_count: null }),
+  plan('specialty_second_kickboxing', 'Kickboxing (second program)', 'Kickboxing', 'specialty', 'monthly', 3000, 0, null,
+    { sellable: false, payment_count: null }),
+  plan('specialty_jiujitsu', 'Jiu Jitsu', 'Jiu Jitsu', 'specialty', 'monthly', 9900, 0, null,
+    { supports_household_discount: true, payment_count: null }),
+  plan('specialty_second_jiujitsu', 'Jiu Jitsu (second program)', 'Jiu Jitsu', 'specialty', 'monthly', 3000, 0, null,
+    { sellable: false, payment_count: null }),
+];
+const fullStore = (over) => store({
+  pricing_plans: ALL_PLANS.map((p) => ({ ...p })),
+  products: [{ id: 'uni', name: 'Beginner uniform', price_cents: 8225, taxable: true, active: true },
+    { id: 'cubuni', name: 'Cubs uniform', price_cents: 6600, taxable: true, active: true }],
+  pricing_settings: [{ key: 'admin_fee_bps', value_cents: 290 }, { key: 'admin_fee_flat_cents', value_cents: 30 },
+    { key: 'household_specialty_discount_cents', value_cents: 1000 }],
+  ...over,
+});
+const memRows = (s) => s.memberships.map((m) => [m.contact_id, m.program, m.plan_code, m.final_down_cents, m.final_recurring_cents]);
+
+test('every family page offers every program, each with what its agreement and picker need', async () => {
+  const r = await call(fullStore(), 'juniors', 'GET');
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.family_choices.map((c) => [c.key, c.label, c.program, c.template_key, c.tkd]), [
+    ['juniors', 'Juniors', 'Juniors', 'taekwondo', true],
+    ['teens-adults', 'Teens & Adults', 'Teens/Adults', 'taekwondo', true],
+    ['cubs', 'Cubs', 'Cubs', 'cubs', false],
+    ['kickboxing', 'Kickboxing', 'Kickboxing', 'kickboxing', false],
+    ['jiu-jitsu', 'Jiu Jitsu', 'Jiu Jitsu', 'jiujitsu', false],
+    ['kickboxing-jiu-jitsu', 'Kickboxing + Jiu Jitsu', 'Kickboxing', 'kickboxing', false],
+  ]);
+  const c = r.body.family_choices;
+  assert.deepEqual([c[2].uniform_cents, c[0].uniform_cents, c[3].uniform_available], [6600, 8225, false]);
+  assert.deepEqual(c[5].add_on, { program: 'Jiu Jitsu', monthly_cents: 3000 });
+  for (const p of ['teens-adults', 'cubs', 'kickboxing', 'jiu-jitsu']) {
+    assert.equal((await call(fullStore(), p, 'GET')).body.family_choices.length, 6, p + ' does not take a family');
   }
-  const teens = fs.readFileSync(path.join(SITE, 'teens-adults-checkout', 'index.html'), 'utf8');
-  assert.ok(!teens.includes('cub_sibling'), 'the Teens and Adults page offers a Cub');
+  assert.deepEqual((await call(fullStore(), 'ampd', 'GET')).body.family_choices, [], "AMP'D takes a family");
+});
+
+test('a Cub, then their mom in Kickboxing: the Cubs option, and Kickboxing less the household discount', async () => {
+  const s = fullStore();
+  const r = await call(s, 'cubs', 'POST', enroll({
+    plan_code: 'cubs_option_b',
+    students: [{ first: 'June', last: 'Root', dob: '2022-05-01' },
+      { first: 'Katie', last: 'Root', dob: '1990-01-01', program: 'kickboxing' }],
+  }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(memRows(s), [
+    ['contacts-1', 'Cubs', 'cubs_option_b', 19900, 9000],
+    ['contacts-2', 'Kickboxing', 'specialty_kickboxing', 0, 8900],
+  ]);
+  const [a1, a2] = s.membership_agreements;
+  assert.deepEqual([a1.template_key, a2.template_key, a2.program], ['cubs', 'kickboxing', 'Kickboxing']);
+  assert.ok(a2.body_text.includes('Participant (Student) Name: Katie Root'));
+  assert.ok(a2.body_text.includes('Parent / Guardian: \n'), 'an adult family member was given a guardian');
+  assert.equal(a2.signer_relationship, 'Self', 'the mom signing for herself is not "Parent"');
+  assert.equal(a1.signer_relationship, 'Parent');
+  assert.deepEqual(s.contacts.map((c) => c.email), [null, 'katie@example.com'], 'the paying mom should own her email');
+  assert.deepEqual(s.enrollments.map((e) => e.program), ['Cubs', 'Kickboxing']);
+  assert.equal(s.pos_sales[0].total_cents, 28900 + 8900 + fee(28900 + 8900));
+  assert.ok(/June is enrolled in Cubs, and Katie in Kickboxing\./.test(s.pos_sales[0].customer_note), s.pos_sales[0].customer_note);
+});
+
+test('an adult kickboxer, then a Cub: Kickboxing at its rate, the Cub at the Cubs family rate', async () => {
+  const s = fullStore();
+  const r = await call(s, 'kickboxing', 'POST', enroll({
+    plan_code: 'specialty_kickboxing',
+    students: [{ first: 'Dan', last: 'Root', dob: '1985-01-01' }, { first: 'June', last: 'Root', dob: '2022-05-01', program: 'Cubs' }],
+  }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(memRows(s), [
+    ['contacts-1', 'Kickboxing', 'specialty_kickboxing', 0, 9900],
+    ['contacts-2', 'Cubs', 'cubs_family_second', 0, 10900],
+  ]);
+  assert.deepEqual(s.membership_agreements.map((a) => a.template_key), ['kickboxing', 'cubs']);
+  assert.equal(s.pos_sales[0].total_cents, 9900 + 10900 + fee(20800));
+});
+
+test('a Junior behind a Cub is the family\'s first Taekwondo student: they pick a regular option', async () => {
+  const kids = (pc) => enroll({ plan_code: 'cubs_option_c',
+    students: [{ first: 'June', last: 'Root', dob: '2022-05-01' },
+      { first: 'Max', last: 'Root', dob: '2018-03-03', program: 'Juniors', plan_code: pc }] });
+  const none = await call(fullStore(), 'cubs', 'POST', kids(''));
+  assert.equal(none.status, 400);
+  assert.ok(/Pick a payment option for Max/.test(none.body.error), none.body.error);
+  // The quote says so instead of refusing, and prices nothing until they pick.
+  const q0 = await call(fullStore(), 'cubs', 'POST', { ...kids(''), action: 'quote' });
+  assert.equal(q0.status, 200, JSON.stringify(q0.body));
+  assert.deepEqual([q0.body.complete, q0.body.students[1].needs_option, q0.body.total_cents], [false, true, null]);
+  const s = fullStore();
+  const r = await call(s, 'cubs', 'POST', kids('juniors_option_d'));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(memRows(s), [
+    ['contacts-1', 'Cubs', 'cubs_option_c', 9900, 10500],
+    ['contacts-2', 'Juniors', 'juniors_option_d', 12900, 12900],
+  ]);
+  const q = await call(fullStore(), 'cubs', 'POST', { ...kids('juniors_option_d'), action: 'quote' });
+  assert.equal(q.body.complete, true);
+  assert.equal(q.body.total_cents, s.pos_sales[0].total_cents, 'the quote and the charge disagree');
+  assert.deepEqual(q.body.students.map((x) => [x.program, x.plan.code, x.plan.due_today_cents]),
+    [['Cubs', 'cubs_option_c', 20400], ['Juniors', 'juniors_option_d', 25800]]);
+});
+
+test('a quote writes nothing and matches the charge, uniforms and all', async () => {
+  const body = enroll({
+    plan_code: 'juniors_option_d', uniforms: [true, true, false],
+    students: [{ first: 'Lincoln', last: 'Payne', dob: '2019-09-29' },
+      { first: 'June', last: 'Payne', dob: '2022-05-01', program: 'cubs' },
+      { first: 'Mom', last: 'Payne', dob: '1990-02-02', program: 'jiu-jitsu' }],
+  });
+  const qs = fullStore();
+  const q = await call(qs, 'juniors', 'POST', { ...body, action: 'quote', sale_id: undefined, signature_png: '' });
+  assert.equal(q.status, 200, JSON.stringify(q.body));
+  assert.equal(qs.contacts.length + qs.pos_sales.length + qs.memberships.length, 0, 'a quote wrote records');
+  assert.deepEqual(q.body.students.map((x) => [x.plan.code, x.plan.recurring_cents, x.uniform && x.uniform.cents]), [
+    ['juniors_option_d', 12900, 8225], ['cubs_family_second', 10900, 3300], ['specialty_jiujitsu', 8900, null],
+  ]);
+  const s = fullStore();
+  const r = await call(s, 'juniors', 'POST', body);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(q.body.total_cents, s.pos_sales[0].total_cents);
+  assert.ok(/Lincoln is enrolled in Juniors Taekwondo, June in Cubs, and Mom in Jiu Jitsu\./.test(s.pos_sales[0].customer_note),
+    s.pos_sales[0].customer_note);
+});
+
+test('Kickboxing + Jiu Jitsu for a family member: Kickboxing less the household discount, Jiu Jitsu added on', async () => {
+  const s = fullStore();
+  const r = await call(s, 'juniors', 'POST', enroll({
+    students: [{ first: 'Liam', last: 'Le', dob: '2018-01-01' },
+      { first: 'Dan', last: 'Le', dob: '1985-01-01', program: 'kickboxing-jiu-jitsu' }],
+  }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(memRows(s), [
+    ['contacts-1', 'Juniors', 'juniors_option_c', 25900, 11000],
+    ['contacts-2', 'Kickboxing', 'specialty_kickboxing', 0, 8900],
+    ['contacts-2', 'Jiu Jitsu', 'specialty_second_jiujitsu', 0, 3000],
+  ]);
+  assert.deepEqual(s.enrollments.map((e) => [e.student_id, e.program]),
+    [['contacts-1', 'Juniors'], ['contacts-2', 'Kickboxing'], ['contacts-2', 'Jiu Jitsu']]);
+  const dan = s.membership_agreements.filter((a) => a.contact_id === 'contacts-2');
+  assert.deepEqual(dan.map((a) => [a.template_key, a.program, a.plan_code]),
+    [['kickboxing', 'Kickboxing', 'specialty_kickboxing'], ['kickboxing', 'Jiu Jitsu', 'specialty_second_jiujitsu']]);
+  assert.ok(dan[0].body_text.includes('Add-on: Jiu Jitsu is $30.00 per month.'), dan[0].body_text.slice(0, 900));
+  assert.equal(s.contacts[1].email, null, 'an adult who is not the payer was given the payer\'s email');
+  assert.equal(s.pos_sales[0].total_cents, 36900 + 8900 + 3000 + fee(36900 + 11900));
+});
+
+test('a family that already trains here: a kickboxer gets the household discount, a Cub the Cubs family rate', async () => {
+  const fam = () => { const s = withSibling(); const f = fullStore(); s.pricing_plans = f.pricing_plans; s.pricing_settings = f.pricing_settings; s.products = f.products; return s; };
+  const s1 = fam();
+  const r1 = await call(s1, 'kickboxing', 'POST', enroll({ plan_code: 'specialty_kickboxing',
+    student_first: 'Katie', student_last: 'Root', student_dob: '1990-01-01' }));
+  assert.equal(r1.status, 200, JSON.stringify(r1.body));
+  assert.deepEqual(memRows(s1).filter((m) => m[0] !== 'samuel'), [['contacts-1', 'Kickboxing', 'specialty_kickboxing', 0, 8900]]);
+  const s2 = fam();
+  const r2 = await call(s2, 'cubs', 'POST', enroll({ plan_code: 'cubs_option_b',
+    student_first: 'June', student_last: 'Root', student_dob: '2022-05-01' }));
+  assert.equal(r2.status, 200, JSON.stringify(r2.body));
+  assert.deepEqual(memRows(s2).filter((m) => m[0] !== 'samuel'), [['contacts-1', 'Cubs', 'cubs_family_second', 0, 10900]]);
+});
+
+// The family rows: a program for each member, a payment option only when the
+// quote says they need one, their own uniform, and nothing priced on the page.
+test('the family script asks the server for every price and signs each member to their own program', () => {
+  const js = fs.readFileSync(path.join(SITE, 'assets', 'js', 'checkout-family.js'), 'utf8');
+  for (const need of ['data-f="program"', 'data-f="plan"', 'data-f="uniform"', 'b.action = "quote"', 'needs_option',
+    'c.template_key', 'program: m.choice ? m.choice.key', 'plan_code: m.planCode', 'Q.failSig === sig']) {
+    assert.ok(js.includes(need), 'checkout-family.js lacks ' + need);
+  }
+  assert.ok(!/cardFeeCents|tax_rate|\* CFG\.tax/.test(js), 'the family script works out a price itself');
+  assert.ok(!js.includes(String.fromCharCode(8212)), 'em dash in the family script');
 });
 
 (async () => {
