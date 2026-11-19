@@ -29,6 +29,7 @@
 
 /* Price lines */
 .lkc-line{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid #eee;font-size:.97rem}
+.lkc-line[hidden]{display:none}
 .lkc-line:last-child{border-bottom:none}
 .lkc-line .amt{font-variant-numeric:tabular-nums;white-space:nowrap}
 .lkc-total{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
@@ -182,21 +183,13 @@
     <form id="lkc-form" novalidate>
 
       <!-- 1 ─ the session: when it meets, every date, what it costs, the
-           t-shirt question, and only THEN the total (asking after showing a
-           total would make the number change under the reader). -->
+           t-shirt question. The lines and the total sit in Payment, by the card,
+           so nothing they pick changes a number they have already read. -->
       <div class="lkc-step">
         <h2>The Session</h2>
         <p class="lkc-when" id="lkc-when">Loading session details…</p>
         <ul class="lkc-dates" id="lkc-dates"></ul>
         <p class="cbc-policy-link"><button type="button" class="cbc-deck-link" id="cbc-deck">View pricing and policies</button></p>
-
-        <div id="lkc-prices" style="margin-top:14px">
-          <div class="lkc-line"><span>Little Kickers 6-week session</span><span class="amt" id="lkc-p-session">-</span></div>
-          <div class="lkc-line" id="lkc-r-shirt" hidden><span>Little Kickers t-shirt</span><span class="amt" id="lkc-p-shirt">-</span></div>
-          <div class="lkc-line" id="lkc-r-gray" hidden><span>Classic gray tee</span><span class="amt" id="lkc-p-gray">-</span></div>
-          <div class="lkc-line" id="lkc-r-tax" hidden><span>Sales tax</span><span class="amt" id="lkc-p-tax">-</span></div>
-          <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
-        </div>
 
         <div class="lkc-shirt" id="lkc-shirt-block" hidden>
           <label class="lkc-shirt-q" for="lkc-shirt">
@@ -243,13 +236,6 @@
               <option>Adult S</option><option>Adult M</option><option>Adult L</option><option>Adult XL</option><option>Adult 2XL</option>
             </select>
           </div>
-        </div>
-
-        <div class="lkc-total">
-          <span class="lbl">Total due today
-            <span class="sub">Belt &amp; certificate included</span>
-          </span>
-          <span class="amt" id="lkc-p-total">-</span>
         </div>
       </div>
 
@@ -358,6 +344,22 @@
       <div class="lkc-step">
         <h2>Payment</h2>
         <p class="step-sub">Card details go straight to Stripe. We never see or store the number.</p>
+        <!-- What they are paying, every line and the total, right where they pay it
+             (owner, 2026-11-18: "put the cart on the bottom by payment"). -->
+        <div id="lkc-prices">
+          <div class="lkc-line"><span>Little Kickers 6-week session</span><span class="amt" id="lkc-p-session">-</span></div>
+          <div class="lkc-line" id="lkc-r-shirt" hidden><span>Little Kickers t-shirt</span><span class="amt" id="lkc-p-shirt">-</span></div>
+          <div class="lkc-line" id="lkc-r-gray" hidden><span>Classic gray tee</span><span class="amt" id="lkc-p-gray">-</span></div>
+          <div class="lkc-line" id="lkc-r-tax" hidden><span>Sales tax</span><span class="amt" id="lkc-p-tax">-</span></div>
+          <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
+        </div>
+
+        <div class="lkc-total" style="margin-bottom:16px">
+          <span class="lbl">Total due today
+            <span class="sub">Belt &amp; certificate included</span>
+          </span>
+          <span class="amt" id="lkc-p-total">-</span>
+        </div>
         <div id="lkc-cardbox" class="lkc-cardbox"><div class="lkc-cardload">Loading secure card field…</div></div>
         <div id="lkc-carderr" class="lkc-carderr"></div>
         <div id="lkc-testnote"></div>

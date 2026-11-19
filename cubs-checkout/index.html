@@ -268,24 +268,6 @@
           <div id="cbc-addons"></div>
           <p class="tst-seatnote" id="cbc-addons-note" style="font-size:.82rem;color:#5b6570;margin:8px 0 0"></p>
         </div>
-
-        <div id="lkc-prices" style="margin-top:14px">
-          <div class="lkc-line" id="cbc-r-pick"><span>Pick an option above</span><span class="amt">-</span></div>
-          <div class="lkc-line" id="cbc-r-down" hidden><span>Down payment</span><span class="amt" id="cbc-p-down">-</span></div>
-          <div class="lkc-line" id="cbc-r-rec" hidden><span id="cbc-l-rec">Monthly payment</span><span class="amt" id="cbc-p-rec">-</span></div>
-          <div class="lkc-line" id="cbc-r-uni" hidden><span>Cubs uniform</span><span class="amt" id="cbc-p-uni">-</span></div>
-          <div id="cbc-r-addons"></div>
-          <div id="cbc-r-shirts"></div>
-          <div class="lkc-line" id="cbc-r-tax" hidden><span>Sales tax</span><span class="amt" id="cbc-p-tax">-</span></div>
-          <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
-        </div>
-
-        <div class="lkc-total">
-          <span class="lbl">Total due today
-            <span class="sub" id="cbc-after"></span>
-          </span>
-          <span class="amt" id="lkc-p-total">-</span>
-        </div>
       </div>
 
       <!-- 2 ─ the student -->
@@ -397,6 +379,25 @@
       <div class="lkc-step">
         <h2>Payment</h2>
         <p class="step-sub">Card details go straight to Stripe. We never see or store the number.</p>
+        <!-- What they are paying, every line and the total, right where they pay it
+             (owner, 2026-11-18: "put the cart on the bottom by payment"). -->
+        <div id="lkc-prices">
+          <div class="lkc-line" id="cbc-r-pick"><span>Pick an option above</span><span class="amt">-</span></div>
+          <div class="lkc-line" id="cbc-r-down" hidden><span>Down payment</span><span class="amt" id="cbc-p-down">-</span></div>
+          <div class="lkc-line" id="cbc-r-rec" hidden><span id="cbc-l-rec">Monthly payment</span><span class="amt" id="cbc-p-rec">-</span></div>
+          <div class="lkc-line" id="cbc-r-uni" hidden><span>Cubs uniform</span><span class="amt" id="cbc-p-uni">-</span></div>
+          <div id="cbc-r-addons"></div>
+          <div id="cbc-r-shirts"></div>
+          <div class="lkc-line" id="cbc-r-tax" hidden><span>Sales tax</span><span class="amt" id="cbc-p-tax">-</span></div>
+          <div class="lkc-line"><span>Card processing</span><span class="amt" id="lkc-p-fee">-</span></div>
+        </div>
+
+        <div class="lkc-total" style="margin-bottom:16px">
+          <span class="lbl">Total due today
+            <span class="sub" id="cbc-after"></span>
+          </span>
+          <span class="amt" id="lkc-p-total">-</span>
+        </div>
         <div id="lkc-cardbox" class="lkc-cardbox"><div class="lkc-cardload">Loading secure card field…</div></div>
         <div id="lkc-carderr" class="lkc-carderr"></div>
         <div id="lkc-testnote"></div>
