@@ -263,7 +263,7 @@ Deno.serve(async (req: Request) => {
       }
       const [pRes, vRes, tRes] = await Promise.all([
         admin.from("shop_products")
-          .select("id,title,display_title,image_url,item_type,category,logo_cents,art,flat_price_cents,package_role,set_order,lead_time_text,stocked")
+          .select("id,title,display_title,image_url,item_type,category,logo_cents,art,flat_price_cents,package_role,set_order,lead_time_text,stocked,blurb")
           .eq("active", true).order("set_order"),
         admin.from("shop_variants")
           .select("id,product_id,size,color,list_cents,rank_gate")
@@ -298,6 +298,9 @@ Deno.serve(async (req: Request) => {
             // boy), optional, or null for sold-on-its-own only.
             role: (p.package_role as string | null) ?? null,
             in_package: p.package_role === "required",
+            // A line of our own under the item (owner, 2026-11-19: the
+            // uniform is "at least $11.99 less" than jacket + pants).
+            blurb: (p.blurb as string | null) || null,
             logo: Number(p.logo_cents) > 0,
             art_labels: artLabels(p),
             lead_time_text: p.stocked === true ? null : (p.lead_time_text ?? null),

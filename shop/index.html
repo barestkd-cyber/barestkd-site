@@ -490,6 +490,7 @@
       + (p.logo ? " with the school logo" : "") + '</div>'
       + (p.art_labels && p.art_labels.length
           ? '<div class="sub" style="margin:2px 0 0">Comes with ' + esc(artWords(p.art_labels)) + '.</div>' : "")
+      + (p.blurb ? '<div class="sub" style="margin:2px 0 0">' + esc(p.blurb) + '</div>' : "")
       + (p.lead_time_text ? '<div class="sub" style="margin:2px 0 0">' + esc(p.lead_time_text) + '</div>' : "")
       + '</div>'
       + shotsHtml(p)
